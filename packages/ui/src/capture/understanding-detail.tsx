@@ -113,7 +113,7 @@ export function UnderstandingDetailHeader({
   onTitleBlur: () => void;
 }) {
   return (
-    <header className="space-y-4">
+    <header className="space-y-1">
       <div
         className={cn(
           "flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground",
@@ -123,7 +123,6 @@ export function UnderstandingDetailHeader({
         {focusMode ? null : (
           <>
             <span>{updatedLabel}</span>
-            <span aria-hidden>·</span>
             {onCanvasOpen && canvases.length > 0 ? (
               <Popover>
                 <PopoverTrigger
@@ -410,7 +409,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
 }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="mx-auto w-full max-w-4xl shrink-0 px-4 py-3 sm:px-6">{header}</div>
+      <div className="mx-auto w-full max-w-4xl shrink-0 px-4 pt-3 sm:px-6">{header}</div>
       <article
         ref={articleRef}
         className="mx-auto min-h-0 w-full max-w-4xl flex-1 overflow-y-auto px-4 pb-3 sm:px-6"

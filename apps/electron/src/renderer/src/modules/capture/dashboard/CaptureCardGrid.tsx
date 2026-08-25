@@ -21,11 +21,8 @@ import type { CaptureAgentScope } from "../store";
 import { useAtomValue } from "@effect/atom-react";
 import { selectedUnderstandingIdAtom } from "../store";
 import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../queries";
-import {
-  collectChatEntityReferences,
-  type ChatEntityReference,
-  type ResolveChatEntity,
-} from "@reflecta/ui/chat";
+import { collectEntityReferences } from "@reflecta/shared";
+import { type ChatEntityReference, type ResolveChatEntity } from "@reflecta/ui/chat";
 import { buildUnderstandingCardView } from "./card-view";
 import {
   entityPresentationKey,
@@ -76,9 +73,7 @@ function useCardEntityPresentations(understandings: readonly UnderstandingSummar
   );
   const entityReferences = useMemo(
     () =>
-      understandings.flatMap((understanding) =>
-        collectChatEntityReferences(understanding.body ?? ""),
-      ),
+      understandings.flatMap((understanding) => collectEntityReferences(understanding.body ?? "")),
     [understandings],
   );
   const remoteReferences = useMemo(

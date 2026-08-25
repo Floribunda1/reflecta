@@ -13,12 +13,7 @@ import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-
 import { Input } from "@reflecta/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
 import { markdownEquals, MarkdownEditor, MarkdownPreview } from "@reflecta/ui/editor";
-import {
-  collectChatEntityReferences,
-  type ChatEntityPresentation,
-  type ChatEntityReference,
-  type ResolveChatEntity,
-} from "@reflecta/ui/chat";
+import { type ResolveChatEntity } from "@reflecta/ui/chat";
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
@@ -27,8 +22,7 @@ import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Maximize2, Minimize2, X } from "lucide-react";
-import { useQueries } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { useAtomValue } from "@effect/atom-react";
 import { activeContextIdAtom, captureActions, draftAtom, type CaptureAgentScope } from "../store";
@@ -37,7 +31,8 @@ import {
   getMarkdownEditorSuggestions,
   uploadMarkdownAsset,
 } from "../adapters/markdown-editor-adapter";
-import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../queries";
+import { useCaptureDomains } from "../queries";
+import { useEntityDisplayResolver } from "../use-entity-display-resolver";
 
 type UnderstandingDetailProps = {
   understandingId: string;
@@ -307,35 +302,7 @@ function UnderstandingDetailInner({
     [onFocusModeChange],
   );
   const referenceSource = draft?.body ?? understanding?.body ?? "";
-  const entityReferences = useMemo(
-    () => collectChatEntityReferences(referenceSource),
-    [referenceSource],
-  );
-  const entityQueries = useQueries({
-    queries: entityReferences.map((reference) => ({
-      queryKey: captureQueryKeys.entityDisplay(reference),
-      queryFn: () => getEntityDisplay(reference),
-    })),
-  });
-  const entityPresentations = useMemo(() => {
-    const result = new Map<string, ChatEntityPresentation>();
-    entityReferences.forEach((reference, index) => {
-      const query = entityQueries[index];
-      if (query?.data) {
-        result.set(`${reference.type}:${reference.id}`, {
-          state: "ready",
-          label: query.data.title || reference.id,
-          canOpen: reference.type !== "domain",
-        });
-      }
-    });
-    return result;
-  }, [entityQueries, entityReferences]);
-  const resolveWikiLink = useCallback(
-    (reference: ChatEntityReference) =>
-      entityPresentations.get(`${reference.type}:${reference.id}`),
-    [entityPresentations],
-  );
+  const resolveWikiLink = useEntityDisplayResolver(referenceSource);
 
   useEffect(() => {
     if (!understanding) return;

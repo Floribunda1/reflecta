@@ -183,6 +183,54 @@ describe("reflecta milkdown editor", () => {
     expect(getMilkdownMarkdown(editor)).toContain("[[u:understanding-1]]");
   });
 
+  test("parses [[cv:id]] canvas refs like the chat codec", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "画布 [[cv:canvas-1]]",
+    });
+    editors.push(editor);
+
+    const link = root.querySelector<HTMLAnchorElement>('a[data-wiki-link="canvas-1"]');
+    expect(link?.dataset.entityType).toBe("canvas");
+    expect(link?.textContent).toBe("canvas-1");
+    expect(getMilkdownMarkdown(editor)).toContain("[[cv:canvas-1]]");
+  });
+
+  test("keeps wiki refs inside Markdown link labels literal (label protection)", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "[label [[u:lbl]]](https://example.test)",
+    });
+    editors.push(editor);
+
+    const wiki = root.querySelector<HTMLAnchorElement>("a[data-wiki-link]");
+    expect(wiki).toBeNull();
+    // label 内的引用保持字面：序列化会正确回转为转义形态（markdown 的合法字面量写法）
+    expect(getMilkdownMarkdown(editor)).toContain("https://example.test");
+    expect(getMilkdownMarkdown(editor)).toContain("\\[\\[u:lbl\\]\\]");
+  });
+
+  test("does not turn refs inside fenced code into wiki links", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "```ts\nconst ref = '[[u:code]]'\n```",
+    });
+    editors.push(editor);
+
+    const wiki = root.querySelector<HTMLAnchorElement>('a[data-wiki-link="code"]');
+    expect(wiki).toBeNull();
+    expect(getMilkdownMarkdown(editor)).toContain("[[u:code]]");
+  });
+
   test("uses the Crepe upload hook for pasted images and videos", async () => {
     const root = document.createElement("div");
     document.body.append(root);

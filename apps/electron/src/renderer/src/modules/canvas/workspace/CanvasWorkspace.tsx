@@ -1,8 +1,8 @@
 import { useLatest } from "ahooks";
 import { Effect } from "effect";
 import { runPromise } from "@renderer/lib/effect-runtime";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { useQueryClient, useQueries } from "@tanstack/react-query";
+import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "@effect/atom-react";
 import {
   CanvasGraph,
@@ -14,11 +14,6 @@ import {
   type CanvasUnderstandingRefView,
   type CanvasViewport,
 } from "@reflecta/ui/canvas";
-import {
-  collectChatEntityReferences,
-  type ChatEntityPresentation,
-  type ChatEntityReference,
-} from "@reflecta/ui/chat";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import { ResizablePanel, ResizablePanelGroup } from "@reflecta/ui/components/resizable";
 import {
@@ -29,7 +24,7 @@ import {
   useSaveCanvasMutation,
   useUpdateViewportMutation,
 } from "../queries";
-import { captureQueryKeys, getEntityDisplay } from "../../capture/queries";
+import { useEntityDisplayResolver } from "../../capture/use-entity-display-resolver";
 import {
   canvasHydrateAtom,
   canvasUnderstandingPreviewsAtom,
@@ -219,35 +214,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     () => (detail?.understandingRefs ?? []).map((ref) => ref.body).join("\n"),
     [detail],
   );
-  const entityReferences = useMemo(
-    () => collectChatEntityReferences(referenceSource),
-    [referenceSource],
-  );
-  const entityQueries = useQueries({
-    queries: entityReferences.map((reference) => ({
-      queryKey: captureQueryKeys.entityDisplay(reference),
-      queryFn: () => getEntityDisplay(reference),
-    })),
-  });
-  const entityPresentations = useMemo(() => {
-    const result = new Map<string, ChatEntityPresentation>();
-    entityReferences.forEach((reference, index) => {
-      const title = entityQueries[index]?.data?.title;
-      if (title) {
-        result.set(`${reference.type}:${reference.id}`, {
-          state: "ready",
-          label: title,
-          canOpen: reference.type !== "domain",
-        });
-      }
-    });
-    return result;
-  }, [entityQueries, entityReferences]);
-  const resolveWikiLink = useCallback(
-    (reference: ChatEntityReference) =>
-      entityPresentations.get(`${reference.type}:${reference.id}`),
-    [entityPresentations],
-  );
+  const resolveWikiLink = useEntityDisplayResolver(referenceSource);
 
   const shapeData = useMemo<CanvasShapeData>(() => {
     const refMap = new Map<string, CanvasReferencedCanvasView>();

@@ -1,16 +1,15 @@
 import { runPromise } from "@renderer/lib/effect-runtime";
 import {
-  formatUnderstandingWikiLink,
   type MarkdownAssetUploader,
   type MarkdownEditorSuggestion,
   type MarkdownEditorSuggestionSource,
 } from "@reflecta/ui/editor";
+import { formatEntityReference, replaceEntityReferences } from "@reflecta/shared";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { rpc } from "@renderer/lib/effect-rpc";
 
 const suggestionLimit = 8;
 const fallbackTitle = "未命名理解";
-const wikiLinkPattern = /\[\[[ucd]:[A-Za-z0-9_-]+\]\]/g;
 
 function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
   const title = understanding.title?.trim();
@@ -26,8 +25,7 @@ function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
 
 function toSuggestion(understanding: UnderstandingSummaryDTO): MarkdownEditorSuggestion {
   const label = getUnderstandingTitle(understanding);
-  const preview = understanding.body
-    .replace(wikiLinkPattern, "")
+  const preview = replaceEntityReferences(understanding.body, () => "")
     .replaceAll(/!\[([^\]]*)]\([^)]+\)/g, "$1")
     .replaceAll(/\[([^\]]+)]\([^)]+\)/g, "$1")
     .replaceAll(/[`*_~>#-]/g, "")
@@ -42,7 +40,7 @@ function toSuggestion(understanding: UnderstandingSummaryDTO): MarkdownEditorSug
     type: "understanding",
     label,
     ...(preview ? { preview } : {}),
-    markdown: formatUnderstandingWikiLink({ id: understanding.id, title: label }),
+    markdown: formatEntityReference({ type: "understanding", id: understanding.id }),
   };
 }
 

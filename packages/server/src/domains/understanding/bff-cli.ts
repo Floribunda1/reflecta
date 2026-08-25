@@ -25,7 +25,7 @@ import type {
 } from "@reflecta/shared";
 import { getUnderstandingMentionCounts } from "./core";
 import { toUnderstandingSummaries } from "./core";
-import { extractUnderstandingWikiLinks, formatUnderstandingWikiLink } from "@reflecta/shared";
+import { formatEntityReference, scanEntityReferences } from "@reflecta/shared";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class UnderstandingCliBff extends UnderstandingCore {
@@ -166,7 +166,12 @@ export class UnderstandingCliBff extends UnderstandingCore {
     row: typeof understandings.$inferSelect,
     summary: UnderstandingSummary,
   ): Promise<UnderstandingMentionRef[]> {
-    const outgoingLinks = extractUnderstandingWikiLinks(row.body);
+    // 理解正文里的 u 引用（u-only：mentions 只记录理解↔理解）
+    const understandingLinks = (body: string) =>
+      scanEntityReferences(body)
+        .filter((hit) => hit.reference.type === "understanding")
+        .map((hit) => ({ target: hit.reference.id, rawText: hit.source }));
+    const outgoingLinks = understandingLinks(row.body);
     const [outgoingRows, incomingRows] = await Promise.all([
       this.db
         .select()
@@ -197,7 +202,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
         sourceUnderstandingId: row.id,
         targetUnderstandingId: targetRow?.id ?? null,
         sourceTitle: summary.title,
-        targetTitle: targetRow?.title ?? link.title,
+        targetTitle: targetRow?.title ?? null,
         rawText: link.rawText,
         resolved: Boolean(targetRow),
       };
@@ -206,7 +211,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
     for (const mention of incomingRows) {
       const sourceRow = relatedById.get(mention.sourceId);
       if (!sourceRow) continue;
-      const sourceLinks = extractUnderstandingWikiLinks(sourceRow.body);
+      const sourceLinks = understandingLinks(sourceRow.body);
       const sourceLink = sourceLinks.find((link) => link.target === row.id);
       mentions.push({
         direction: "incoming",
@@ -215,11 +220,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
         sourceTitle: sourceRow.title ?? null,
         targetTitle: summary.title,
         rawText:
-          sourceLink?.rawText ??
-          formatUnderstandingWikiLink({
-            title: summary.title ?? row.id,
-            id: row.id,
-          }),
+          sourceLink?.rawText ?? formatEntityReference({ type: "understanding", id: row.id }),
         resolved: true,
       });
     }

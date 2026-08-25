@@ -2,23 +2,12 @@ import { $nodeSchema, $prose, $remark } from "@milkdown/utils";
 import { keymap } from "@milkdown/prose/keymap";
 import { TextSelection, type Command } from "@milkdown/prose/state";
 import { visit } from "unist-util-visit";
+import { prefixByEntityType, scanEntityReferences } from "@reflecta/shared";
 import {
   entityClassName,
   EDITOR_ENTITY_ICON_FONT_SIZE,
   entityIconDomNode,
 } from "../chat/entity-visual";
-
-const wikiLinkPattern = /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g;
-const entityTypeByPrefix = {
-  u: "understanding",
-  c: "context",
-  d: "domain",
-} as const;
-const prefixByEntityType = {
-  understanding: "u",
-  context: "c",
-  domain: "d",
-} as const;
 
 function cleanWikiValue(value: unknown): string {
   return String(value ?? "")
@@ -43,27 +32,30 @@ const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => {
     const textNode = node as TextNode;
     const parentNode = parent as AstParent | undefined;
     if (!parentNode || typeof index !== "number") return;
+    // 围栏代码块 / 行内代码在 mdast 里不是 text 节点，天然跳过；
+    // 链接 / 图片 label 内的文本保持原样（避免 `[label [[u:id]]](url)` 的 label
+    // 被拆成孤立链接——与 codec 的 protectLinkLabels 一致）。
+    if (parentNode.type === "link" || parentNode.type === "image") return;
 
     const value = String(textNode.value ?? "");
+    // 编辑器内容域：转义引用（\[[...]]）按链接渲染（remark 已剥掉反斜杠，
+    // server 保存时 normalizeEntityReferenceEscapes 也会归一化），故不保护转义。
+    const hits = scanEntityReferences(value, { protectEscapes: false });
+    if (hits.length === 0) return;
+
     const replacements: Array<TextNode | WikiLinkNode> = [];
     let cursor = 0;
-
-    for (const match of value.matchAll(wikiLinkPattern)) {
-      const start = match.index ?? -1;
-      if (start < 0) continue;
-      if (start > cursor) {
-        replacements.push({ type: "text", value: value.slice(cursor, start) });
+    for (const hit of hits) {
+      if (hit.start > cursor) {
+        replacements.push({ type: "text", value: value.slice(cursor, hit.start) });
       }
-
       replacements.push({
         type: "wikiLink",
-        entityType: entityTypeByPrefix[match[1] as keyof typeof entityTypeByPrefix],
-        id: cleanWikiValue(match[2]),
+        entityType: hit.reference.type,
+        id: cleanWikiValue(hit.reference.id),
       });
-      cursor = start + match[0].length;
+      cursor = hit.end;
     }
-
-    if (replacements.length === 0) return;
     if (cursor < value.length) {
       replacements.push({ type: "text", value: value.slice(cursor) });
     }

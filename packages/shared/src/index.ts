@@ -9,7 +9,7 @@ export * from "./config/schema";
 export * from "./app/profile";
 export * from "./app/asset";
 export * from "./app/about";
-export * from "./app/wiki-links";
+export * from "./app/entity-reference-codec";
 export * from "./capture/domain";
 export * from "./capture/search";
 export * from "./capture/context";

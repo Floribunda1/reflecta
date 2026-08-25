@@ -2,11 +2,10 @@ import type { AgentReducedMessage } from "@shared/agent";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import {
   ChatThreadActionMenuItems,
-  collectChatEntityReferences,
-  replaceChatEntityReferences,
   type ChatThreadAction,
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
+import { collectEntityReferences, replaceEntityReferences } from "@reflecta/shared";
 import { toast } from "@reflecta/ui/components/toast";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
@@ -25,7 +24,7 @@ function referenceTypeLabel(reference: ChatEntityReference) {
 export async function exportThreadMarkdown(title: string, messages: AgentReducedMessage[]) {
   const references = new Map<string, ChatEntityReference>();
   for (const message of messages) {
-    for (const reference of collectChatEntityReferences(message.text)) {
+    for (const reference of collectEntityReferences(message.text)) {
       references.set(referenceKey(reference), reference);
     }
   }
@@ -47,7 +46,7 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
 
   const parts = [`# ${title.trim() || "Agent 对话"}`];
   for (const message of messages) {
-    const text = replaceChatEntityReferences(
+    const text = replaceEntityReferences(
       message.text.trim(),
       (reference, source) => labels.get(referenceKey(reference)) ?? source,
     );

@@ -8,10 +8,7 @@ import {
   understandingMentions,
   understandings,
 } from "../../db/schema";
-import {
-  extractUnderstandingWikiLinkTargets,
-  normalizeUnderstandingWikiLinkBody,
-} from "@reflecta/shared";
+import { collectEntityReferences, normalizeEntityReferenceEscapes } from "@reflecta/shared";
 import { getDomainDescendants } from "../domain/core";
 import type { ReflectaDb } from "../../db/types";
 import type { UnderstandingSummary } from "./types";
@@ -156,7 +153,7 @@ export class UnderstandingCore {
     return Effect.gen(function* () {
       const createdAt = new Date().toISOString();
       const id = createEntityId();
-      const body = normalizeUnderstandingWikiLinkBody(input.body) ?? "";
+      const body = normalizeEntityReferenceEscapes(input.body) ?? "";
       yield* assertDomainIdsExist(input.domainIds);
 
       yield* Effect.sync(() => {
@@ -206,7 +203,7 @@ export class UnderstandingCore {
       const updates: Partial<typeof understandings.$inferInsert> = {
         updatedAt: new Date().toISOString(),
       };
-      const normalizedBody = normalizeUnderstandingWikiLinkBody(input.body);
+      const normalizedBody = normalizeEntityReferenceEscapes(input.body);
       yield* assertDomainIdsExist(input.domainIds);
       if (normalizedBody !== undefined) updates.body = normalizedBody;
       if (input.title !== undefined) updates.title = input.title;
@@ -306,7 +303,9 @@ export class UnderstandingCore {
   syncWikiLinkMentions(sourceId: string, body: string): Effect.Effect<void> {
     const db = this.db;
     return Effect.sync(() => {
-      const linkTargets = extractUnderstandingWikiLinkTargets(body);
+      const linkTargets = collectEntityReferences(body)
+        .filter((reference) => reference.type === "understanding")
+        .map((reference) => reference.id);
 
       db.transaction((tx) => {
         tx.delete(understandingMentions).where(eq(understandingMentions.sourceId, sourceId)).run();

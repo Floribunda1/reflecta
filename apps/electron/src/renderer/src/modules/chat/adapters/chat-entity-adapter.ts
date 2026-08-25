@@ -2,11 +2,11 @@ import { useLatest } from "ahooks";
 import { useCallback, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
-  collectChatEntityReferences,
   type ChatEntityBindings,
   type ChatEntityPresentation,
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
+import { collectEntityReferences } from "@reflecta/shared";
 import { captureQueryKeys, getEntityDisplay, type EntityDisplay } from "../../capture/queries";
 import type { InspectableContextRef } from "../context/context-reference";
 
@@ -28,7 +28,7 @@ export function useChatEntityBindings(
   const references = useMemo(() => {
     const unique = new Map<string, ChatEntityReference>();
     for (const markdown of markdownValues) {
-      for (const reference of collectChatEntityReferences(markdown)) {
+      for (const reference of collectEntityReferences(markdown)) {
         unique.set(referenceKey(reference), reference);
       }
     }

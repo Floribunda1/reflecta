@@ -17,7 +17,7 @@ import type { ChatEntityBindings, ChatEntityPresentation, ChatEntityReference } 
 import { entityClassName, ENTITY_ICON_CLASS, entityIcon } from "../entity-visual";
 import { createChatSearchRehypePlugin, useChatSearchState } from "../message/chat-search";
 import { entityHref, isEntityHref, parseEntityHref } from "./entity-href";
-import { collectChatEntityReferences, replaceChatEntityReferences } from "./entity-reference-codec";
+import { collectEntityReferences, replaceEntityReferences } from "@reflecta/shared";
 import "katex/dist/katex.min.css";
 import "streamdown/styles.css";
 import "./markdown-theme.scss";
@@ -183,10 +183,10 @@ export function ChatMarkdown({
   const searchState = useChatSearchState();
   const { forcedTheme, resolvedTheme } = useTheme();
   const bindings = useMemo(() => ({ resolveEntity, onEntityOpen }), [onEntityOpen, resolveEntity]);
-  const markdown = replaceChatEntityReferences(value, (reference) => {
+  const markdown = replaceEntityReferences(value, (reference) => {
     return `[${reference.type}:${reference.id}](${entityHref(reference)})`;
   });
-  const entityRenderKey = collectChatEntityReferences(value)
+  const entityRenderKey = collectEntityReferences(value)
     .map((reference) => {
       const presentation = resolveEntity?.(reference);
       return presentation

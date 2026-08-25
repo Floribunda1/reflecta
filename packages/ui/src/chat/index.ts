@@ -20,12 +20,6 @@ export {
   type ChatComposerDocumentNode,
 } from "./composer/document";
 export { ChatMarkdown, type ChatMarkdownProps } from "./markdown/chat-markdown";
-export {
-  collectChatEntityReferences,
-  formatChatEntityReference,
-  parseChatEntityReference,
-  replaceChatEntityReferences,
-} from "./markdown/entity-reference-codec";
 export { AgentActivityGroup, type AgentActivityGroupProps } from "./execution/agent-activity-group";
 export {
   AgentContextCompactionStatus,
@@ -100,7 +94,7 @@ export type {
   ChatEntityTypeFilter,
   ResolveChatEntity,
 } from "./entity";
-export { entityIcon } from "./entity-visual";
+export { entityIcon, entityKey } from "./entity-visual";
 export {
   ChatThreadActionMenuItems,
   ChatThreadSidebar,
