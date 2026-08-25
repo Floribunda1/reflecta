@@ -12,7 +12,7 @@ import {
 } from "../../components/attachment";
 import { cn } from "#lib/utils";
 import { attachmentMeta } from "#lib/file-meta";
-import type { ChatEntityBindings } from "../entity";
+import type { ChatEntityBindings, MarkdownRenderer } from "../entity";
 import {
   entityClassName,
   CHAT_ENTITY_ICON_FONT_SIZE,
@@ -50,6 +50,8 @@ export type AgentMessageViewProps = {
   message: ChatAssistantMessageView;
   search?: { query: string };
   entityBindings?: ChatEntityBindings;
+  /** 画布/提案卡里的 Markdown 渲染：renderer 传入解析版组件（默认不解析）。 */
+  renderMarkdown?: MarkdownRenderer;
   onProposalDecision?: (decision: AgentProposalDecision) => void;
 };
 
@@ -57,6 +59,8 @@ export type ChatMessageRowProps = {
   row: ChatMessageRowView;
   search?: { query: string };
   entityBindings?: ChatEntityBindings;
+  /** 画布/提案卡里的 Markdown 渲染：renderer 传入解析版组件（默认不解析）。 */
+  renderMarkdown?: MarkdownRenderer;
   onAction?: (action: ChatMessageAction) => void;
   onEntityOpen?: (entity: ChatMessageEntityView) => void;
   /** 附件打开（有本地路径时用系统应用打开）。 */
@@ -311,6 +315,7 @@ function tailWorkingLabel(message: ChatAssistantMessageView) {
 function AgentMessageContent({
   message,
   entityBindings,
+  renderMarkdown,
   onProposalDecision,
 }: Omit<AgentMessageViewProps, "search">) {
   const renderedBlocks: ReactNode[] = [];
@@ -381,7 +386,9 @@ function AgentMessageContent({
     }
 
     if (block.kind === "canvas-view") {
-      renderedBlocks.push(<AgentCanvasView key={block.id} block={block} />);
+      renderedBlocks.push(
+        <AgentCanvasView key={block.id} block={block} renderMarkdown={renderMarkdown} />,
+      );
       continue;
     }
 
@@ -424,6 +431,7 @@ export function AgentMessageView({
   message,
   search,
   entityBindings,
+  renderMarkdown,
   onProposalDecision,
 }: AgentMessageViewProps) {
   return (
@@ -431,6 +439,7 @@ export function AgentMessageView({
       <AgentMessageContent
         message={message}
         entityBindings={entityBindings}
+        renderMarkdown={renderMarkdown}
         onProposalDecision={onProposalDecision}
       />
     </ChatSearchProvider>
@@ -448,6 +457,7 @@ export function ChatMessageRow({
   row,
   search,
   entityBindings,
+  renderMarkdown,
   onAction,
   onEntityOpen,
   onAttachmentOpen,
@@ -477,6 +487,7 @@ export function ChatMessageRow({
           <AgentMessageContent
             message={message}
             entityBindings={entityBindings}
+            renderMarkdown={renderMarkdown}
             onProposalDecision={onProposalDecision}
           />
         )}

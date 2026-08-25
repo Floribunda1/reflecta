@@ -15,7 +15,7 @@ import { MarkdownEditor } from "../editor/markdown-editor";
 import { Button } from "../components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { cn } from "../lib/utils";
-import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
+import type { ChatEntityReference, MarkdownRenderer } from "../chat/entity";
 import { Skeleton } from "../components/skeleton";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasDocument } from "@reflecta/shared";
@@ -151,7 +151,8 @@ export type CanvasUnderstandingCardProps = {
   readonly?: boolean;
   multiSelected?: boolean;
   understandingId?: string;
-  resolveWikiLink?: ResolveChatEntity;
+  /** 本体渲染：调用方传入解析版 Markdown 组件（默认不解析） */
+  renderMarkdown?: MarkdownRenderer;
   onWikiLinkOpen?: (reference: ChatEntityReference) => void;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -171,13 +172,14 @@ export function CanvasUnderstandingCard({
   readonly = false,
   multiSelected = false,
   understandingId = "",
-  resolveWikiLink,
+  renderMarkdown,
   onWikiLinkOpen,
   onEdit,
   onRemove,
   onColorChange,
   onOpenDetail,
 }: CanvasUnderstandingCardProps) {
+  const RenderMarkdown = renderMarkdown ?? MarkdownPreview;
   return (
     <div
       data-testid="canvas-understanding-card"
@@ -216,12 +218,7 @@ export function CanvasUnderstandingCard({
                 <Skeleton className="h-3 w-3/5" />
               </div>
             ) : (
-              <MarkdownPreview
-                value={body}
-                zoomImages={false}
-                resolveWikiLink={resolveWikiLink}
-                onWikiLinkOpen={onWikiLinkOpen}
-              />
+              <RenderMarkdown value={body} zoomImages={false} onWikiLinkOpen={onWikiLinkOpen} />
             )}
           </div>
         </>

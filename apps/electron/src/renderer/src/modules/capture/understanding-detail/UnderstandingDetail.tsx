@@ -12,8 +12,8 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/co
 import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import { Input } from "@reflecta/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
-import { markdownEquals, MarkdownEditor, MarkdownPreview } from "@reflecta/ui/editor";
-import { type ResolveChatEntity } from "@reflecta/ui/chat";
+import { markdownEquals } from "@reflecta/ui/editor";
+import { MarkdownEditor, MarkdownPreview, SimpleMarkdownPreview } from "../resolved-markdown";
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
@@ -32,7 +32,6 @@ import {
   uploadMarkdownAsset,
 } from "../adapters/markdown-editor-adapter";
 import { useCaptureDomains } from "../queries";
-import { useEntityDisplayResolver } from "../use-entity-display-resolver";
 
 type UnderstandingDetailProps = {
   understandingId: string;
@@ -77,13 +76,11 @@ export function ContextPreviewDrawerContent({
   focusMode = false,
   onFocusModeChange,
   onClose,
-  resolveWikiLink,
 }: {
   context: ContextDTO;
   focusMode?: boolean;
   onFocusModeChange?: (focused: boolean) => void;
   onClose?: () => void;
-  resolveWikiLink?: ResolveChatEntity;
 }) {
   const meta = CONTEXT_META[context.medium];
   const Icon = meta.Icon;
@@ -137,7 +134,7 @@ export function ContextPreviewDrawerContent({
 
         <section className="mt-5">
           {context.content ? (
-            <MarkdownPreview value={context.content} resolveWikiLink={resolveWikiLink} />
+            <MarkdownPreview value={context.content} />
           ) : (
             <div className="text-sm text-muted-foreground">空上下文。</div>
           )}
@@ -161,7 +158,7 @@ export function ContextPreviewDrawerContent({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {context.content ? (
-          <MarkdownPreview value={context.content} resolveWikiLink={resolveWikiLink} />
+          <MarkdownPreview value={context.content} />
         ) : (
           <div className="text-sm text-muted-foreground">
             空上下文，可以通过右键菜单编辑补充内容。
@@ -301,8 +298,6 @@ function UnderstandingDetailInner({
     },
     [onFocusModeChange],
   );
-  const referenceSource = draft?.body ?? understanding?.body ?? "";
-  const resolveWikiLink = useEntityDisplayResolver(referenceSource);
 
   useEffect(() => {
     if (!understanding) return;
@@ -397,7 +392,7 @@ function UnderstandingDetailInner({
         widthClassName: CONTEXT_DRAWER_WIDTH_CLASS,
         onClose: () => setActiveContextId(null),
       },
-      <ContextPreviewDrawerContent context={context} resolveWikiLink={resolveWikiLink} />,
+      <ContextPreviewDrawerContent context={context} />,
     );
   };
 
@@ -454,7 +449,6 @@ function UnderstandingDetailInner({
           placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
           uploadAsset={uploadMarkdownAsset}
           getSuggestions={getMarkdownEditorSuggestions}
-          resolveWikiLink={resolveWikiLink}
           onChange={(next) => {
             if (markdownEquals(next, body)) return;
             updateDraftBody(next);
@@ -483,7 +477,7 @@ function UnderstandingDetailInner({
       onPreviewContext={openContextPreview}
       onEditContext={openContextDrawer}
       onDeleteContext={handleDeleteContext}
-      resolveWikiLink={resolveWikiLink}
+      renderMarkdown={SimpleMarkdownPreview}
     />
   );
 }

@@ -38,6 +38,7 @@ import {
   type AgentViewPresentation,
 } from "../messages/agent-turn-view";
 import { useChatEntityBindings } from "./chat-entity-adapter";
+import { MarkdownPreview } from "../../capture/resolved-markdown";
 
 type ApproveToolInputBase = {
   messageId: string;
@@ -342,6 +343,7 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
       row={row}
       search={findQuery?.trim() ? { query: findQuery } : undefined}
       entityBindings={entityBindings}
+      renderMarkdown={MarkdownPreview}
       onAction={(action) => void handleAction(action)}
       onEntityOpen={(entity) => {
         if (entity.type === "domain") return;

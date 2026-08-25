@@ -8,7 +8,7 @@ import {
   ContextMenuTrigger,
 } from "../components/context-menu";
 import { cn } from "#lib/utils";
-import type { ResolveChatEntity } from "../chat/entity";
+import type { MarkdownRenderer } from "../chat/entity";
 import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 
 export type UnderstandingCardView = {
@@ -32,8 +32,8 @@ export type UnderstandingCardProps = {
   selected?: boolean;
   canChat?: boolean;
   actionsDisabled?: boolean;
-  /** 实体引用解析（id → label），用于 body 摘要里的 [[u:id]] 显示标题 */
-  resolveWikiLink?: ResolveChatEntity;
+  /** 实体引用解析（id → label）：渲染 body 摘要时由调用方提供解析版 Markdown 组件（默认不解析） */
+  renderMarkdown?: MarkdownRenderer;
   onSelect: (id: string) => void;
   onAction: (action: UnderstandingCardAction) => void;
 };
@@ -50,10 +50,11 @@ export const UnderstandingCard = memo(function UnderstandingCard({
   selected = false,
   canChat = false,
   actionsDisabled = false,
-  resolveWikiLink,
+  renderMarkdown,
   onSelect,
   onAction,
 }: UnderstandingCardProps) {
+  const RenderMarkdown = renderMarkdown ?? SimpleMarkdownPreview;
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -80,11 +81,7 @@ export const UnderstandingCard = memo(function UnderstandingCard({
 
             <div className="min-w-0 flex-1 text-sm leading-5 text-muted-foreground">
               {understanding.body ? (
-                <SimpleMarkdownPreview
-                  value={understanding.body}
-                  lineClamp={PREVIEW_LINES}
-                  resolveWikiLink={resolveWikiLink}
-                />
+                <RenderMarkdown value={understanding.body} lineClamp={PREVIEW_LINES} />
               ) : (
                 <span>空理解，可以直接开始写。</span>
               )}

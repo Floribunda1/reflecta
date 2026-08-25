@@ -24,6 +24,21 @@ export type ResolveChatEntity = (
   reference: ChatEntityReference,
 ) => ChatEntityPresentation | undefined;
 
+/**
+ * renderMarkdown render-prop 的 props：组合组件把 Markdown 渲染委派给调用方。
+ * App 层（renderer）传入带实体引用解析（请求逻辑）的解析版组件，packages/ui 不感知请求。
+ */
+export type MarkdownRenderProps = {
+  value: string;
+  /** SimpleMarkdownPreview：摘要截断行数（卡片按行截断时传入）。 */
+  lineClamp?: number;
+  zoomImages?: boolean;
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
+  className?: string;
+};
+
+export type MarkdownRenderer = import("react").ComponentType<MarkdownRenderProps>;
+
 export type ChatEntityBindings = {
   resolveEntity?: ResolveChatEntity;
   onEntityOpen?: (reference: ChatEntityReference) => void;

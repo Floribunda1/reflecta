@@ -4,6 +4,7 @@ import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { CanvasDetailDTO } from "@reflecta/shared";
 import { ReadOnlyCanvasCard } from "@reflecta/ui/canvas";
+import { MarkdownPreview } from "../../capture/resolved-markdown";
 import { Empty, EmptyContent, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useMemo } from "react";
 import { Button } from "@reflecta/ui/components/button";
@@ -70,6 +71,7 @@ export function CanvasInspector({
         document={{ elements: detailQuery.data.elements, edges: detailQuery.data.edges }}
         understandingRefs={shapeData?.understandingRefs}
         referencedCanvases={shapeData?.referencedCanvases}
+        renderMarkdown={MarkdownPreview}
         className="min-h-0 flex-1"
       />
     </div>

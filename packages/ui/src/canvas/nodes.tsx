@@ -65,7 +65,7 @@ function UnderstandingShape({ node, graph }: CardProps) {
     onElementEdit,
     multiSelected,
     onCellAction,
-    resolveWikiLink,
+    renderMarkdown,
     onWikiLinkOpen,
   } = shapeData;
   if (element.kind !== "understanding") return null;
@@ -80,7 +80,7 @@ function UnderstandingShape({ node, graph }: CardProps) {
       // 用 !ref 兜底会把“未加载”误判成“已删除”。hard-delete 不存在（仅软删），不影响。
       deleted={ref?.deleted ?? false}
       loading={ref?.loading}
-      resolveWikiLink={resolveWikiLink}
+      renderMarkdown={renderMarkdown}
       onWikiLinkOpen={onWikiLinkOpen}
       color={element.props.color}
       selected={selected}

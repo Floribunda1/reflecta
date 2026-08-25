@@ -1,5 +1,4 @@
 import { FileText } from "lucide-react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   memo,
@@ -20,16 +19,9 @@ import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { CaptureAgentScope } from "../store";
 import { useAtomValue } from "@effect/atom-react";
 import { selectedUnderstandingIdAtom } from "../store";
-import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../queries";
-import { collectEntityReferences } from "@reflecta/shared";
-import { type ChatEntityReference, type ResolveChatEntity } from "@reflecta/ui/chat";
+import { useCaptureDomains } from "../queries";
 import { buildUnderstandingCardView } from "./card-view";
-import {
-  entityPresentationKey,
-  mergeEntityPresentations,
-  presentationsFromUnderstandings,
-  remoteEntityReferences,
-} from "./card-entity-presentations";
+import { SimpleMarkdownPreview } from "../resolved-markdown";
 import {
   captureGridColumnCount,
   captureGridRowCount,
@@ -66,53 +58,15 @@ function useCaptureGridColumnCount(containerRef: RefObject<HTMLElement | null>, 
   return columns;
 }
 
-function useCardEntityPresentations(understandings: readonly UnderstandingSummaryDTO[]) {
-  const localPresentations = useMemo(
-    () => presentationsFromUnderstandings(understandings),
-    [understandings],
-  );
-  const entityReferences = useMemo(
-    () =>
-      understandings.flatMap((understanding) => collectEntityReferences(understanding.body ?? "")),
-    [understandings],
-  );
-  const remoteReferences = useMemo(
-    () => remoteEntityReferences(entityReferences, localPresentations),
-    [entityReferences, localPresentations],
-  );
-  const entityQueries = useQueries({
-    queries: remoteReferences.map((reference) => ({
-      queryKey: captureQueryKeys.entityDisplay(reference),
-      queryFn: () => getEntityDisplay(reference),
-    })),
-  });
-  const remotePending = entityQueries.some((query) => query.isPending);
-  // 稳定串作为 presentations 的重算依据：useQueries 返回数组每次渲染都是新引用，
-  // 直接依赖它会让 memo 链（resolveWikiLink → 卡片）每渲染全量失效，重渲染+重解析 md。
-  const remoteTitleKey = entityQueries.map((query) => query.data?.title ?? "").join("\0");
-  const queryClient = useQueryClient();
-  return useMemo(() => {
-    if (remotePending || remoteReferences.length === 0) return localPresentations;
-    const remoteResults = remoteReferences.map((reference) =>
-      queryClient.getQueryData<{ title: string | null } | null>(
-        captureQueryKeys.entityDisplay(reference),
-      ),
-    );
-    return mergeEntityPresentations(localPresentations, remoteReferences, remoteResults);
-  }, [localPresentations, queryClient, remotePending, remoteReferences, remoteTitleKey]);
-}
-
 const CaptureUnderstandingCard = memo(function CaptureUnderstandingCard({
   understanding,
   canChat,
-  resolveWikiLink,
   onSelect,
   onChat,
   onDelete,
 }: {
   understanding: UnderstandingCardView;
   canChat: boolean;
-  resolveWikiLink: ResolveChatEntity;
   onSelect: (understandingId: string) => void;
   onChat?: (scope: CaptureAgentScope) => void;
   onDelete?: (understandingId: string) => void;
@@ -140,7 +94,7 @@ const CaptureUnderstandingCard = memo(function CaptureUnderstandingCard({
       understanding={understanding}
       selected={selected}
       canChat={canChat}
-      resolveWikiLink={resolveWikiLink}
+      renderMarkdown={SimpleMarkdownPreview}
       onSelect={onSelect}
       onAction={handleAction}
     />
@@ -191,12 +145,6 @@ export function CaptureCardGrid({
         buildUnderstandingCardView(understanding, domainNameById),
       ),
     [domainNameById, visibleUnderstandings],
-  );
-  const entityPresentations = useCardEntityPresentations(visibleUnderstandings);
-  const resolveWikiLink = useMemo(
-    () => (reference: ChatEntityReference) =>
-      entityPresentations.get(entityPresentationKey(reference)),
-    [entityPresentations],
   );
   const canChat = Boolean(onChat);
   const cardViewById = useMemo(() => {
@@ -251,7 +199,6 @@ export function CaptureCardGrid({
                       key={understanding.id}
                       understanding={view}
                       canChat={canChat}
-                      resolveWikiLink={resolveWikiLink}
                       onSelect={onSelect}
                       onChat={onChat}
                       onDelete={onDelete}

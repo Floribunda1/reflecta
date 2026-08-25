@@ -10,6 +10,7 @@ import {
   untitledCard,
   type CaptureStoryCard,
 } from "./capture-story-fixtures";
+import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 import { UnderstandingCard } from "./understanding-card";
 
 function CardDemo({
@@ -32,7 +33,9 @@ function CardDemo({
         selected={currentSelected}
         canChat={canChat}
         actionsDisabled={actionsDisabled}
-        resolveWikiLink={resolveStoryWikiLink}
+        renderMarkdown={(props) => (
+          <SimpleMarkdownPreview {...props} resolveWikiLink={resolveStoryWikiLink} />
+        )}
         onSelect={() => setCurrentSelected((current) => !current)}
         onAction={(action) => setLastAction(`${action.type}：${action.understanding.title}`)}
       />
@@ -60,7 +63,9 @@ function GridDemo() {
           understanding={item}
           selected={selectedId === item.id}
           canChat
-          resolveWikiLink={resolveStoryWikiLink}
+          renderMarkdown={(props) => (
+            <SimpleMarkdownPreview {...props} resolveWikiLink={resolveStoryWikiLink} />
+          )}
           onSelect={setSelectedId}
           onAction={() => undefined}
         />

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { MarkdownEditor, MarkdownPreview } from "../editor";
+import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 import { useDrawer } from "../overlays";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
 import { denseDomains, resolveStoryWikiLink, typicalDomains } from "./capture-story-fixtures";
@@ -188,7 +189,9 @@ function UnderstandingDetailDemo({ fixtureName }: { fixtureName: keyof typeof fi
             setContexts((current) => current.filter((item) => item.id !== context.id));
             setLastAction(`删除上下文：${context.title || "其他"}`);
           }}
-          resolveWikiLink={resolveStoryWikiLink}
+          renderMarkdown={(props) => (
+            <SimpleMarkdownPreview {...props} resolveWikiLink={resolveStoryWikiLink} />
+          )}
         />
       </div>
       <p className="mt-2 text-xs text-muted-foreground" role="status">

@@ -24,7 +24,7 @@ import {
   useSaveCanvasMutation,
   useUpdateViewportMutation,
 } from "../queries";
-import { useEntityDisplayResolver } from "../../capture/use-entity-display-resolver";
+import { MarkdownPreview } from "../../capture/resolved-markdown";
 import {
   canvasHydrateAtom,
   canvasUnderstandingPreviewsAtom,
@@ -209,13 +209,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const refIds = useMemo(() => (detail?.referencedCanvases ?? []).map((ref) => ref.id), [detail]);
   const { data: refPreviews } = useReferencedCanvasPreviews(refIds);
 
-  // 理解卡正文里的 wiki link（[[u:id]] 等）→ 标题：对画布引用理解的正文收集引用，批量拉取展示。
-  const referenceSource = useMemo(
-    () => (detail?.understandingRefs ?? []).map((ref) => ref.body).join("\n"),
-    [detail],
-  );
-  const resolveWikiLink = useEntityDisplayResolver(referenceSource);
-
   const shapeData = useMemo<CanvasShapeData>(() => {
     const refMap = new Map<string, CanvasReferencedCanvasView>();
     for (const ref of detail?.referencedCanvases ?? []) {
@@ -268,14 +261,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           });
         }
       },
-      resolveWikiLink,
+      // 双链标题解析：由解析版 Markdown 组件（MarkdownPreview wrapper）按卡片自身 value 完成
+      renderMarkdown: MarkdownPreview,
       onWikiLinkOpen: (reference) => {
         if (reference.type === "understanding") {
           dispatchCanvasAction({ type: "panel/openDetail", understandingId: reference.id });
         }
       },
     };
-  }, [detail, navigateToCanvas, previews, refPreviews, resolveWikiLink]);
+  }, [detail, navigateToCanvas, previews, refPreviews]);
 
   return (
     <div

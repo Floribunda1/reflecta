@@ -24,6 +24,7 @@ import {
 } from "./capture-story-fixtures";
 import { DomainTree, type DomainTreeNodeView } from "./domain-tree";
 import { ParticipationOverview } from "./participation-overview";
+import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 import { UnderstandingCard } from "./understanding-card";
 
 function CaptureDashboard({
@@ -106,7 +107,9 @@ function CaptureDashboard({
                   understanding={understanding}
                   selected={selectedUnderstandingId === understanding.id}
                   canChat
-                  resolveWikiLink={resolveStoryWikiLink}
+                  renderMarkdown={(props) => (
+                    <SimpleMarkdownPreview {...props} resolveWikiLink={resolveStoryWikiLink} />
+                  )}
                   onSelect={setSelectedUnderstandingId}
                   onAction={() => undefined}
                 />

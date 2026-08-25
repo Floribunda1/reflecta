@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useState, type ReactNode, type Ref } from "react";
-import type { ResolveChatEntity } from "../chat/entity";
+import type { MarkdownRenderer } from "../chat/entity";
 import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
@@ -242,17 +242,18 @@ export function UnderstandingContextCard({
   onPreview,
   onEdit,
   onDelete,
-  resolveWikiLink,
+  renderMarkdown,
 }: {
   context: UnderstandingDetailContextView;
   onPreview: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  resolveWikiLink?: ResolveChatEntity;
+  renderMarkdown?: MarkdownRenderer;
 }) {
   const meta = contextMeta(context.medium);
   const Icon = meta.Icon;
   const title = context.title?.trim() || meta.label;
+  const RenderMarkdown = renderMarkdown ?? SimpleMarkdownPreview;
 
   return (
     <ContextMenu>
@@ -274,11 +275,7 @@ export function UnderstandingContextCard({
               </div>
               <div className="text-muted-foreground">
                 {context.content ? (
-                  <SimpleMarkdownPreview
-                    value={context.content}
-                    lineClamp={2}
-                    resolveWikiLink={resolveWikiLink}
-                  />
+                  <RenderMarkdown value={context.content} lineClamp={2} />
                 ) : (
                   <span>空上下文，可以直接补充内容。</span>
                 )}
@@ -392,7 +389,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
   onPreviewContext,
   onEditContext,
   onDeleteContext,
-  resolveWikiLink,
+  renderMarkdown,
 }: {
   articleRef?: Ref<HTMLElement>;
   header: ReactNode;
@@ -405,7 +402,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
   onPreviewContext: (context: T) => void;
   onEditContext: (context: T) => void;
   onDeleteContext: (context: T) => void;
-  resolveWikiLink?: ResolveChatEntity;
+  renderMarkdown?: MarkdownRenderer;
 }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
@@ -437,7 +434,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
                       onPreview={() => onPreviewContext(context)}
                       onEdit={() => onEditContext(context)}
                       onDelete={() => onDeleteContext(context)}
-                      resolveWikiLink={resolveWikiLink}
+                      renderMarkdown={renderMarkdown}
                     />
                   ))}
                 </div>
