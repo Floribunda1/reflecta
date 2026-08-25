@@ -86,6 +86,7 @@ export default defineConfig({
             outDir: resolve(appRoot, "out/preload"),
             emptyOutDir: true,
             rolldownOptions: {
+              external: mainExternals,
               output: esmOutput,
             },
           },
@@ -96,5 +97,8 @@ export default defineConfig({
   build: {
     outDir: resolve(appRoot, "out/renderer"),
     emptyOutDir: true,
+    rolldownOptions: {
+      external: ["web-worker"],
+    },
   },
 });
