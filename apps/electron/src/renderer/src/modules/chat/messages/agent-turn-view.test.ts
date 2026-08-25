@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { AgentReducedAssistantBlock } from "@shared/agent";
-import { buildAgentTurnView, toAgentProposalView } from "./agent-turn-view";
+import { buildAgentTurnView, canvasUnderstandingIds, toAgentProposalView } from "./agent-turn-view";
 
 function text(text: string): AgentReducedAssistantBlock {
   return { kind: "text", text, createdAt: "2026-06-23T00:00:00.000Z" };
@@ -150,6 +150,91 @@ describe("buildAgentTurnView", () => {
         alt: "AI 生成图片：雨中的上海街道",
       },
     ]);
+  });
+
+  test("derives a canvas-view from a completed canvas_present with valid v1 output", () => {
+    const document = {
+      elements: [
+        { id: "e1", kind: "understanding", understandingId: "u-frontend" },
+        { id: "e2", kind: "understanding", understandingId: "u-ai" },
+      ],
+      edges: [{ id: "edge1", source: "e1", target: "e2" }],
+    };
+    const turn = buildAgentTurnView([
+      tool(
+        "canvas_present",
+        "tool-canvas",
+        { kind: "canvas-view", version: 1, title: "前端知识结构", document },
+        "completed",
+      ),
+    ]);
+
+    expect(turn.blocks).toMatchObject([
+      { kind: "tool-activity" },
+      {
+        kind: "canvas-view",
+        id: "tool-canvas:canvas-view",
+        title: "前端知识结构",
+        document,
+      },
+    ]);
+  });
+
+  test("running canvas_present stays a plain tool activity (no canvas-view yet)", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "canvas_present",
+        "tool-canvas",
+        { kind: "canvas-view", version: 1, title: "x", document: { elements: [], edges: [] } },
+        "running",
+      ),
+    ]);
+    expect(turn.blocks.map((block) => block.kind)).toEqual(["tool-activity"]);
+  });
+
+  test("canvas_present with unknown version or invalid document falls back to tool activity", () => {
+    const unknownVersion = buildAgentTurnView([
+      tool("canvas_present", "t1", { kind: "canvas-view", version: 99, document: {} }, "completed"),
+    ]);
+    const invalidDoc = buildAgentTurnView([
+      tool("canvas_present", "t2", { kind: "canvas-view", version: 1, document: { nope: 1 } }),
+    ]);
+    const wrongKind = buildAgentTurnView([
+      tool("canvas_present", "t3", { kind: "other", version: 1 }, "completed"),
+    ]);
+    for (const turn of [unknownVersion, invalidDoc, wrongKind]) {
+      expect(turn.blocks.map((block) => block.kind)).toEqual(["tool-activity"]);
+    }
+  });
+
+  test("canvasUnderstandingIds collects refs from canvas_present and canvas proposals", () => {
+    const ids = canvasUnderstandingIds([
+      tool(
+        "canvas_present",
+        "t1",
+        {
+          kind: "canvas-view",
+          version: 1,
+          title: "x",
+          document: {
+            elements: [
+              { id: "e1", kind: "understanding", understandingId: "u-frontend" },
+              { id: "e2", kind: "understanding", understandingId: "u-ai" },
+            ],
+            edges: [],
+          },
+        },
+        "completed",
+      ),
+      proposal("canvas_update", "t2", {
+        canvasId: "canvas-1",
+        document: {
+          elements: [{ id: "e3", kind: "understanding", understandingId: "u-ai" }],
+          edges: [],
+        },
+      }),
+    ]);
+    expect(ids).toEqual(["u-frontend", "u-ai"]);
   });
 
   test("keeps segmented read parameters in the summary and only content in details", () => {

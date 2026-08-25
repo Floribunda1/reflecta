@@ -164,6 +164,30 @@ describe("ChatMessageRow", () => {
     expect(zoom.toggle).toHaveBeenCalledWith({ target: image });
   });
 
+  test("renders a canvas-view analysis block without decision buttons", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-canvas",
+        status: "done",
+        blocks: [
+          {
+            kind: "canvas-view",
+            id: "tool-canvas:canvas-view",
+            title: "前端知识结构",
+            caption: "未保存的分析视图",
+            document: { elements: [], edges: [] },
+          },
+        ],
+      },
+    });
+
+    const view = next.querySelector('[data-testid="agent-canvas-view"]');
+    expect(view?.textContent).toContain("前端知识结构");
+    expect(view?.textContent).toContain("AI 分析 · 未保存");
+    expect(next.querySelector('[data-testid="agent-proposal-confirm-button"]')).toBeNull();
+  });
+
   test("emits message actions without performing workflow side effects", () => {
     const onAction = vi.fn();
     const row: ChatMessageRowView = {

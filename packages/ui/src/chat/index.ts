@@ -73,8 +73,10 @@ export {
   type AgentMessageViewProps,
   type ChatMessageRowProps,
 } from "./message/chat-message-row";
+export { AgentCanvasView, type AgentCanvasViewProps } from "./message/agent-canvas-view";
 export { findChatTextRanges, type ChatTextRange } from "./message/chat-search";
 export type {
+  AgentCanvasViewBlock,
   AgentImageBlockView,
   AgentMessageBlockView,
   AgentTextBlockView,

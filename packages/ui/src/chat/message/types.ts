@@ -1,6 +1,7 @@
 import type { ChatEntityType } from "../entity";
 import type { AgentExecutionBlockView } from "../execution/types";
 import type { AgentProposalView } from "../proposal/types";
+import type { CanvasDocument, CanvasUnderstandingRefView } from "../../canvas";
 
 export type ChatMessageEntityView = {
   id: string;
@@ -46,9 +47,22 @@ export type AgentImageBlockView = {
   alt: string;
 };
 
+/** 独立只读分析画布视图（canvas_present completed output 派生）。不写入、不审批，属临时分析展示。 */
+export type AgentCanvasViewBlock = {
+  kind: "canvas-view";
+  id: string;
+  title: string;
+  caption?: string;
+  document: CanvasDocument;
+  /** 展示数据由消息 projection 层按当前实体状态（hydration B）批量加载。 */
+  understandingTitles?: ReadonlyArray<{ id: string; title: string }>;
+  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
+};
+
 export type AgentMessageBlockView =
   | AgentTextBlockView
   | AgentImageBlockView
+  | AgentCanvasViewBlock
   | AgentExecutionBlockView
   | {
       kind: "proposal";

@@ -184,6 +184,16 @@ export type ProposalView =
   | CanvasProposalView
   | GenericProposalView;
 
+export type CanvasViewTurnBlock = {
+  kind: "canvas-view";
+  id: string;
+  title: string;
+  caption?: string;
+  document: { elements: unknown[]; edges: unknown[] };
+  /** 供消息层按当前实体状态（hydration B）解析引用卡展示数据 */
+  understandingIds: string[];
+};
+
 export type AgentTurnBlock =
   | {
       kind: "text";
@@ -196,6 +206,7 @@ export type AgentTurnBlock =
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-activity"; activity: ToolActivityView }
   | { kind: "image"; id: string; src: string; alt: string }
+  | CanvasViewTurnBlock
   | { kind: "proposal"; proposal: ProposalView };
 
 export type AgentReasoningView = {
@@ -220,6 +231,7 @@ type InternalTurnBlock =
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
   | { kind: "image"; id: string; src: string; alt: string }
+  | CanvasViewTurnBlock
   | { kind: "proposal"; proposal: ProposalView };
 
 export function buildAgentTurnView(
@@ -258,6 +270,8 @@ export function buildAgentTurnView(
     appendTool(internalBlocks, block);
     const image = generatedImageBlock(block);
     if (image) internalBlocks.push(image);
+    const canvasView = canvasPresentBlock(block);
+    if (canvasView) internalBlocks.push(canvasView);
   }
 
   return {
@@ -337,6 +351,10 @@ function toAgentMessageBlocks(
       result.push(block);
       continue;
     }
+    if (block.kind === "canvas-view") {
+      result.push(toAgentCanvasViewBlock(block, presentation));
+      continue;
+    }
     const raw = approvals.get(block.proposal.toolCallId);
     if (!raw) continue;
     result.push({
@@ -345,6 +363,33 @@ function toAgentMessageBlocks(
     });
   }
   return result;
+}
+
+function toAgentCanvasViewBlock(
+  block: CanvasViewTurnBlock,
+  presentation: AgentViewPresentation,
+): AgentMessageBlockView {
+  const understandingTitles = block.understandingIds.length
+    ? block.understandingIds.map((id) => ({
+        id,
+        title: presentation.entityLabels.get(`understanding:${id}`) ?? id,
+      }))
+    : undefined;
+  const understandingRefs = new Map(
+    block.understandingIds.flatMap((id) => {
+      const ref = presentation.understandingRefs?.get(id);
+      return ref ? [[id, ref] as const] : [];
+    }),
+  );
+  return {
+    kind: "canvas-view",
+    id: block.id,
+    title: block.title,
+    ...(block.caption ? { caption: block.caption } : {}),
+    document: block.document as CanvasDocument,
+    ...(understandingTitles?.length ? { understandingTitles } : {}),
+    ...(understandingRefs.size ? { understandingRefs } : {}),
+  };
 }
 
 export function toAgentAssistantMessageView(
@@ -430,6 +475,37 @@ function generatedImageBlock(block: AgentToolBlock): InternalTurnBlock | undefin
     id: `${block.toolCallId}:image`,
     src: assetUrl,
     alt: prompt ? `AI 生成图片：${truncateText(prompt, 160)}` : "AI 生成图片",
+  };
+}
+
+function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefined {
+  if (block.toolName !== "canvas_present" || block.state !== "completed") return undefined;
+  const output = isRecord(block.output) ? block.output : {};
+  if (output.kind !== "canvas-view" || output.version !== 1) return undefined;
+  const rawDoc = isRecord(output.document) ? output.document : undefined;
+  const elements = Array.isArray(rawDoc?.elements) ? rawDoc.elements : undefined;
+  const edges = Array.isArray(rawDoc?.edges) ? rawDoc.edges : undefined;
+  if (!elements || !edges) return undefined;
+  const document = { elements, edges };
+  const understandingIds: string[] = [];
+  for (const element of document.elements) {
+    if (
+      isRecord(element) &&
+      element.kind === "understanding" &&
+      typeof element.understandingId === "string" &&
+      element.understandingId &&
+      !understandingIds.includes(element.understandingId)
+    ) {
+      understandingIds.push(element.understandingId);
+    }
+  }
+  return {
+    kind: "canvas-view",
+    id: `${block.toolCallId}:canvas-view`,
+    title: stringValue(output.title),
+    ...(typeof output.caption === "string" && output.caption ? { caption: output.caption } : {}),
+    document,
+    understandingIds,
   };
 }
 
@@ -618,6 +694,10 @@ function canvasDocument(input: Record<string, unknown>): CanvasDocument | undefi
 export function canvasUnderstandingIds(blocks: readonly AgentReducedAssistantBlock[]) {
   const ids = new Set<string>();
   for (const block of blocks) {
+    if (block.kind === "tool" && block.toolName === "canvas_present") {
+      for (const id of canvasPresentBlock(block)?.understandingIds ?? []) ids.add(id);
+      continue;
+    }
     if (
       block.kind !== "approval" ||
       !["canvas_create", "canvas_update"].includes(block.toolName) ||

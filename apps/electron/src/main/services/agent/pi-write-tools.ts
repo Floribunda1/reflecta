@@ -72,7 +72,7 @@ const parentIdParameter = Type.Optional(
   }),
 );
 const mediumParameter = Type.Union(mediums.map((medium) => Type.Literal(medium)));
-const layoutDirectionParameter = Type.Union([
+export const layoutDirectionParameter = Type.Union([
   Type.Literal("auto"),
   Type.Literal("horizontal"),
   Type.Literal("vertical"),
@@ -97,7 +97,7 @@ const canvasElementParameter = Type.Union([
   Type.Object({ kind: Type.Literal("group"), label: Type.String() }),
 ]);
 const nullableCanvasRefParameter = Type.Optional(Type.Union([canvasRefParameter, Type.Null()]));
-const canvasGraphChangeParameter = Type.Union([
+export const canvasGraphChangeParameter = Type.Union([
   Type.Object({
     op: Type.Literal("add_element"),
     ref: Type.String({ minLength: 1, description: "A unique local ref for later changes." }),

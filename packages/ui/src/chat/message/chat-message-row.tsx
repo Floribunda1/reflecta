@@ -28,6 +28,7 @@ import {
   AgentStoppedStatus,
 } from "../execution/agent-execution-block";
 import { ChatMarkdown } from "../markdown/chat-markdown";
+import { AgentCanvasView } from "./agent-canvas-view";
 import { AgentProposalCard } from "../proposal/agent-proposal-card";
 import type { AgentProposalDecision } from "../proposal/types";
 import {
@@ -264,6 +265,7 @@ function UserMessageContent({
 function blockId(block: AgentMessageBlockView) {
   if (block.kind === "text") return block.id;
   if (block.kind === "image") return block.id;
+  if (block.kind === "canvas-view") return block.id;
   if (block.kind === "reasoning") return block.reasoning.id;
   if (block.kind === "tool-activity") return block.activity.id;
   if (block.kind === "context-compaction") return block.compaction.id;
@@ -375,6 +377,11 @@ function AgentMessageContent({
           className="max-h-128 max-w-full rounded-lg border border-border object-contain"
         />,
       );
+      continue;
+    }
+
+    if (block.kind === "canvas-view") {
+      renderedBlocks.push(<AgentCanvasView key={block.id} block={block} />);
       continue;
     }
 

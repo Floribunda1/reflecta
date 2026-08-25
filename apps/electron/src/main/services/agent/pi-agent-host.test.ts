@@ -149,6 +149,11 @@ vi.mock("./pi-write-tools", () => ({
   PI_APPROVAL_TOOL_NAMES: [],
 }));
 
+vi.mock("./pi-present-tools", () => ({
+  createPiPresentTools: () => [],
+  PI_PRESENT_TOOL_NAMES: [],
+}));
+
 const roots: string[] = [];
 
 function tempRoot() {

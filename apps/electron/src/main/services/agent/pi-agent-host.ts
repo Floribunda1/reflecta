@@ -56,6 +56,7 @@ import understandingSkill from "./builtin-skills/reflecta-understanding/SKILL.md
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
 import { contextCompactionSettings, createPiContextCompaction } from "./pi-context-compaction";
+import { createPiPresentTools, PI_PRESENT_TOOL_NAMES } from "./pi-present-tools";
 import {
   approvalTitleForTool,
   createPiWriteTools,
@@ -875,6 +876,7 @@ export class PiAgentHost {
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
         }),
         ...createPiImageTools(this.contentStorageRoot),
+        ...createPiPresentTools(),
       ],
       cwd: this.contentStorageRoot,
       model,
@@ -889,6 +891,7 @@ export class PiAgentHost {
         ...PI_APPROVAL_TOOL_NAMES,
         ...PI_WEB_ACCESS_TOOL_NAMES,
         ...PI_IMAGE_TOOL_NAMES,
+        ...PI_PRESENT_TOOL_NAMES,
       ],
     });
     const builtinSkillNames = new Set<string>(PI_BUILTIN_SKILL_NAMES);
