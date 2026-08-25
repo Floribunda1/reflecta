@@ -2,6 +2,8 @@ export * from "./canvas/document";
 export * from "./canvas/id";
 export * from "./canvas/validate";
 export * from "./canvas/changes";
+export * from "./canvas/schema";
 export * from "./capture/domain";
+export * from "./capture/search";
 export * from "./capture/context";
 export * from "./capture/understanding";

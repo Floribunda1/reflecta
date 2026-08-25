@@ -84,3 +84,49 @@ export type CanvasViewport = { x: number; y: number; zoom: number };
 export const EMPTY_CANVAS_DOCUMENT: CanvasDocument = { elements: [], edges: [] };
 
 export const DEFAULT_CANVAS_VIEWPORT: CanvasViewport = { x: 0, y: 0, zoom: 1 };
+
+// --- 画布 detail / 输入 DTO（可变规范类型；运行时 schema 见 ./schema） ----------
+
+export type CanvasDTO = {
+  id: string;
+  title: string;
+  description: string | null;
+  viewport: CanvasViewport | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CanvasUnderstandingRef = {
+  id: string;
+  title: string | null;
+  body: string;
+  deleted: boolean;
+};
+
+export type CanvasReferencedCanvas = {
+  id: string;
+  title: string;
+  deleted: boolean;
+};
+
+export type CanvasDetailDTO = {
+  canvas: CanvasDTO;
+  elements: CanvasElementDTO[];
+  edges: CanvasEdgeDTO[];
+  understandingRefs: CanvasUnderstandingRef[];
+  referencedCanvases: CanvasReferencedCanvas[];
+};
+
+export type GetCanvasDetailOptions = {
+  includeBodies?: boolean;
+};
+
+export type CreateCanvasInput = {
+  title?: string;
+};
+
+export type UpdateCanvasInput = {
+  title?: string;
+  description?: string | null;
+  viewport?: CanvasViewport | null;
+};
