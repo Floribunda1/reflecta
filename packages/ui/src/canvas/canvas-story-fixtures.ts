@@ -139,10 +139,10 @@ export function storyEdge(
 }
 
 /** agent 生成边的呈现默认，与 server `normalizeCanvasChanges` 的 add_edge 一致：
- * manhattan 路由 + reflecta-curve 连接器（正交样式）。 */
+ * manhattan 路由 + rounded 连接器（正交圆角样式）。 */
 const AGENT_EDGE_PATH: Pick<CanvasEdgeDTO, "router" | "connector"> = {
   router: { name: "manhattan", args: { padding: 16 } },
-  connector: { name: "reflecta-curve" },
+  connector: { name: "rounded", args: { radius: 8 } },
 };
 
 /** agent 场景的边：反映 server 默认（正交），而非通用 storyEdge 的曲线默认。 */

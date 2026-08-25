@@ -443,11 +443,12 @@ export const normalizeCanvasChanges = Effect.fn("normalizeCanvasChanges")(functi
       canvasId: "",
       source: { cell: sourceId, port: "right" },
       target: { cell: targetId, port: "left" },
-      // 连线呈现默认走 manhattan（正交）路由 + reflecta-curve 连接器，与编辑器里
-      // 用户手拖新建的边一致（newEdgeDto）。agent 的 changes 不携带 router/connector
-      // ——连线样式是呈现层，agent 只描述内容（source/target/label），不关心呈现。
+      // 连线呈现默认走 manhattan（正交）路由 + rounded 连接器，与编辑器里
+      // 用户手拖新建的边一致（manhattanEdgePath）。agent 的 changes 不携带
+      // router/connector——连线样式是呈现层，agent 只描述内容（source/target/label），
+      // 不关心呈现。
       router: { name: "manhattan", args: { padding: 16 } },
-      connector: { name: "reflecta-curve" },
+      connector: { name: "rounded", args: { radius: 8 } },
       attrs: {
         line: {
           stroke: "var(--muted-foreground)",
