@@ -1,61 +1,18 @@
-/** understanding 域契约（迁移批 Round C）。 */
+/** understanding 域契约。DTO schema 单一真源在 @reflecta/shared，这里只留 rpc 面。 */
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
-import { ContextDTO } from "./context";
+import {
+  UnderstandingSummaryDTO,
+  UnderstandingDTO,
+  CreateUnderstandingInput,
+  UpdateUnderstandingInput,
+  ListUnderstandingsFilter,
+} from "@reflecta/shared";
 
 export class UnderstandingError extends S.TaggedError<UnderstandingError>()("UnderstandingError", {
   reason: S.String,
   code: S.Number,
 }) {}
-
-export const UnderstandingSummaryDTO = S.Struct({
-  id: S.String,
-  title: S.NullOr(S.String),
-  body: S.String,
-  domainIds: S.Array(S.String),
-  contextCount: S.Number,
-  mentionCount: S.Number,
-  mentionIds: S.Array(S.String),
-  createdAt: S.String,
-  updatedAt: S.String,
-});
-export type UnderstandingSummaryDTO = S.Schema.Type<typeof UnderstandingSummaryDTO>;
-
-export const UnderstandingDTO = S.Struct({
-  id: S.String,
-  title: S.NullOr(S.String),
-  body: S.String,
-  domainIds: S.Array(S.String),
-  contexts: S.Array(ContextDTO),
-  mentions: S.Array(UnderstandingSummaryDTO),
-  referencedBy: S.Array(UnderstandingSummaryDTO),
-  createdAt: S.String,
-  updatedAt: S.String,
-});
-export type UnderstandingDTO = S.Schema.Type<typeof UnderstandingDTO>;
-
-export const CreateUnderstandingInput = S.Struct({
-  title: S.optional(S.String),
-  body: S.optional(S.String),
-  domainIds: S.optional(S.Array(S.String)),
-});
-export type CreateUnderstandingInput = S.Schema.Type<typeof CreateUnderstandingInput>;
-
-export const UpdateUnderstandingInput = S.Struct({
-  title: S.optional(S.NullOr(S.String)),
-  body: S.optional(S.String),
-  domainIds: S.optional(S.Array(S.String)),
-});
-export type UpdateUnderstandingInput = S.Schema.Type<typeof UpdateUnderstandingInput>;
-
-export const ListUnderstandingsFilter = S.Struct({
-  domainIds: S.optional(S.Array(S.String)),
-  includeDescendants: S.optional(S.Boolean),
-  searchQuery: S.optional(S.String),
-  limit: S.optional(S.Number),
-  offset: S.optional(S.Number),
-});
-export type ListUnderstandingsFilter = S.Schema.Type<typeof ListUnderstandingsFilter>;
 
 export const UnderstandingList = rpc(
   "understanding.listUnderstandings",
@@ -99,3 +56,11 @@ export const UnderstandingPermanentlyDelete = rpc(
   S.Void,
   UnderstandingError,
 );
+// ipc 内部（index 装配）仍需这些类型/schema，从 shared 再导出（定义单一真源）。
+export {
+  UnderstandingSummaryDTO,
+  UnderstandingDTO,
+  CreateUnderstandingInput,
+  UpdateUnderstandingInput,
+  ListUnderstandingsFilter,
+} from "@reflecta/shared";

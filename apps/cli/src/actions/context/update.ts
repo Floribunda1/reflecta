@@ -46,11 +46,14 @@ export async function updateContextAction(id: string, cli: Command): Promise<voi
   await runCommand(
     async () => {
       const services = await getServices();
-      const input: UpdateContextInput = {};
-      if (options.understandingId !== undefined) input.understandingId = options.understandingId;
-      if (options.medium !== undefined) input.medium = options.medium as ContextMedium;
-      if (options.title !== undefined) input.title = options.title;
-      if (options.content !== undefined) input.content = options.content;
+      const input: UpdateContextInput = {
+        ...(options.understandingId !== undefined
+          ? { understandingId: options.understandingId }
+          : {}),
+        ...(options.medium !== undefined ? { medium: options.medium as ContextMedium } : {}),
+        ...(options.title !== undefined ? { title: options.title } : {}),
+        ...(options.content !== undefined ? { content: options.content } : {}),
+      };
       return services.contexts.updateContext(id, input);
     },
     { ...options, mutates: true },

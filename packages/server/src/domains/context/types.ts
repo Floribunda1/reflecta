@@ -1,28 +1,11 @@
-import type { contexts } from "../../db/schema";
+import type { ContextMedium } from "@reflecta/shared";
 
-export type ContextMedium =
-  | "experience"
-  | "video"
-  | "book"
-  | "article"
-  | "opinion"
-  | "ai"
-  | "other";
-
-export type ContextDTO = Omit<typeof contexts.$inferSelect, "medium"> & {
-  medium: ContextMedium;
-};
-
-export type CreateContextInput = {
-  understandingId: string;
-  medium: ContextMedium;
-  title?: string;
-  content: string;
-};
-
-export type UpdateContextInput = Partial<
-  Pick<CreateContextInput, "understandingId" | "medium" | "title" | "content">
->;
+export type {
+  ContextDTO,
+  CreateContextInput,
+  UpdateContextInput,
+  ContextMedium,
+} from "@reflecta/shared";
 
 export type ContextSummary = {
   id: string;

@@ -79,12 +79,15 @@ export async function listUnderstandingsAction(cli: Command): Promise<void> {
       return services.understandings.listRecentUnderstandings(limit);
     }
 
-    const filter: ListUnderstandingsFilter = {};
-    if (options.domainId) {
-      filter.domainIds = [options.domainId];
-      if (options.includeDescendants) filter.includeDescendants = true;
-    }
-    filter.limit = limit;
+    const filter: ListUnderstandingsFilter = {
+      ...(options.domainId
+        ? {
+            domainIds: [options.domainId],
+            ...(options.includeDescendants ? { includeDescendants: true } : {}),
+          }
+        : {}),
+      limit,
+    };
 
     if (options.includeContexts) {
       return services.understandings.listUnderstandingsWithContexts(filter);

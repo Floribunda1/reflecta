@@ -1,51 +1,17 @@
-/** context 域契约（迁移批 Round A）。 */
+/** context 域契约。DTO schema 单一真源在 @reflecta/shared，这里只留 rpc 面。 */
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
-
-const lit = <T extends string>(...xs: T[]) => S.Union(xs.map((x) => S.Literal(x)));
+import {
+  ContextDTO,
+  CreateContextInput,
+  UpdateContextInput,
+  TrashedContextDTO,
+} from "@reflecta/shared";
 
 export class ContextListError extends S.TaggedError<ContextListError>()("ContextListError", {
   reason: S.String,
   code: S.Number,
 }) {}
-
-export const ContextDTO = S.Struct({
-  id: S.String,
-  understandingId: S.String,
-  medium: lit("experience", "video", "book", "article", "opinion", "ai", "other"),
-  title: S.NullOr(S.String),
-  content: S.String,
-  createdAt: S.String,
-  deletedAt: S.NullOr(S.String),
-});
-export type ContextDTO = S.Schema.Type<typeof ContextDTO>;
-
-export const CreateContextInput = S.Struct({
-  understandingId: S.String,
-  medium: lit("experience", "video", "book", "article", "opinion", "ai", "other"),
-  title: S.optional(S.String),
-  content: S.String,
-});
-export type CreateContextInput = S.Schema.Type<typeof CreateContextInput>;
-
-export const UpdateContextInput = S.Struct({
-  understandingId: S.optional(S.String),
-  medium: S.optional(lit("experience", "video", "book", "article", "opinion", "ai", "other")),
-  title: S.optional(S.String),
-  content: S.optional(S.String),
-});
-export type UpdateContextInput = S.Schema.Type<typeof UpdateContextInput>;
-
-export const TrashedContextDTO = S.Struct({
-  id: S.String,
-  understandingId: S.String,
-  understandingTitle: S.NullOr(S.String),
-  medium: lit("experience", "video", "book", "article", "opinion", "ai", "other"),
-  title: S.NullOr(S.String),
-  content: S.String,
-  deletedAt: S.String,
-});
-export type TrashedContextDTO = S.Schema.Type<typeof TrashedContextDTO>;
 
 export const ContextListByUnderstanding = rpc(
   "context.listContextsByUnderstanding",
@@ -95,3 +61,10 @@ export const ContextListTrashed = rpc(
   S.Array(TrashedContextDTO),
   ContextListError,
 );
+// ipc 内部（index 装配）仍需这些类型/schema，从 shared 再导出（定义单一真源）。
+export {
+  ContextDTO,
+  CreateContextInput,
+  UpdateContextInput,
+  TrashedContextDTO,
+} from "@reflecta/shared";

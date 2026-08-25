@@ -1,56 +1,20 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type { understandingDomains, understandingMentions, understandings } from "../../db/schema";
 import type { DomainRef } from "../domain/types";
-import type { ContextDTO, ContextDetail } from "../context/types";
+import type { ContextDetail } from "../context/types";
+
+export type {
+  UnderstandingSummaryDTO,
+  UnderstandingDTO,
+  CreateUnderstandingInput,
+  UpdateUnderstandingInput,
+  ListUnderstandingsFilter,
+} from "@reflecta/shared";
 
 export type Understanding = InferSelectModel<typeof understandings>;
 export type NewUnderstanding = InferInsertModel<typeof understandings>;
 export type UnderstandingDomain = InferSelectModel<typeof understandingDomains>;
 export type UnderstandingMention = InferSelectModel<typeof understandingMentions>;
-
-export type UnderstandingSummaryDTO = {
-  id: string;
-  title: string | null;
-  body: string;
-  domainIds: string[];
-  contextCount: number;
-  mentionCount: number;
-  mentionIds: string[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type UnderstandingDTO = {
-  id: string;
-  title: string | null;
-  body: string;
-  domainIds: string[];
-  contexts: ContextDTO[];
-  mentions: UnderstandingSummaryDTO[];
-  referencedBy: UnderstandingSummaryDTO[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CreateUnderstandingInput = {
-  title?: string;
-  body?: string;
-  domainIds?: string[];
-};
-
-export type UpdateUnderstandingInput = {
-  title?: string | null;
-  body?: string;
-  domainIds?: string[];
-};
-
-export type ListUnderstandingsFilter = {
-  domainIds?: string[];
-  includeDescendants?: boolean;
-  searchQuery?: string;
-  limit?: number;
-  offset?: number;
-};
 
 export type UnderstandingSummary = {
   id: string;

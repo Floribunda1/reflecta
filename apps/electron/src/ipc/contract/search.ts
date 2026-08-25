@@ -1,24 +1,12 @@
 /** search 域契约（迁移批 Round B）。注：retrieveKnowledge 仅 agent 经 CLI bff 用，renderer 未走 IPC，删除。 */
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
+import { UnderstandingSummaryDTO } from "@reflecta/shared";
 
 export class SearchError extends S.TaggedError<SearchError>()("SearchError", {
   reason: S.String,
   code: S.Number,
 }) {}
-
-export const UnderstandingSummaryDTO = S.Struct({
-  id: S.String,
-  title: S.NullOr(S.String),
-  body: S.String,
-  domainIds: S.Array(S.String),
-  contextCount: S.Number,
-  mentionCount: S.Number,
-  mentionIds: S.Array(S.String),
-  createdAt: S.String,
-  updatedAt: S.String,
-});
-export type UnderstandingSummaryDTO = S.Schema.Type<typeof UnderstandingSummaryDTO>;
 
 export const SearchContextResult = S.Struct({
   contextId: S.String,

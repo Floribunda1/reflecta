@@ -45,15 +45,18 @@ export async function updateUnderstandingAction(id: string, cli: Command): Promi
   await runCommand(
     async () => {
       const services = await getServices();
-      const input: UpdateUnderstandingInput = {};
-      if (options.title !== undefined) input.title = options.title;
-      if (options.body !== undefined) input.body = options.body;
-      if (options.domainId !== undefined) {
-        input.domainIds = options.domainId
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
+      const input: UpdateUnderstandingInput = {
+        ...(options.title !== undefined ? { title: options.title } : {}),
+        ...(options.body !== undefined ? { body: options.body } : {}),
+        ...(options.domainId !== undefined
+          ? {
+              domainIds: options.domainId
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+            }
+          : {}),
+      };
       return services.understandings.updateUnderstanding(id, input);
     },
     { ...options, mutates: true },

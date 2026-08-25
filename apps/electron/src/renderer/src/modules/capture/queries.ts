@@ -149,15 +149,11 @@ function buildUnderstandingListFilter({
   includeDescendants,
   searchQuery,
 }: UnderstandingListFilterKey): ListUnderstandingsFilter | undefined {
-  const filter: ListUnderstandingsFilter = {};
-  if (selectedDomainId !== "all") {
-    filter.domainIds = [selectedDomainId];
-    filter.includeDescendants = includeDescendants;
-  }
-
+  const domainFilter =
+    selectedDomainId !== "all" ? { domainIds: [selectedDomainId], includeDescendants } : {};
   const normalizedSearchQuery = searchQuery.trim();
-  if (normalizedSearchQuery) filter.searchQuery = normalizedSearchQuery;
-
+  const searchFilter = normalizedSearchQuery ? { searchQuery: normalizedSearchQuery } : {};
+  const filter = { ...domainFilter, ...searchFilter };
   return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
