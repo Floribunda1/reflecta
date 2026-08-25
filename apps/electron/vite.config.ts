@@ -16,6 +16,7 @@ const mainExternals = [
   "better-sqlite3",
   "libsql",
   "node-llama-cpp",
+  "web-worker",
 ];
 
 const esmOutput = {
