@@ -18,6 +18,7 @@ import {
 import type { Activity, ThemeInput } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
 import { Button } from "../components/button";
+import { Skeleton } from "../components/skeleton";
 import {
   Item,
   ItemActions,
@@ -228,6 +229,41 @@ const PARTICIPATION_CALENDAR_LABELS = {
   totalCount: "共 {{count}} 次参与",
 };
 
+// 骨架格子与真实日历一致：blockSize 10、blockMargin 3，避免加载前后布局跳动。
+const HEATMAP_COLUMNS = 53; // 一年约 53 周
+
+/** 热力图骨架：7 行 × 53 周的小方块，模拟 react-activity-calendar 的格子。 */
+function ParticipationHeatmapSkeleton() {
+  return (
+    <div className="min-w-0 flex-1 overflow-x-auto" aria-hidden>
+      <div className="grid w-fit grid-flow-col grid-rows-7 gap-[3px]">
+        {Array.from({ length: HEATMAP_COLUMNS * 7 }, (_, i) => (
+          <Skeleton key={i} className="size-2.5 rounded-[2px]" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 整体骨架：资产列 + 热力图，与数据加载完成后的布局同构。 */
+function ParticipationOverviewSkeleton() {
+  return (
+    <div
+      data-testid="participation-overview-skeleton"
+      className="flex shrink-0 items-center gap-4"
+      role="status"
+      aria-label="正在加载参与足迹"
+    >
+      <div className="flex shrink-0 flex-col justify-center gap-3 border-r pr-4" aria-hidden>
+        <Skeleton className="h-5 w-14" />
+        <Skeleton className="h-5 w-14" />
+        <Skeleton className="h-5 w-14" />
+      </div>
+      <ParticipationHeatmapSkeleton />
+    </div>
+  );
+}
+
 const EMPTY_DAY_DETAIL: ParticipationDayDetail = {
   sessions: [],
   understandings: [],
@@ -282,7 +318,9 @@ export const ParticipationOverview = memo(function ParticipationOverview({
         </div>
       ) : null}
 
-      {days ? (
+      {!assets || !days ? (
+        <ParticipationOverviewSkeleton />
+      ) : (
         <div
           data-testid="participation-heatmap"
           role="group"
@@ -300,7 +338,7 @@ export const ParticipationOverview = memo(function ParticipationOverview({
             if (date) openDay(event as unknown as MouseEvent, date);
           }}
         >
-          <Suspense fallback={<div className="h-[118px] min-w-0" />}>
+          <Suspense fallback={<ParticipationHeatmapSkeleton />}>
             <ActivityCalendar
               data={days as Activity[]}
               weekStart={1}
@@ -322,7 +360,7 @@ export const ParticipationOverview = memo(function ParticipationOverview({
             />
           </Suspense>
         </div>
-      ) : null}
+      )}
 
       {dayPopover && dayAnchorRef.current ? (
         <Popover open onOpenChange={(open) => !open && setDayPopover(null)}>

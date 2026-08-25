@@ -24,6 +24,15 @@ function ParticipationOverviewShowcase() {
       description="捕获页顶部足迹：资产存量与 365 天热力图同排。点击有色格子打开当天对话和理解。"
     >
       <StoryCase
+        title="加载中"
+        description="数据未就绪时的骨架屏：资产列与热力图格子先占位，避免布局跳动。"
+      >
+        <OverviewFrame>
+          <ParticipationOverview assets={null} days={null} />
+        </OverviewFrame>
+      </StoryCase>
+
+      <StoryCase
         title="空足迹"
         description="资产为零，全年格子都是空天。悬停显示无参与；点击打开空明细。"
       >
