@@ -80,7 +80,13 @@ const canvasRefParameter = Type.String({
   description: "A stable id from canvas_read or a ref declared by an earlier change.",
 });
 const canvasAddableElementParameter = Type.Union([
-  Type.Object({ kind: Type.Literal("text"), text: Type.String() }),
+  Type.Object({
+    kind: Type.Literal("text"),
+    text: Type.String({
+      description:
+        "Markdown content rendered inside the TextCard. Use Markdown syntax for structure and formatting.",
+    }),
+  }),
   Type.Object({ kind: Type.Literal("understanding"), understandingId: understandingIdParameter }),
   Type.Object({ kind: Type.Literal("canvas_ref"), canvasRefId: Type.String({ minLength: 1 }) }),
 ]);

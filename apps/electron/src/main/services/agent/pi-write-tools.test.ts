@@ -207,6 +207,7 @@ describe("createPiWriteTools", () => {
 
     expect(createSchema).toContain('"changes"');
     expect(createSchema).toContain('"add_element"');
+    expect(createSchema).toContain("Markdown content rendered inside the TextCard");
     expect(createSchema).not.toContain('"initial"');
     expect(updateSchema).toContain('"changes"');
     expect(updateSchema).toContain('"relayout"');
