@@ -15,12 +15,12 @@ const CanvasReadOnlyView = lazy(() =>
   import("./CanvasReadOnlyView").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-/** 画布节点占位卡：逐个浮现（生成感）+ 内部行跳动。 */
-function GraphNodeSkeleton({ className }: { className: string }) {
+/** 画布节点占位卡：逐个浮现 + 柔和高光扫过，保持纯视觉 loading。 */
+function GraphNodeSkeleton({ className, delay = 0 }: { className: string; delay?: number }) {
   return (
     <m.div
       className={cn(
-        "absolute rounded-md border border-border bg-muted/40 p-2 shadow-sm",
+        "absolute overflow-hidden rounded-lg border border-primary/20 bg-card/80 p-2 shadow-sm backdrop-blur-sm",
         className,
       )}
       variants={{
@@ -33,8 +33,14 @@ function GraphNodeSkeleton({ className }: { className: string }) {
         },
       }}
     >
-      <div className="mb-1.5 h-1.5 w-3/4 animate-pulse rounded-full bg-muted-foreground/20" />
-      <div className="h-1.5 w-1/2 animate-pulse rounded-full bg-muted-foreground/20" />
+      <m.div
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-primary/15 to-transparent"
+        animate={{ x: ["-140%", "260%"] }}
+        transition={{ duration: 2.8, repeat: Infinity, ease: "linear", delay }}
+      />
+      <div className="relative mb-1.5 h-1.5 w-3/4 rounded-full bg-primary/20" />
+      <div className="relative h-1.5 w-1/2 rounded-full bg-muted-foreground/20" />
     </m.div>
   );
 }
@@ -45,72 +51,83 @@ export function ReadOnlyCanvasSkeleton() {
   return (
     <MotionConfig reducedMotion="user">
       <div
-        className="relative flex h-full w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-md border border-border bg-muted/30"
+        className="relative flex h-full w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-md border border-border bg-background"
         data-testid="canvas-view-skeleton"
         aria-hidden="true"
       >
+        {/* 只增加空间感，不表达任何真实进度。 */}
+        <m.div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl"
+          animate={{ scale: [1, 1.12, 1], opacity: [0.55, 0.9, 0.55] }}
+          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <m.div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/10"
+          animate={{ rotate: 360, scale: [1, 1.04, 1] }}
+          transition={{
+            rotate: { duration: 18, repeat: Infinity, ease: "linear" },
+            scale: { duration: 4.5, repeat: Infinity, ease: "easeInOut" },
+          }}
+        />
+
         {/* 标题：辐射光点 + 高光文字 */}
-        <div className="mb-1 flex items-center gap-2">
-          <span className="relative block h-3 w-3">
+        <div className="relative z-10 mb-1 flex items-center gap-2">
+          <span className="relative block h-3.5 w-3.5">
             <m.span
-              className="absolute inset-0 rounded-full bg-accent/70"
-              animate={{ scale: [1, 2.4], opacity: [0.6, 0] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
+              className="absolute inset-0 rounded-full border border-primary/30"
+              animate={{ scale: [1, 2.4], opacity: [0.7, 0] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
             />
             <m.span
-              className="absolute inset-0 rounded-full bg-accent/50"
+              className="absolute inset-0 rounded-full border border-primary/20"
               animate={{ scale: [1, 1.8], opacity: [0.5, 0] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut", delay: 0.45 }}
             />
-            <span className="absolute inset-1 rounded-full bg-accent" />
+            <span className="absolute inset-1 rounded-full bg-primary" />
           </span>
           <p className="shimmer-text text-sm font-medium">正在生成分析画布</p>
         </div>
-        <p className="text-xs text-muted-foreground">梳理 Understanding 关系并自动排版</p>
+        <p className="relative z-10 text-xs text-muted-foreground">
+          梳理 Understanding 关系并自动排版
+        </p>
 
-        {/* 迷你画布骨架：连线绘制 + 节点浮现 */}
-        <div className="relative mt-2 h-[150px] w-[260px]">
+        {/* 迷你画布骨架：静态结构 + 流动光点 */}
+        <div className="relative z-10 mt-2 h-[150px] w-[260px]">
           <svg
             className="absolute inset-0 h-full w-full text-border"
             viewBox="0 0 260 150"
             fill="none"
           >
-            <m.path
-              d="M74 33 L188 30"
+            <path
+              d="M74 33 L188 30 M58 52 L58 95 M200 50 L200 92 M86 118 L188 116"
               stroke="currentColor"
               strokeWidth={1.25}
               strokeLinecap="round"
-              initial={{ pathLength: 0, opacity: 0.15 }}
-              animate={{ pathLength: 1, opacity: 0.8 }}
-              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.2 }}
             />
-            <m.path
-              d="M58 52 L58 95"
-              stroke="currentColor"
-              strokeWidth={1.25}
-              strokeLinecap="round"
-              initial={{ pathLength: 0, opacity: 0.15 }}
-              animate={{ pathLength: 1, opacity: 0.8 }}
-              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.32 }}
-            />
-            <m.path
-              d="M200 50 L200 92"
-              stroke="currentColor"
-              strokeWidth={1.25}
-              strokeLinecap="round"
-              initial={{ pathLength: 0, opacity: 0.15 }}
-              animate={{ pathLength: 1, opacity: 0.8 }}
-              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.44 }}
-            />
-            <m.path
-              d="M86 118 L188 116"
-              stroke="currentColor"
-              strokeWidth={1.25}
-              strokeLinecap="round"
-              initial={{ pathLength: 0, opacity: 0.15 }}
-              animate={{ pathLength: 1, opacity: 0.8 }}
-              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.56 }}
-            />
+            <g className="text-primary/70">
+              {["M74 33 L188 30", "M58 52 L58 95", "M200 50 L200 92", "M86 118 L188 116"].map(
+                (path, index) => (
+                  <m.path
+                    key={path}
+                    d={path}
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeDasharray="1 11"
+                    initial={{ strokeDashoffset: 0, opacity: 0 }}
+                    animate={{ strokeDashoffset: -24, opacity: [0, 0.9, 0.9, 0] }}
+                    transition={{
+                      duration: 2.6,
+                      repeat: Infinity,
+                      ease: "linear",
+                      delay: index * 0.3,
+                    }}
+                  />
+                ),
+              )}
+            </g>
           </svg>
           <m.div
             className="absolute inset-0"
@@ -121,19 +138,19 @@ export function ReadOnlyCanvasSkeleton() {
               show: { transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
             }}
           >
-            <GraphNodeSkeleton className="left-[3%] top-[6%] h-12 w-24" />
-            <GraphNodeSkeleton className="left-[56%] top-[2%] h-12 w-28" />
-            <GraphNodeSkeleton className="left-[6%] top-[60%] h-12 w-24" />
-            <GraphNodeSkeleton className="left-[57%] top-[58%] h-12 w-28" />
+            <GraphNodeSkeleton className="left-[3%] top-[6%] h-12 w-24" delay={0.1} />
+            <GraphNodeSkeleton className="left-[56%] top-[2%] h-12 w-28" delay={0.5} />
+            <GraphNodeSkeleton className="left-[6%] top-[60%] h-12 w-24" delay={0.9} />
+            <GraphNodeSkeleton className="left-[57%] top-[58%] h-12 w-28" delay={1.3} />
           </m.div>
         </div>
 
-        {/* 不定态进度条：光带往复扫过 */}
-        <div className="relative mt-3 h-1 w-44 overflow-hidden rounded-full bg-muted">
+        {/* 不定态装饰光带 */}
+        <div className="relative z-10 mt-3 h-1 w-44 overflow-hidden rounded-full bg-muted">
           <m.span
-            className="absolute inset-y-0 w-1/3 rounded-full bg-accent"
+            className="absolute inset-y-0 w-1/3 rounded-full bg-primary"
             animate={{ x: ["-120%", "320%"] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
       </div>
