@@ -10,8 +10,9 @@ const CanvasReadOnlyView = lazy(() =>
   import("./CanvasReadOnlyView").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-/** 模拟画布最终图布局的骨架：若干 pulsing 卡片节点，表达「结构正在成形」。 */
-function CanvasViewSkeleton() {
+/** 模拟画布最终图布局的骨架：若干 pulsing 卡片节点，表达「结构正在成形」。
+ * 导出供 Storybook 独立验收加载态；生产仅作为 Suspense fallback。 */
+export function ReadOnlyCanvasSkeleton() {
   return (
     <div
       className="relative h-full w-full overflow-hidden rounded-md border border-border bg-muted/30"
@@ -75,7 +76,7 @@ export function ReadOnlyCanvasCard({
       )}
     >
       {mounted ? (
-        <Suspense fallback={<CanvasViewSkeleton />}>
+        <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
           <CanvasReadOnlyView
             document={document}
             shapeData={shapeData}

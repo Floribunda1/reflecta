@@ -1,5 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Effect } from "effect";
+import {
+  normalizeCanvasChanges,
+  type CanvasDocument,
+  type CanvasGraphChange,
+} from "@reflecta/shared";
 import type {
   AgentContextCompacted,
   AgentReducedAssistantBlock,
@@ -11,6 +17,7 @@ import {
 } from "../../../../../apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { Button } from "../../components/button";
+import type { CanvasUnderstandingRefView } from "../../canvas";
 import { ChatComposer } from "../composer/chat-composer";
 import { AgentContextCompactionStatus } from "../execution/agent-execution-block";
 import { ChatMessageRow } from "../message/chat-message-row";
@@ -24,6 +31,7 @@ const createdAt = new Date(Date.now() - 60_000).toISOString();
 const presentation: AgentViewPresentation = {
   entityLabels: new Map([
     ["understanding:u-irrigation", "极地温室的分区灌溉策略"],
+    ["understanding:u-long", "传感器漂移复核"],
     ["context:c-night-shift", "夜班联调记录"],
   ]),
   domainPath: (id) =>
@@ -33,6 +41,35 @@ const presentation: AgentViewPresentation = {
         "d-irrigation": "设施工程 / 灌溉控制",
       }) as Record<string, string>
     )[id] ?? id,
+  // canvas_view 引用理解的展示数据（实时 hydration B）：卡片全文经这里注入。
+  understandingRefs: new Map<string, CanvasUnderstandingRefView>([
+    [
+      "u-irrigation",
+      {
+        id: "u-irrigation",
+        title: "极地温室的分区灌溉策略",
+        body: [
+          "# 极地温室的分区灌溉策略",
+          "",
+          "## 低温启动顺序",
+          "按压力稳定顺序启动阀门，避免倒灌；入口温度低于阈值时降为脉冲模式。",
+          "",
+          "## 复验规则",
+          "观察三十分钟移动平均而非单点峰值，任何单项越界都会触发人工复核。",
+        ].join("\n"),
+        deleted: false,
+      },
+    ],
+    [
+      "u-long",
+      {
+        id: "u-long",
+        title: "传感器漂移复核",
+        body: "东侧支路在低温时偶发短暂通信空窗；下一轮增加阀门实际开度与本地缓存计数，以区分网络延迟与执行器迟滞。",
+        deleted: false,
+      },
+    ],
+  ]),
 };
 
 const modelOptions = [
@@ -749,6 +786,98 @@ function CompactTaskDemo() {
   );
 }
 
+// canvas_present：模型对现有知识做只读结构分析（无写入 / 无审批）。
+// changes 与真实 agent 输入一致（不写坐标/id）；文档用真实 normalizeCanvasChanges（ELK）
+// 现场生成，几何与 server 一致；理解卡全文经 presentation.understandingRefs 实时 hydration。
+const canvasPresentInput = {
+  title: "夜班灌溉知识结构",
+  caption: "基于现有 Understanding 的分析视图，未保存。",
+};
+const canvasPresentChanges: readonly CanvasGraphChange[] = [
+  { op: "add_element", ref: "q", element: { kind: "text", text: "夜班灌溉风险如何拆解？" } },
+  {
+    op: "add_element",
+    ref: "u1",
+    element: { kind: "understanding", understandingId: "u-irrigation" },
+  },
+  {
+    op: "add_element",
+    ref: "u2",
+    element: { kind: "understanding", understandingId: "u-long" },
+  },
+  { op: "add_element", ref: "d", element: { kind: "text", text: "结论：组合策略并设置回水阈值" } },
+  { op: "add_edge", ref: "e1", sourceRef: "q", targetRef: "u1", label: "归因" },
+  { op: "add_edge", ref: "e2", sourceRef: "q", targetRef: "u2", label: "归因" },
+  { op: "add_edge", ref: "e3", sourceRef: "u1", targetRef: "d", label: "支持" },
+  { op: "add_edge", ref: "e4", sourceRef: "u2", targetRef: "d", label: "支持" },
+];
+
+function CanvasPresentDemo() {
+  const [document, setDocument] = useState<CanvasDocument | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const promise = Effect.runPromise(
+      normalizeCanvasChanges({ layout: "auto", changes: canvasPresentChanges }),
+    ).then((result) => {
+      if (!mounted) return;
+      setDocument(result.document);
+    });
+    return () => {
+      mounted = false;
+      promise.catch(() => undefined);
+    };
+  }, []);
+
+  const toolInput = { ...canvasPresentInput, changes: canvasPresentChanges };
+  // 完成前：canvas_present 仅显示普通工具活动（deferred，不挂 X6）；
+  // 完成后：Turn Renderer 派生独立 canvas-view 块，与最终文本同消息。
+  const blocks: AgentReducedAssistantBlock[] = [
+    {
+      kind: "reasoning",
+      text: "把当前夜班灌溉相关的理解按因果汇总成一张只读分析图。",
+      createdAt,
+    },
+    document
+      ? tool("canvas-present", "canvas_present", toolInput, {
+          kind: "canvas-view",
+          version: 1,
+          title: canvasPresentInput.title,
+          caption: canvasPresentInput.caption,
+          document,
+        })
+      : tool("canvas-present", "canvas_present", toolInput, undefined, { state: "running" }),
+    ...(document
+      ? ([
+          {
+            kind: "text",
+            text: "这是分析视图；若要保存为画布，告诉我即可。",
+            state: "done",
+            createdAt,
+          },
+        ] satisfies AgentReducedAssistantBlock[])
+      : []),
+  ];
+  const row = assistantRow("canvas-present-assistant", blocks, {
+    running: document === null,
+    enabledActions: document ? ["copy", "fork", "regenerate"] : [],
+  });
+
+  return (
+    <StorySurface>
+      <div className="grid content-start gap-7 overflow-auto p-6">
+        <ChatMessageRow
+          row={userRow("canvas-present-user", "我现在在夜班灌溉这条线路上，知识的因果结构如何？")}
+        />
+        <ChatMessageRow row={row} />
+      </div>
+      <div className="border-t bg-background p-4">
+        <Composer running={document === null} />
+      </div>
+    </StorySurface>
+  );
+}
+
 function AgentCompositionShowcase() {
   return (
     <StoryShowcase
@@ -768,6 +897,13 @@ function AgentCompositionShowcase() {
         contentClassName="p-0"
       >
         <ApprovalTaskDemo />
+      </StoryCase>
+      <StoryCase
+        title="知识结构分析"
+        description="用户询问领域知识结构，Agent 先用读取与推理，再用 canvas_present 展示只读分析画布（AI 分析 · 未保存），完成后继续输出结论——布局由真实 normalizeCanvasChanges 生成。"
+        contentClassName="p-0"
+      >
+        <CanvasPresentDemo />
       </StoryCase>
       <StoryCase
         title="压缩上下文"
