@@ -143,10 +143,6 @@ export function getActiveAgentModel(): AiModelSelection | null {
   return getActiveAiModelSelection() ?? null;
 }
 
-export function getActiveAgentReasoningLevel(): AiReasoningLevel {
-  return getStoredReasoningLevel();
-}
-
 export function setActiveAgentModel(selection: AiModelSelection): AiReasoningLevel {
   const ai = getAiConfig();
   const requested = {

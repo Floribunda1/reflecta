@@ -406,9 +406,16 @@ describe("in-place cell updates", () => {
     expect(cell.setLabels).toHaveBeenCalledWith([
       {
         attrs: {
-          rect: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
-          body: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
-          label: { text: "new", fill: "#fff", fontSize: 12 },
+          body: {
+            fill: "var(--chart-1)",
+            stroke: "none",
+            rx: 4,
+            refX: -6,
+            refY: -3,
+            refWidth: 12,
+            refHeight: 6,
+          },
+          label: { text: "new", fill: "#fff", fontSize: 11, fontWeight: 500 },
         },
       },
     ]);
