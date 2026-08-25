@@ -1,40 +1,12 @@
-/** domain 域契约（迁移批 ②）。 */
+/** domain 域契约。DTO schema 单一真源在 @reflecta/shared，这里只留 rpc 面。 */
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
+import { Domain, CreateDomainInput, UpdateDomainInput, ReorderDomainItem } from "@reflecta/shared";
 
 export class DomainListError extends S.TaggedError<DomainListError>()("DomainListError", {
   reason: S.String,
   code: S.Number,
 }) {}
-
-export const Domain = S.Struct({
-  id: S.String,
-  name: S.String,
-  parentId: S.NullOr(S.String),
-  sortOrder: S.Number,
-  createdAt: S.String,
-  updatedAt: S.String,
-});
-export type Domain = S.Schema.Type<typeof Domain>;
-
-export const CreateDomainInput = S.Struct({
-  name: S.String,
-  parentId: S.optional(S.NullOr(S.String)),
-});
-export type CreateDomainInput = S.Schema.Type<typeof CreateDomainInput>;
-
-export const UpdateDomainInput = S.Struct({
-  name: S.optional(S.String),
-  parentId: S.optional(S.NullOr(S.String)),
-});
-export type UpdateDomainInput = S.Schema.Type<typeof UpdateDomainInput>;
-
-export const ReorderDomainItem = S.Struct({
-  id: S.String,
-  parentId: S.NullOr(S.String),
-  sortOrder: S.Number,
-});
-export type ReorderDomainItem = S.Schema.Type<typeof ReorderDomainItem>;
 
 export const DomainList = rpc("domain.listDomains", S.Struct({}), S.Array(Domain), DomainListError);
 export const DomainGetById = rpc(
@@ -67,3 +39,6 @@ export const DomainDelete = rpc(
   S.Void,
   DomainListError,
 );
+
+// ipc 内部（index 装配）仍需这些类型/schema，从 shared 再导出（定义单一真源）。
+export { Domain, CreateDomainInput, UpdateDomainInput, ReorderDomainItem } from "@reflecta/shared";

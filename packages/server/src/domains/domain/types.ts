@@ -1,25 +1,17 @@
-import type { InferSelectModel } from "drizzle-orm";
-import type { domains } from "../../db/schema";
 import type { ContextDetail } from "../context/types";
 import type { UnderstandingNode } from "../understanding/types";
 import type { PageInfo } from "../shared/types";
+import type { Domain } from "@reflecta/shared";
 
-export type Domain = InferSelectModel<typeof domains>;
+export type {
+  Domain,
+  CreateDomainInput,
+  UpdateDomainInput,
+  ReorderDomainItem,
+} from "@reflecta/shared";
+
 export type DomainTreeNode = Omit<Domain, "createdAt" | "updatedAt"> & {
   children: DomainTreeNode[];
-};
-
-export type CreateDomainInput = {
-  name: string;
-  parentId?: string | null;
-};
-
-export type UpdateDomainInput = Partial<CreateDomainInput>;
-
-export type ReorderDomainItem = {
-  id: string;
-  parentId: string | null;
-  sortOrder: number;
 };
 
 export type DomainRef = {
