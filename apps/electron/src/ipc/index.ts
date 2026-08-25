@@ -127,8 +127,8 @@ export type {
   AiReasoningLevel,
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
-  RetrievalIndexStatus,
-} from "./contract/config";
+} from "@reflecta/shared";
+export type { RetrievalIndexStatus } from "./contract/config";
 export type {
   CreateCanvasInput,
   UpdateCanvasInput,

@@ -8,26 +8,24 @@ import {
   getModels,
   getSupportedThinkingLevels,
   type Api,
-  type KnownProvider,
   type Model,
-  type ModelThinkingLevel,
 } from "@earendil-works/pi-ai/compat";
-import { readStoredCredential } from "@earendil-works/pi-coding-agent";
-import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
-import { getRuntimeArg } from "./runtime-args";
 
-export interface AiProviderConfig {
-  id: string;
-  apiKey: string;
-  enabledModelIds: string[];
-}
+import type {
+  AiConfig,
+  AiModelOption,
+  AiModelSelection,
+  AiProviderConfig,
+  AiProviderDefinition,
+  AiProviderModel,
+  AiReasoningLevel,
+  RetrievalConfig,
+  RetrievalEmbeddingDownloadStatus,
+  RetrievalEmbeddingModelManifest,
+  RetrievalEmbeddingModelStatus,
+} from "@reflecta/shared";
 
-export interface AiModelSelection {
-  providerId: string;
-  modelId: string;
-}
-
-const AI_REASONING_LEVELS: ModelThinkingLevel[] = [
+const AI_REASONING_LEVELS: AiReasoningLevel[] = [
   "off",
   "minimal",
   "low",
@@ -36,75 +34,10 @@ const AI_REASONING_LEVELS: ModelThinkingLevel[] = [
   "xhigh",
   "max",
 ];
-export type AiReasoningLevel = ModelThinkingLevel;
 const DEFAULT_AGENT_REASONING_LEVEL: AiReasoningLevel = "medium";
-
-export interface AiConfig {
-  providers: AiProviderConfig[];
-  activeAgentModel?: AiModelSelection;
-  activeAgentReasoningLevel?: AiReasoningLevel;
-  titleGenerationModel?: AiModelSelection;
-}
-
-export interface AiProviderDefinition {
-  id: string;
-  name: string;
-  piProviderId: KnownProvider;
-  authType?: "api-key" | "codex";
-  models: AiProviderModel[];
-}
-
-export interface AiProviderModel {
-  id: string;
-  name: string;
-  supportedReasoningLevels: AiReasoningLevel[];
-}
-
-import type { AiModelOption } from "../ipc/contract/config";
-// 单一来源：ipc 契约中的 Effect Schema 类型（renderer 经 @shared/config 引用同一个类型）。
-export type { AiModelOption } from "../ipc/contract/config";
-
-export type RetrievalEmbeddingProvider = "disabled" | "local-llama-cpp" | "openai-compatible";
-
-export interface RetrievalEmbeddingConfig {
-  provider: RetrievalEmbeddingProvider;
-  modelId: string;
-  baseUrl?: string;
-  apiKey?: string;
-  modelPath?: string;
-}
-
-export interface RetrievalConfig {
-  embedding: RetrievalEmbeddingConfig;
-}
-
-export interface RetrievalEmbeddingModelManifest {
-  id: string;
-  name: string;
-  runtime: "llama.cpp";
-  modelId: string;
-  repoId: string;
-  fileName: string;
-  downloadUrl: string;
-  dimensions: number;
-  sizeLabel: string;
-}
-
-export interface RetrievalEmbeddingModelStatus {
-  manifest: RetrievalEmbeddingModelManifest;
-  downloaded: boolean;
-  modelPath: string;
-  config: RetrievalConfig;
-  download: RetrievalEmbeddingDownloadStatus;
-}
-
-export interface RetrievalEmbeddingDownloadStatus {
-  state: "idle" | "downloading" | "downloaded" | "error";
-  receivedBytes: number;
-  totalBytes?: number;
-  percent?: number;
-  error?: string;
-}
+import { readStoredCredential } from "@earendil-works/pi-coding-agent";
+import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
+import { getRuntimeArg } from "./runtime-args";
 
 export interface ResolvedAiModelConfig {
   provider: AiProviderConfig;

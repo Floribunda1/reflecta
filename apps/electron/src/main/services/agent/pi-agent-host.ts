@@ -41,8 +41,8 @@ import {
   getAiModelConfig,
   getContentStorageRoot,
   getTitleGenerationAiModelConfig,
-  type AiModelSelection,
 } from "../../config";
+import type { AiModelSelection } from "@reflecta/shared";
 import { agentLog } from "../../logger";
 import { AgentSessionRuntime } from "./agent-session-runtime";
 import { AgentEntityCatalog } from "./agent-entity-catalog";

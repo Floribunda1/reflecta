@@ -1,7 +1,7 @@
 /** config 域 IPC handlers（业务在 services/config-ops）。 */
 import { Effect } from "effect";
 import { ConfigError } from "../../ipc";
-import type { AiConfig, AiModelSelection, RetrievalConfig } from "../config";
+import type { AiConfig, AiModelSelection, RetrievalConfig } from "@reflecta/shared";
 import * as configOps from "../services/config-ops";
 import { liftPromise, liftSync, toVoid, type HandlerModule } from "./util";
 

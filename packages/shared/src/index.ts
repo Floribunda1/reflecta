@@ -4,6 +4,8 @@ export * from "./canvas/validate";
 export * from "./canvas/changes";
 export * from "./canvas/schema";
 export * from "./agent/session";
+export * from "./insights/recap";
+export * from "./config/schema";
 export * from "./capture/domain";
 export * from "./capture/search";
 export * from "./capture/context";

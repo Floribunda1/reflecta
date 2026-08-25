@@ -9,7 +9,7 @@ import type {
   AiReasoningLevel,
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
-} from "../config";
+} from "@reflecta/shared";
 import { retrievalIndexCoordinator } from "../retrievalIndexCoordinator";
 import {
   getActiveAgentReasoningLevel as getStoredReasoningLevel,
