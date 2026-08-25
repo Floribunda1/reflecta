@@ -39,32 +39,14 @@ function ActivityGroupSummary({
       </>
     );
   }
-  const parts = [];
-  if (presentation.hasReasoning) {
-    parts.push(
-      presentation.elapsed ? (
-        <span key="think">
-          思考了 <MonoNumber>{presentation.elapsed}</MonoNumber>
-        </span>
-      ) : (
-        <span key="think">完成思考</span>
-      ),
-    );
-  }
-  if (presentation.toolCount > 0) {
-    parts.push(
-      <span key="tools">
-        运行了 <MonoNumber>{presentation.toolCount}</MonoNumber> 个工具
-      </span>,
-    );
-  }
-  if (parts.length === 0) return "已完成";
-  return parts.map((part, index) => (
-    <Fragment key={part.key}>
-      {index > 0 ? "，" : null}
-      {part}
-    </Fragment>
-  ));
+  // 完成态：由 presentation 提供的分段（语义动作短语 + 末尾思考耗时）渲染，等宽数字走 MonoNumber。
+  return presentation.completedRuns.map((run, index) =>
+    run.type === "mono" ? (
+      <MonoNumber key={index}>{run.text}</MonoNumber>
+    ) : (
+      <Fragment key={index}>{run.text}</Fragment>
+    ),
+  );
 }
 
 export type AgentActivityGroupProps = {

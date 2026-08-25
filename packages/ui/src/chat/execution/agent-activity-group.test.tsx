@@ -79,7 +79,7 @@ test("shows status with ellipsis and a live elapsed timer while running", () => 
   expect(summary?.className).toContain("gap-1.5");
 });
 
-test("renders completed tool count in mono numerals", () => {
+test("renders completed semantic summary with mono numerals", () => {
   act(() => {
     root!.render(
       <AgentActivityGroup
@@ -97,9 +97,9 @@ test("renders completed tool count in mono numerals", () => {
             kind: "tool-activity",
             activity: {
               id: "tool-1",
-              toolName: "read",
+              toolName: "retrieve_knowledge",
               status: "done",
-              summary: "读取了文件",
+              summary: "检索到 1 条 Understanding 证据",
               items: [],
               createdAt: "2026-06-23T00:00:03.200Z",
             },
@@ -111,9 +111,8 @@ test("renders completed tool count in mono numerals", () => {
   });
 
   const trigger = container?.querySelector('[data-testid="agent-activity-group-trigger"]');
-  expect(trigger?.textContent).toContain("运行了");
-  expect(trigger?.textContent).toContain("1");
-  expect(trigger?.textContent).toContain("个工具");
+  expect(trigger?.textContent).toContain("检索了 1 次你的知识");
+  expect(trigger?.textContent).toContain("思考了");
   const mono = Array.from(trigger?.querySelectorAll(".font-mono") ?? []).map(
     (node) => node.textContent,
   );

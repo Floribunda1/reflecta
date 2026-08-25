@@ -61,7 +61,7 @@ describe("agent activity presentation", () => {
     });
   });
 
-  test("summarizes a completed group with thinking and tool counts", () => {
+  test("summarizes a completed group with semantic action phrases", () => {
     const blocks: AgentActivityBlockView[] = [
       {
         kind: "reasoning",
@@ -70,14 +70,86 @@ describe("agent activity presentation", () => {
       {
         kind: "tool-activity",
         activity: {
-          ...toolActivity("read"),
-          summary: "读取了「chat-message-row.tsx」",
+          ...toolActivity("attachment_read"),
+          summary: "读取了附件「复盘.pdf」",
         },
       },
     ];
 
-    expect(activityGroupPresentation(blocks).summary).toBe("完成思考，运行了 1 个工具");
-    expect(completedGroupSummary(blocks, "3.2s")).toBe("思考了 3.2s，运行了 1 个工具");
+    expect(activityGroupPresentation(blocks).summary).toBe("读取了附件「复盘.pdf」，完成思考");
+    expect(completedGroupSummary(blocks, "3.2s")).toBe("读取了附件「复盘.pdf」，思考了 3.2s");
+  });
+
+  test("groups activities into semantic buckets in product order", () => {
+    const blocks: AgentActivityBlockView[] = [
+      {
+        kind: "reasoning",
+        reasoning: { id: "reasoning-1", status: "done", markdown: "梳理已有理解" },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("understanding_get"),
+          summary: "读取了「反馈回路」",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("understanding_get"),
+          summary: "读取了「习惯养成」",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("understanding_list"),
+          summary: "列出「交易心理」下的 Understanding · 2 条",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("retrieve_knowledge"),
+          summary: "检索到 1 条 Understanding 证据",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("image_generate"),
+          summary: "已生成图片",
+        },
+      },
+    ];
+
+    expect(completedGroupSummary(blocks, "3.2s")).toBe(
+      "查看了「反馈回路」「习惯养成」等 3 条知识，检索了 1 次你的知识，生成了 1 张图片，思考了 3.2s",
+    );
+  });
+
+  test("falls back to counts when activities carry no object name", () => {
+    const activity = (toolName: string) => ({
+      kind: "tool-activity" as const,
+      activity: toolActivity(toolName),
+    });
+    expect(completedGroupSummary([activity("attachment_read")])).toBe("读取了 1 个附件");
+    expect(completedGroupSummary([activity("understanding_get")])).toBe("查看了 1 条知识");
+    expect(completedGroupSummary([activity("bash")])).toBe("调用了 1 个工具");
+    expect(completedGroupSummary([])).toBe("已完成");
+  });
+
+  test("truncates long object names in the collapsed summary", () => {
+    const blocks: AgentActivityBlockView[] = [
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("attachment_read"),
+          summary: "读取了附件「abcdefghijklmnopqrstuvwxyz.pdf」",
+        },
+      },
+    ];
+    expect(completedGroupSummary(blocks)).toBe("读取了附件「abcdefghijklmnopq…」");
   });
 
   test("sums every thinking segment from session timestamps", () => {
@@ -94,7 +166,7 @@ describe("agent activity presentation", () => {
       {
         kind: "tool-activity",
         activity: {
-          ...toolActivity("read"),
+          ...toolActivity("understanding_get"),
           createdAt: "2026-06-23T00:00:02.000Z",
         },
       },
@@ -110,14 +182,16 @@ describe("agent activity presentation", () => {
       {
         kind: "tool-activity",
         activity: {
-          ...toolActivity("bash"),
+          ...toolActivity("attachment_read"),
           createdAt: "2026-06-23T00:00:08.500Z",
         },
       },
     ];
 
     expect(activityElapsedLabel(blocks)).toBe("5.5s");
-    expect(activityGroupPresentation(blocks).summary).toBe("思考了 5.5s，运行了 2 个工具");
+    expect(activityGroupPresentation(blocks).summary).toBe(
+      "读取了 1 个附件，查看了 1 条知识，思考了 5.5s",
+    );
   });
 
   test("uses the earliest block timestamp as the group start", () => {
