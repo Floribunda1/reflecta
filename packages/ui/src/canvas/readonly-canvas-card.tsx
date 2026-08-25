@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
+import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y, POP_IN_SCALE } from "../lib/motion";
 import type { CanvasDocument } from "@reflecta/shared";
 import type {
   CanvasReferencedCanvasView,
@@ -14,26 +15,121 @@ const CanvasReadOnlyView = lazy(() =>
   import("./CanvasReadOnlyView").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-/** AI artifact 生成期加载态（Claude "Generating" 范式，framer motion 驱动）：
- * pulsing 光点 + 高光文字 + 不定态进度条，居中适配不同尺寸画布容器。 */
+/** 画布节点占位卡：逐个浮现（生成感）+ 内部行跳动。 */
+function GraphNodeSkeleton({ className }: { className: string }) {
+  return (
+    <m.div
+      className={cn(
+        "absolute rounded-md border border-border bg-muted/40 p-2 shadow-sm",
+        className,
+      )}
+      variants={{
+        hidden: { opacity: 0, y: FADE_UP_Y, scale: POP_IN_SCALE },
+        show: {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          transition: { duration: ENTER_DURATION, ease: EASE_OUT_EXPO },
+        },
+      }}
+    >
+      <div className="mb-1.5 h-1.5 w-3/4 animate-pulse rounded-full bg-muted-foreground/20" />
+      <div className="h-1.5 w-1/2 animate-pulse rounded-full bg-muted-foreground/20" />
+    </m.div>
+  );
+}
+
+/** AI artifact 生成期加载态（Claude "Generating" 范式升级版，framer motion 全程驱动）：
+ * 辐射光点 + 高光标题 + 迷你画布骨架（连线逐步绘制、节点逐个浮现）+ 不定态进度条。 */
 export function ReadOnlyCanvasSkeleton() {
   return (
     <MotionConfig reducedMotion="user">
       <div
-        className="relative flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-border bg-muted/30"
+        className="relative flex h-full w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-md border border-border bg-muted/30"
         data-testid="canvas-view-skeleton"
         aria-hidden="true"
       >
-        {/* pulsing 光点：暗示「生成中」 */}
-        <m.span
-          className="block h-2.5 w-2.5 rounded-full bg-accent"
-          animate={{ scale: [1, 1.6, 1], opacity: [0.55, 1, 0.55] }}
-          transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut" }}
-        />
-        {/* 高光文字（复用项目 shimmer-text 令牌） */}
-        <p className="shimmer-text text-sm font-medium">正在生成分析画布…</p>
+        {/* 标题：辐射光点 + 高光文字 */}
+        <div className="mb-1 flex items-center gap-2">
+          <span className="relative block h-3 w-3">
+            <m.span
+              className="absolute inset-0 rounded-full bg-accent/70"
+              animate={{ scale: [1, 2.4], opacity: [0.6, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
+            />
+            <m.span
+              className="absolute inset-0 rounded-full bg-accent/50"
+              animate={{ scale: [1, 1.8], opacity: [0.5, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
+            />
+            <span className="absolute inset-1 rounded-full bg-accent" />
+          </span>
+          <p className="shimmer-text text-sm font-medium">正在生成分析画布</p>
+        </div>
+        <p className="text-xs text-muted-foreground">梳理 Understanding 关系并自动排版</p>
+
+        {/* 迷你画布骨架：连线绘制 + 节点浮现 */}
+        <div className="relative mt-2 h-[150px] w-[260px]">
+          <svg
+            className="absolute inset-0 h-full w-full text-border"
+            viewBox="0 0 260 150"
+            fill="none"
+          >
+            <m.path
+              d="M74 33 L188 30"
+              stroke="currentColor"
+              strokeWidth={1.25}
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0.15 }}
+              animate={{ pathLength: 1, opacity: 0.8 }}
+              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.2 }}
+            />
+            <m.path
+              d="M58 52 L58 95"
+              stroke="currentColor"
+              strokeWidth={1.25}
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0.15 }}
+              animate={{ pathLength: 1, opacity: 0.8 }}
+              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.32 }}
+            />
+            <m.path
+              d="M200 50 L200 92"
+              stroke="currentColor"
+              strokeWidth={1.25}
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0.15 }}
+              animate={{ pathLength: 1, opacity: 0.8 }}
+              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.44 }}
+            />
+            <m.path
+              d="M86 118 L188 116"
+              stroke="currentColor"
+              strokeWidth={1.25}
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0.15 }}
+              animate={{ pathLength: 1, opacity: 0.8 }}
+              transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.56 }}
+            />
+          </svg>
+          <m.div
+            className="absolute inset-0"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: {},
+              show: { transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
+            }}
+          >
+            <GraphNodeSkeleton className="left-[3%] top-[6%] h-12 w-24" />
+            <GraphNodeSkeleton className="left-[56%] top-[2%] h-12 w-28" />
+            <GraphNodeSkeleton className="left-[6%] top-[60%] h-12 w-24" />
+            <GraphNodeSkeleton className="left-[57%] top-[58%] h-12 w-28" />
+          </m.div>
+        </div>
+
         {/* 不定态进度条：光带往复扫过 */}
-        <div className="relative mt-1 h-1 w-44 overflow-hidden rounded-full bg-muted">
+        <div className="relative mt-3 h-1 w-44 overflow-hidden rounded-full bg-muted">
           <m.span
             className="absolute inset-y-0 w-1/3 rounded-full bg-accent"
             animate={{ x: ["-120%", "320%"] }}
