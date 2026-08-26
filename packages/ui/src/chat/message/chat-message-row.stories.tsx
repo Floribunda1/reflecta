@@ -89,6 +89,52 @@ const assistantRow: ChatMessageRowView = {
   enabledActions: ["copy", "fork", "regenerate"],
 };
 
+/** image / canvas-view 生成中：由块自身承载占位（交付类工具不再有活动组工具行）。 */
+const deliverableStreamingRow: ChatMessageRowView = {
+  message: {
+    kind: "assistant",
+    id: "assistant-deliverable-streaming",
+    status: "streaming",
+    blocks: [
+      { kind: "image", id: "image-streaming", src: "", alt: "AI 生成图片", status: "streaming" },
+      {
+        kind: "canvas-view",
+        id: "canvas-streaming",
+        title: "",
+        document: { elements: [], edges: [] },
+        status: "streaming",
+      },
+    ],
+  },
+};
+
+/** image / canvas-view 生成失败：块内联错误文案。 */
+const deliverableFailedRow: ChatMessageRowView = {
+  message: {
+    kind: "assistant",
+    id: "assistant-deliverable-failed",
+    status: "done",
+    blocks: [
+      {
+        kind: "image",
+        id: "image-failed",
+        src: "",
+        alt: "AI 生成图片",
+        status: "failed",
+        error: "图片生成服务超时，请重试。",
+      },
+      {
+        kind: "canvas-view",
+        id: "canvas-failed",
+        title: "",
+        document: { elements: [], edges: [] },
+        status: "failed",
+        error: "画布视图生成失败：模型输出不完整。",
+      },
+    ],
+  },
+};
+
 const generatedImageRow: ChatMessageRowView = {
   message: {
     kind: "assistant",
@@ -221,6 +267,15 @@ function MessageShowcase() {
       </StoryCase>
       <StoryCase title="Assistant 生成图片" description="生成结果与后续文字保持在同一条消息内。">
         <ChatMessageRow row={generatedImageRow} />
+      </StoryCase>
+      <StoryCase
+        title="交付块占位与失败"
+        description="image / canvas-view 生成中由块自身承载占位（不再有工具行），失败时内联错误文案。"
+      >
+        <div className="grid gap-6">
+          <ChatMessageRow row={deliverableStreamingRow} />
+          <ChatMessageRow row={deliverableFailedRow} />
+        </div>
       </StoryCase>
       <StoryCase
         title="搜索高亮与操作"

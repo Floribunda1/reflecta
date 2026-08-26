@@ -87,8 +87,9 @@ function activity(
   status: AgentToolActivityView["status"],
   summary: string,
   items: AgentToolActivityView["items"],
+  toolName = "read",
 ): AgentToolActivityView {
-  return { id, status, summary, items };
+  return { id, toolName, status, summary, items };
 }
 
 const toolRunning: AgentExecutionBlockView = {
@@ -122,14 +123,20 @@ const toolDone: AgentExecutionBlockView = {
 
 const toolFailed: AgentExecutionBlockView = {
   kind: "tool-activity",
-  activity: activity("tool-failed-1", "failed", "执行 bash · 遥测校验超时", [
-    {
-      id: "err-1",
-      label: "verify:telemetry",
-      error:
-        "遥测校验在等待 west-03 支路的稳定压力时超时。最近三次采样都低于最低阈值，控制程序已经停止后续阀门动作并保留现场状态。",
-    },
-  ]),
+  activity: activity(
+    "tool-failed-1",
+    "failed",
+    "执行 bash · 遥测校验超时",
+    [
+      {
+        id: "err-1",
+        label: "verify:telemetry",
+        error:
+          "遥测校验在等待 west-03 支路的稳定压力时超时。最近三次采样都低于最低阈值，控制程序已经停止后续阀门动作并保留现场状态。",
+      },
+    ],
+    "bash",
+  ),
 };
 
 const compactionReceipt: AgentContextCompactionView = {

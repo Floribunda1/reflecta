@@ -830,8 +830,8 @@ function CanvasPresentDemo() {
   }, []);
 
   const toolInput = { ...canvasPresentInput, changes: canvasPresentChanges };
-  // 完成前：canvas_present 仅显示普通工具活动（deferred，不挂 X6）；
-  // 完成后：Turn Renderer 派生独立 canvas-view 块，与最终文本同消息。
+  // 完成前：canvas_present 由 canvas-view streaming 占位承载（交付块自承载，不进活动组）；
+  // 完成后：Turn Renderer 产出独立 canvas-view 块，与最终文本同消息。
   const blocks: AgentReducedAssistantBlock[] = [
     {
       kind: "reasoning",
