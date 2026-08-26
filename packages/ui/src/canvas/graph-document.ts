@@ -57,9 +57,14 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
  * 背景色跟随的是“线色”而不是“背后 group 底色”——所以换色 / detach / 挪动 / 嵌套
  * 全都无需同步：颜色来源唯一且确定（line.stroke），改线色由 applyEdgePresentation
  * 重算 label attrs 天然跟随，零组件 / 零同步。
- * X6 defaultLabel markup 的 body 设 fill + rx 成紧凑 tag，并用 ref* 属性补内边距；
- * label 文字用 contrastTextColor 选高对比色。
+ * 长标签用 textWrap 限宽折行：SVG text 原生不折行，标签可能比连线还长——
+ * 限宽后 X6 按 width 自动断成多行 tspan，pill 随文本 bbox 自适应，不溢出连线段。
+ * 注意 height 必须显式给：X6 的 breakText 用 floor(height/lineHeight) 算最大行数，
+ * 不给时量化到的 bbox 高是 0 → 0 行 → 整个标签被清空（文字消失）。
  */
+const EDGE_LABEL_MAX_WIDTH = 100; // 与布局层间距（100）对齐：常见短标签单行，长标签折行后仍进得进缝
+// ponytail: 上限 62 行（≈558 个全角字符）远超连线标签现实长度（编辑框单行 160px）；
+// 若未来支持超长多行编辑，把高度改成按文本估算的行数×行高。
 function edgeLabelItems(label: string | null, color: string) {
   const tag = {
     fill: color,
@@ -80,6 +85,7 @@ function edgeLabelItems(label: string | null, color: string) {
               fill: contrastTextColor(color),
               fontSize: 11,
               fontWeight: 500,
+              textWrap: { width: EDGE_LABEL_MAX_WIDTH, height: 1000 },
             },
           },
         },

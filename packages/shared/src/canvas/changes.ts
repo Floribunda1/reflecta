@@ -180,7 +180,22 @@ const layoutDocument = Effect.fn("layoutDocument")(function* (
   const nodes = new Map<string, ElkNode>(
     document.elements.map((element) => [
       element.id,
-      { id: element.id, width: element.width, height: element.height, children: [] },
+      {
+        id: element.id,
+        width: element.width,
+        height: element.height,
+        children: [],
+        // 组内子节点使用 ELK 默认间距（20），与顶层 layoutOptions 不继承到嵌套布局；
+        // 在 group 节点上显式声明，让组内卡片间距与层间间距对齐顶层配置。
+        ...(element.kind === "group"
+          ? {
+              layoutOptions: {
+                "elk.spacing.nodeNode": "60",
+                "elk.layered.spacing.nodeNodeBetweenLayers": "100",
+              },
+            }
+          : {}),
+      },
     ]),
   );
   const roots: ElkNode[] = [];

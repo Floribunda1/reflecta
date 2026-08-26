@@ -29,6 +29,7 @@ export function createPiPresentTools() {
       promptGuidelines: [
         "First read the entities you want to analyze with read tools, then describe the analysis structure with add_element / add_edge / group.",
         "Present cognitive relations (derivation / dependency / scenario / principle...), not thematic grouping; each edge must carry a label that names the relation.",
+        "Only place nodes that participate in the structure (connected by an edge); orphan and meaningless nodes stay in the reply text, not on the canvas.",
         "Do not write coordinates, ids, timestamps, ports, or edge rendering details (layout is generated deterministically by the app).",
         "This view is the AI's analysis of existing knowledge and is not saved; do not imply its relationships are the user's persisted structure.",
         "Use it only when spatial / relational structure explains better than plain text.",

@@ -316,6 +316,38 @@ describe("normalizeCanvasChanges", () => {
     }
   });
 
+  /**
+   * 组内间距不变量：ELK 顶层 layoutOptions 不会继承到组的嵌套布局（默认 20px），
+   * 必须由 group 节点自己的 layoutOptions 显式声明。验收：组内任意两张卡片
+   * 至少在一个轴向上保持 ≥ 60px 的间隔，不能两张卡贴在一起（标签比缝宽）。
+   */
+  test("group children keep at least the configured intra-group spacing", async () => {
+    const result = await Effect.runPromise(
+      normalizeCanvasChanges({
+        layout: "horizontal",
+        changes: [
+          { op: "add_element", ref: "a", element: { kind: "text", text: "A" } },
+          { op: "add_element", ref: "b", element: { kind: "text", text: "B" } },
+          { op: "add_element", ref: "c", element: { kind: "text", text: "C" } },
+          { op: "group", ref: "g", label: "G", elementRefs: ["a", "b", "c"] },
+        ],
+      }),
+    );
+    const group = result.document.elements.find(
+      (e) => e.kind === "group" && e.props.label === "G",
+    )!;
+    const kids = result.document.elements.filter((e) => e.parentId === group.id);
+    expect(kids).toHaveLength(3);
+    const minGap = 60;
+    for (const [i, a] of kids.entries()) {
+      for (const b of kids.slice(i + 1)) {
+        const tooCloseX = Math.abs(a.x - b.x) < Math.min(a.width, b.width) + minGap;
+        const tooCloseY = Math.abs(a.y - b.y) < Math.min(a.height, b.height) + minGap;
+        expect(tooCloseX && tooCloseY, `${a.id} and ${b.id} are too close`).toBe(false);
+      }
+    }
+  });
+
   test("text cards get a content-derived height (fixed width, taller for longer text)", async () => {
     const short = await Effect.runPromise(
       normalizeCanvasChanges({
