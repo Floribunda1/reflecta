@@ -8,8 +8,7 @@
   把学习、实践和对话，沉淀成可追溯的个人理解。
 </p>
 
-Reflecta 是一个本地优先的桌面应用，面向持续学习、实践、复盘和使用 AI
-进行深度对话的人。它关心的不是你收藏了多少信息，而是这些经历最终有没有变成你自己的理解。
+Reflecta 是一款本地优先的桌面应用，面向持续学习、实践、复盘，以及与 AI 进行深度对话的人。它关心的不是你收藏了多少信息，而是这些经历最终有没有变成你自己的理解。
 
 > Reflecta 仍处于早期开发阶段。目前推荐开发者从源码运行，数据格式和交互可能继续演进。
 
@@ -19,12 +18,14 @@ Reflecta 是一个本地优先的桌面应用，面向持续学习、实践、�
 
 Reflecta 用四个核心概念承载这件事：
 
-- **Understanding**：你当前形成并愿意继续发展的个人理解。
-- **Context**：这条理解形成、被支撑、应用、挑战或修正的具体上下文。
-- **Connection**：你明确意识到的两条 Understanding 之间的关系。
-- **Domain**：长期回看和发展一组 Understanding 的领域。
+- **理解**：你当前形成并愿意继续发展的个人理解。
+- **上下文**：这条理解形成、被支撑、应用、挑战或修正的具体上下文。
+- **连接**：你明确意识到的两条理解之间的关系。
+- **领域**：长期回看和发展一组理解的领域。
 
 AI 可以帮助搜索、追问、比较和提出候选修改，但最终的理解和关系由用户确认。用户是大脑，AI 是辅助。
+
+2.0 起，Reflecta 增加了**画布**：把一组理解摆到一张画布上，亲手标记它们之间的依赖、推导与支撑关系，让某个领域的理解形成可视化的心智结构。画布上的卡片是理解库的引用而非副本——同一个理解可以同时出现在多张画布中。
 
 更完整的产品理念与边界见 [Reflecta Value Proposition](docs/references/product/value-proposition.md)。
 
@@ -32,22 +33,25 @@ AI 可以帮助搜索、追问、比较和提出候选修改，但最终的理�
 
 以下截图使用合成演示数据。
 
-### 在 Domain 中沉淀和回看 Understanding
+### 在领域中沉淀和回看理解
 
-![Reflecta Understanding workspace](assets/screenshots/understanding-workspace.png)
+![Reflecta 理解工作区](assets/screenshots/understanding-workspace.png)
 
 ### 带着已有理解继续与 Agent 对话
 
-![Reflecta Agent conversation](assets/screenshots/agent-conversation.png)
+![Reflecta Agent 对话](assets/screenshots/agent-conversation.png)
 
 ## 目前包含什么
 
-- 在 Domain 中创建、编辑和回看 Understanding。
-- 为 Understanding 保留来自实践、书籍、视频、文章或 AI 对话的 Context。
-- 通过 wiki link 建立 Understanding 之间的显式连接。
-- 与能够读取本地 Understanding 和 Context 的 Agent 对话。
+- 在领域中创建、编辑和回看理解。
+- 在画布上摆放理解卡片，亲手标记依赖、推导与支撑等关系，回看一个领域的心智结构。
+- 同一张理解卡可被多张画布引用复用；被引用的理解删除后，画布上以占位标记而非静默丢卡。
+- 画布与 Agent 协作：Agent 基于画布内容提出候选修改与续写提案，由用户确认后落库。
+- 为理解保留来自实践、书籍、视频、文章或 AI 对话的上下文。
+- 通过 wiki link 建立理解之间的显式连接。
+- 与能够读取本地理解和上下文的 Agent 对话。
 - 使用本地全文与语义检索找回相关理解。
-- 通过 JSON CLI 脚本化访问本地数据。
+- 通过 JSON CLI 脚本化访问本地数据（含画布管理命令）。
 
 核心内容保存在本机。使用远程 AI Provider 时，相应请求会发送到你配置的服务商。
 
@@ -101,6 +105,8 @@ bun run package:electron
 bun run --filter '@reflecta/cli' build
 node apps/cli/dist/index.mjs list-actions
 node apps/cli/dist/index.mjs search "feedback loop"
+node apps/cli/dist/index.mjs canvas create "Trading Psychology" --yes
+node apps/cli/dist/index.mjs canvas search "structure"
 node apps/cli/dist/index.mjs understanding create --title "Inbox" --yes
 ```
 
@@ -108,7 +114,7 @@ node apps/cli/dist/index.mjs understanding create --title "Inbox" --yes
 
 ## 数据与隐私
 
-- Understanding、Context、Domain、会话和检索索引默认保存在本机内容目录。
+- 理解、上下文、领域、画布、会话和检索索引默认保存在本机内容目录。
 - Reflecta 不要求把个人理解上传到一个由项目维护的云端知识库。
 - 远程 AI Provider 会按照你的配置接收完成请求所需的内容；请同时阅读对应服务商的隐私政策。
 - 在公开 issue 或 bug report 前，请检查日志、截图和复现数据中是否包含个人内容。
