@@ -93,6 +93,7 @@ export const UnderstandingCard = memo(function UnderstandingCard({
                   {understanding.domainNames.slice(0, 2).map((name) => (
                     <span
                       key={name}
+                      data-domain-name={name}
                       className="inline-flex max-w-24 items-center rounded-md bg-muted px-1.5 py-0.5 text-muted-foreground"
                     >
                       <span className="truncate">{name}</span>
