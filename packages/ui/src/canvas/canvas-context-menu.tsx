@@ -28,8 +28,8 @@ export function CanvasContextMenu({
   /** 视口坐标（clientX / clientY），consume 于 x6 contextmenu 事件 */
   x: number;
   y: number;
-  /** 各分区渲染间以分隔线相隔 */
-  sections: { items: CanvasContextMenuItem[] }[];
+  /** 各分区渲染间以分隔线相隔；id 作稳定 key（结构与顺序固定，不用数组索引） */
+  sections: { id: string; items: CanvasContextMenuItem[] }[];
   onClose: () => void;
 }) {
   const anchor = useMemo(
@@ -68,7 +68,7 @@ export function CanvasContextMenu({
         >
           <ContextMenu.Popup className="z-50 min-w-40 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
             {sections.map((section, i) => (
-              <Fragment key={i}>
+              <Fragment key={section.id}>
                 {i > 0 ? <ContextMenu.Separator className="-mx-1 my-1" /> : null}
                 {section.items.map((item) => {
                   const Icon = item.icon;

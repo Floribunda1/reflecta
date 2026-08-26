@@ -771,13 +771,14 @@ export const CanvasGraph = React.memo(
       graph.getPlugin<Selection>("selection")?.reset(pasted);
     };
 
-    const buildMenuSections = (): { items: CanvasContextMenuItem[] }[] => {
+    const buildMenuSections = (): { id: string; items: CanvasContextMenuItem[] }[] => {
       if (!contextMenu) return [];
       const graph = graphRef.current;
       const { target } = contextMenu;
       if (target.kind === "blank") {
         return [
           {
+            id: "paste",
             items: [
               {
                 id: "paste",
@@ -793,6 +794,7 @@ export const CanvasGraph = React.memo(
       if (target.kind === "edge") {
         return [
           {
+            id: "edge-actions",
             items: [
               {
                 id: "delete-edge",
@@ -811,8 +813,9 @@ export const CanvasGraph = React.memo(
         (graph.getCellById(id)!.getData() as { element?: CanvasElementDTO } | null)?.element
           ?.kind === "group";
       const groupIds = nodeIds.filter(isGroup);
-      const sections: { items: CanvasContextMenuItem[] }[] = [
+      const sections: { id: string; items: CanvasContextMenuItem[] }[] = [
         {
+          id: "z-order",
           items: [
             {
               id: "to-front",
@@ -829,6 +832,7 @@ export const CanvasGraph = React.memo(
           ],
         },
         {
+          id: "copy-actions",
           items: [
             { id: "copy", label: "复制", icon: Copy, onSelect: () => runCopy(nodeIds) },
             {
@@ -842,12 +846,14 @@ export const CanvasGraph = React.memo(
       ];
       if (groupIds.length > 0) {
         sections.push({
+          id: "ungroup",
           items: [
             { id: "ungroup", label: "解组", icon: Ungroup, onSelect: () => runUngroup(groupIds) },
           ],
         });
       }
       sections.push({
+        id: "delete",
         items: [
           {
             id: "delete",

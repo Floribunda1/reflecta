@@ -43,6 +43,9 @@ function ActivityGroupSummary({
   // flex 布局会裁掉 run 边界空格，导致数字与文本之间失去空隙。
   return (
     <span className="min-w-0">
+      {/* completedRuns 是位置化文本 token（文本可重复、无身份、不重排——整段随完成态一次性生成），
+          index key 语义正确；分析器按启发式报，显式豁免。 */}
+      {/* eslint-disable react-doctor/no-array-index-as-key */}
       {presentation.completedRuns.map((run, index) =>
         run.type === "mono" ? (
           <MonoNumber key={index}>{run.text}</MonoNumber>
@@ -50,6 +53,7 @@ function ActivityGroupSummary({
           <Fragment key={index}>{run.text}</Fragment>
         ),
       )}
+      {/* eslint-enable react-doctor/no-array-index-as-key */}
     </span>
   );
 }

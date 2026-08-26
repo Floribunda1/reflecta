@@ -848,6 +848,9 @@ function useChatComposer({
     ) {
       return;
     }
+    // setComposerValue 只写本地编辑器状态与 editor DOM，不向父组件回推任何值；
+    // 分析器按 set 前缀启发式误判为 parent-sync，显式豁免。
+    // eslint-disable-next-line react-doctor/no-pass-live-state-to-parent
     setComposerValue({
       document: createChatComposerDocument("", initialEntities),
       attachments: [],

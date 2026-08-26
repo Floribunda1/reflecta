@@ -51,6 +51,14 @@ export function EdgeOverlay({
 }) {
   const [labelDraft, setLabelDraft] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState(false);
+  // 切换选中边（edgeId prop 变化）时重置草稿 / 退出编辑：渲染期调整
+  // （React 官方 you-might-not-need-an-effect 写法），避免 effect 里 setState 露出旧编辑态。
+  const [labelForEdgeId, setLabelForEdgeId] = useState(edgeId);
+  if (edgeId !== labelForEdgeId) {
+    setLabelForEdgeId(edgeId);
+    setLabelDraft(null);
+    setEditingLabel(false);
+  }
   const labelInputRef = useRef<HTMLInputElement>(null);
   const [, refreshPosition] = useState(0);
   const edge = edgeId ? (graph.getCellById(edgeId) as X6Edge | undefined) : undefined;
@@ -58,11 +66,6 @@ export function EdgeOverlay({
     (onChange) => subscribeEdge(edge, onChange),
     () => (edge?.getData() as { edge?: CanvasEdgeDTO } | null | undefined)?.edge,
   );
-
-  useEffect(() => {
-    setLabelDraft(null);
-    setEditingLabel(false);
-  }, [edgeId]);
 
   useEffect(() => {
     if (!editingLabel) return;

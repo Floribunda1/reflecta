@@ -22,7 +22,7 @@ import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Maximize2, Minimize2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { useAtomValue } from "@effect/atom-react";
 import { activeContextIdAtom, captureActions, draftAtom, type CaptureAgentScope } from "../store";
@@ -308,14 +308,14 @@ function UnderstandingDetailInner({
     });
   }, [understanding?.id, understanding?.title, understanding?.body, initializeDraft]);
 
+  const onWindowKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === "Escape") handleFocusModeChange(false);
+  });
   useEffect(() => {
     if (!focusMode) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") handleFocusModeChange(false);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [focusMode, handleFocusModeChange]);
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, [focusMode]);
 
   if (!understanding) {
     return <div className="h-full" />;
@@ -484,10 +484,13 @@ function UnderstandingDetailInner({
 
 export function UnderstandingDetail(props: UnderstandingDetailProps) {
   const [focusMode, setFocusMode] = useState(false);
-
-  useEffect(() => {
+  // 切换理解对象时退出 focus 模式：渲染期调整（React 官方 you-might-not-need-an-effect），
+  // 避免 effect 里 setState 让用户先看到一帧旧 focus 态。
+  const [focusForId, setFocusForId] = useState(props.understandingId);
+  if (props.understandingId !== focusForId) {
+    setFocusForId(props.understandingId);
     setFocusMode(false);
-  }, [props.understandingId]);
+  }
 
   return (
     <div
