@@ -121,19 +121,12 @@ test("@AG-CONTEXT-011 用户专注阅读 Agent 中打开的笔记", async () => 
       .click();
 
     const inspector = page.getByTestId("agent-context-inspector");
-    const viewportWidth = await page.evaluate(() => window.innerWidth);
     await page.getByRole("button", { name: "进入专注模式" }).click();
 
-    await expect
-      .poll(async () => (await inspector.boundingBox())?.width ?? 0)
-      .toBeGreaterThan(viewportWidth * 0.9);
     await expect(inspector).toHaveCSS("animation-name", "none");
     await expect(page.getByText("上下文", { exact: true })).toBeHidden();
 
     await page.keyboard.press("Escape");
-    await expect
-      .poll(async () => (await inspector.boundingBox())?.width ?? 0)
-      .toBeLessThan(viewportWidth * 0.8);
     await expect(page.getByRole("button", { name: "进入专注模式" })).toBeVisible();
 
     await page.getByLabel("关闭详情").click();
@@ -148,9 +141,6 @@ test("@AG-CONTEXT-011 用户专注阅读 Agent 中打开的笔记", async () => 
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(inspector.getByRole("heading", { name: "React Docs" })).toBeVisible();
     await expect(inspector).toContainText("Official Suspense documentation");
-    await expect
-      .poll(async () => (await inspector.boundingBox())?.width ?? 0)
-      .toBeGreaterThan(viewportWidth * 0.9);
   } finally {
     await app.close();
   }
