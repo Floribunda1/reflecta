@@ -87,7 +87,6 @@ export const CanvasViewportSchema = S.Struct({ x: S.Number, y: S.Number, zoom: S
 export const CanvasDTOSchema = S.Struct({
   id: S.String,
   title: S.String,
-  description: S.NullOr(S.String),
   viewport: S.NullOr(CanvasViewportSchema),
   createdAt: S.String,
   updatedAt: S.String,
@@ -120,6 +119,5 @@ export const CreateCanvasInputSchema = S.Struct({ title: S.optional(S.String) })
 
 export const UpdateCanvasInputSchema = S.Struct({
   title: S.optional(S.String),
-  description: S.optional(S.NullOr(S.String)),
   viewport: S.optional(S.NullOr(CanvasViewportSchema)),
 });

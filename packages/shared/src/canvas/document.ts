@@ -90,7 +90,6 @@ export const DEFAULT_CANVAS_VIEWPORT: CanvasViewport = { x: 0, y: 0, zoom: 1 };
 export type CanvasDTO = {
   id: string;
   title: string;
-  description: string | null;
   viewport: CanvasViewport | null;
   createdAt: string;
   updatedAt: string;
@@ -127,6 +126,5 @@ export type CreateCanvasInput = {
 
 export type UpdateCanvasInput = {
   title?: string;
-  description?: string | null;
   viewport?: CanvasViewport | null;
 };

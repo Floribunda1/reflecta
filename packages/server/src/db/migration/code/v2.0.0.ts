@@ -20,7 +20,6 @@ const migration: CodeMigration = {
         "CREATE TABLE IF NOT EXISTS understanding_canvases (\n" +
         "  id TEXT PRIMARY KEY NOT NULL,\n" +
         "  title TEXT NOT NULL,\n" +
-        "  description TEXT,\n" +
         "  viewport TEXT,\n" +
         "  created_at TEXT NOT NULL,\n" +
         "  updated_at TEXT NOT NULL,\n" +

@@ -371,6 +371,103 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("shows canvas_list cards with update time", () => {
+    const turn = buildAgentTurnView([
+      tool("canvas_list", "tool-1", [
+        { id: "c1", title: "灌溉画布", updatedAt: "2026-07-29T12:00:00.000Z" },
+        { id: "c2", title: "低温启动顺序", updatedAt: "2026-07-26T12:00:00.000Z" },
+      ]),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          {
+            details: {
+              rows: [
+                {
+                  label: "画布",
+                  title: "灌溉画布",
+                  description: "更新于 7月29日",
+                  appearance: "list-item",
+                },
+                {
+                  label: "画布",
+                  title: "低温启动顺序",
+                  description: "更新于 7月26日",
+                  appearance: "list-item",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  test("shows canvas_read structure, understanding refs and linked canvases", () => {
+    const turn = buildAgentTurnView([
+      tool("canvas_read", "tool-1", {
+        canvas: { id: "c1", title: "灌溉画布" },
+        elements: [{ id: "e1" }, { id: "e2" }, { id: "e3" }],
+        edges: [{ id: "x1" }],
+        understandingRefs: [{ id: "u1", title: "反馈回路", body: "", deleted: false }],
+        referencedCanvases: [{ id: "c2", title: "低温启动顺序", deleted: false }],
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          {
+            details: {
+              rows: [
+                { label: "画布", title: "灌溉画布", appearance: "list-item" },
+                { description: "共 3 个元素、1 条连线" },
+                { label: "引用", title: "反馈回路", appearance: "nested-list-item" },
+                { label: "关联画布", title: "低温启动顺序", appearance: "nested-list-item" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  test("shows canvas_search hits with snippet", () => {
+    const turn = buildAgentTurnView([
+      tool("canvas_search", "tool-1", [
+        {
+          canvas: { id: "c1", title: "灌溉画布" },
+          snippet: "画布内包含「先稳定主管压力」等节点。",
+          reason: "标题命中",
+        },
+      ]),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          {
+            details: {
+              rows: [
+                {
+                  label: "画布",
+                  title: "灌溉画布",
+                  description: "画布内包含「先稳定主管压力」等节点。",
+                  appearance: "list-item",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
   test("shows retrieval candidates and evidence in its own tool activity", () => {
     const turn = buildAgentTurnView([
       tool(

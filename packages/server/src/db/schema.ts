@@ -93,7 +93,6 @@ export const understandingCanvases = sqliteTable(
   {
     id: text("id").notNull().primaryKey(),
     title: text("title").notNull(),
-    description: text("description"),
     viewport: text("viewport"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),

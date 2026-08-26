@@ -11,8 +11,8 @@ import type {
   AgentReducedAssistantBlock,
   AgentReducedMessage,
 } from "../../../../../preload/typings/agent";
-import type { CanvasDocument } from "@reflecta/ui/canvas";
-import type { CanvasUnderstandingRefView } from "@reflecta/ui/canvas";
+import type { CanvasDocument, CanvasUnderstandingRefView } from "@reflecta/ui/canvas";
+import { format, parseISO } from "date-fns";
 import type { PiApprovalToolName, PiToolName } from "@reflecta/shared";
 import { isPiToolName, PI_TOOL_LABELS } from "@reflecta/shared";
 
@@ -514,6 +514,113 @@ function imageBlock(block: AgentToolBlock): InternalTurnBlock | undefined {
     alt: prompt ? `AI 生成图片：${truncateText(prompt, 160)}` : "AI 生成图片",
     status: "done",
   };
+}
+
+/** canvas_list：卡片 = 标题 + 「更新于 M月d日」（画布无 description 等正文，时间是最有信息量的元数据）。 */
+function canvasListDetails(output: unknown) {
+  const records = Array.isArray(output)
+    ? output
+    : isRecord(output)
+      ? arrayValue(output.canvases)
+      : [];
+  return detailView({
+    rows: records.flatMap((canvas) => {
+      if (!isRecord(canvas)) return [];
+      return [
+        detailRow(
+          "画布",
+          entityTitle(canvas),
+          canvasUpdatedLabel(canvas),
+          "text",
+          undefined,
+          "list-item",
+        ),
+      ];
+    }),
+    emptyText: records.length === 0 ? "没有找到画布。" : undefined,
+  });
+}
+
+function canvasUpdatedLabel(canvas: Record<string, unknown>) {
+  const updatedAt = stringValue(canvas.updatedAt);
+  if (!updatedAt) return undefined;
+  const parsed = parseISO(updatedAt);
+  return Number.isNaN(parsed.getTime()) ? undefined : `更新于 ${format(parsed, "M月d日")}`;
+}
+
+/** canvas_read：画布卡 + 结构计数 + 引用/关联列表（与 understanding_get 的展示形态一致）。 */
+function canvasDetailDetails(output: unknown) {
+  const outputRecord = isRecord(output) ? output : {};
+  const canvas = isRecord(outputRecord.canvas) ? outputRecord.canvas : {};
+  const title = entityTitle(canvas) || stringValue(outputRecord.title) || "";
+  const elements = arrayValue(outputRecord.elements);
+  const edges = arrayValue(outputRecord.edges);
+  const refs = arrayValue(outputRecord.understandingRefs).filter((ref) => isRecord(ref));
+  const referenced = arrayValue(outputRecord.referencedCanvases).filter((cv) => isRecord(cv));
+  return detailView({
+    rows: [
+      detailRow("画布", title || undefined, undefined, "text", undefined, "list-item"),
+      elements.length === 0 && edges.length === 0
+        ? undefined
+        : detailRow("", "", `共 ${elements.length} 个元素、${edges.length} 条连线`, "text"),
+      ...refs.flatMap((ref) =>
+        isRecord(ref)
+          ? [
+              detailRow(
+                "引用",
+                entityTitle(ref) || stringValue(ref.id) || undefined,
+                undefined,
+                "text",
+                undefined,
+                "nested-list-item",
+              ),
+            ]
+          : [],
+      ),
+      ...referenced.flatMap((cv) =>
+        isRecord(cv)
+          ? [
+              detailRow(
+                "关联画布",
+                entityTitle(cv) || undefined,
+                undefined,
+                "text",
+                undefined,
+                "nested-list-item",
+              ),
+            ]
+          : [],
+      ),
+    ],
+    emptyText: title ? undefined : "画布不存在。",
+  });
+}
+
+/** canvas_search：命中卡 = 画布标题 + 命中片段。 */
+function canvasSearchDetails(output: unknown) {
+  const hits = Array.isArray(output)
+    ? output
+    : isRecord(output)
+      ? arrayValue(output.results ?? output.hits)
+      : [];
+  return detailView({
+    rows: hits.flatMap((hit) => {
+      if (!isRecord(hit)) return [];
+      const canvas = isRecord(hit.canvas) ? hit.canvas : hit;
+      return [
+        detailRow(
+          "画布",
+          entityTitle(canvas),
+          stringValue(hit.snippet),
+          "markdown",
+          undefined,
+          "list-item",
+          2,
+        ),
+      ];
+    }),
+    emptyText: hits.length === 0 ? "没有找到匹配的画布。" : undefined,
+  });
 }
 
 function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefined {
@@ -1364,8 +1471,9 @@ export const TOOL_RESULT_DETAILS: Partial<Record<PiToolName, ToolResultDetails>>
   understanding_get: (output) =>
     recordDetailView(entityRecord(output, "understanding"), "Understanding"),
   context_get: (output) => recordDetailView(entityRecord(output, "context"), "Context"),
-  canvas_list: (output) => recordListDetails(output, "画布", "canvases"),
-  canvas_read: (output) => recordDetailView(entityRecord(output, "canvas"), "画布"),
+  canvas_list: (output) => canvasListDetails(output),
+  canvas_read: (output) => canvasDetailDetails(output),
+  canvas_search: (output) => canvasSearchDetails(output),
 };
 
 export function toolResultDetails(
@@ -1928,7 +2036,12 @@ function contextTitle(value: Record<string, unknown>) {
 }
 
 function recordText(value: Record<string, unknown>) {
-  return stringValue(value.body) || stringValue(value.content) || stringValue(value.snippet);
+  return (
+    stringValue(value.body) ||
+    stringValue(value.content) ||
+    stringValue(value.snippet) ||
+    stringValue(value.description)
+  );
 }
 
 function mentionTitle(value: Record<string, unknown>) {

@@ -392,9 +392,24 @@ export const completedTools: readonly ToolBlock[] = [
     { content: syntheticMarkdown("公开资料摘录", 4) },
   ),
   tool("canvas_list", { limit: 20, offset: 0 }, [
-    { id: "canvas-irrigation", title: "极地温室的分区灌溉策略" },
-    { id: "canvas-valve-order", title: "低温启动顺序画布" },
-    { id: "canvas-night-alerts", title: "夜班告警合并规则" },
+    {
+      id: "canvas-irrigation",
+      title: "极地温室的分区灌溉策略",
+      createdAt: "2026-07-20T01:00:00.000Z",
+      updatedAt: "2026-07-29T02:00:00.000Z",
+    },
+    {
+      id: "canvas-valve-order",
+      title: "低温启动顺序画布",
+      createdAt: "2026-07-18T01:00:00.000Z",
+      updatedAt: "2026-07-26T02:00:00.000Z",
+    },
+    {
+      id: "canvas-night-alerts",
+      title: "夜班告警合并规则",
+      createdAt: "2026-07-15T01:00:00.000Z",
+      updatedAt: "2026-07-22T02:00:00.000Z",
+    },
   ]),
   tool(
     "canvas_read",
@@ -407,12 +422,28 @@ export const completedTools: readonly ToolBlock[] = [
         { id: "elt-3", kind: "text", text: "再按顺序开启支路" },
       ],
       edges: [{ id: "edge-1", sourceId: "elt-1", targetId: "elt-3", label: "依赖" }],
-      groups: [{ id: "grp-1", label: "灌溉时序", elementIds: ["elt-1", "elt-3"] }],
+      understandingRefs: [
+        {
+          id: "u-irrigation",
+          title: "极地温室的分区灌溉策略",
+          body: "分区灌溉依赖阀门顺序。",
+          deleted: false,
+        },
+      ],
+      referencedCanvases: [{ id: "canvas-valve-order", title: "低温启动顺序画布", deleted: false }],
     },
   ),
   tool("canvas_search", { query: "灌溉 策略", limit: 10 }, [
-    { id: "canvas-irrigation", title: "极地温室的分区灌溉策略" },
-    { id: "canvas-valve-order", title: "低温启动顺序画布" },
+    {
+      canvas: { id: "canvas-irrigation", title: "极地温室的分区灌溉策略" },
+      snippet: "画布内包含「先稳定主管压力」「再按顺序开启支路」等节点。",
+      reason: "标题与节点文本命中",
+    },
+    {
+      canvas: { id: "canvas-valve-order", title: "低温启动顺序画布" },
+      snippet: "画布引用「极地温室的分区灌溉策略」。",
+      reason: "引用命中",
+    },
   ]),
 ];
 export const failedTool = tool(

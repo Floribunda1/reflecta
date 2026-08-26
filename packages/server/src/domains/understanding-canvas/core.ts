@@ -123,7 +123,6 @@ export function canvasRowToDTO(row: typeof understandingCanvases.$inferSelect): 
   return {
     id: row.id,
     title: row.title,
-    description: row.description,
     viewport: parseJson<CanvasViewport | null>(row.viewport, null),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -140,7 +139,6 @@ export class CanvasCore {
       const row = {
         id,
         title: input?.title?.trim() || "未命名画布",
-        description: null,
         viewport: null,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -178,7 +176,6 @@ export class CanvasCore {
       const row = {
         id,
         title: input.title?.trim() || "未命名画布",
-        description: null,
         viewport: null,
         createdAt: timestamp,
         updatedAt: timestamp,
