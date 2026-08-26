@@ -95,10 +95,10 @@ export function CanvasInspectDialog({
         className="h-[90vh] max-h-[90vh] w-[min(80vw,calc(100vw-3rem))] max-w-none overflow-hidden p-0 sm:max-w-none"
       >
         <div className="flex h-full min-h-0 flex-col">
-          <DialogHeader className="px-4 pt-4 pr-12">
+          <DialogHeader className="border-b px-4 py-3 pr-12">
             <DialogTitle>{title?.trim() || "画布"}</DialogTitle>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
+          <div className="min-h-0 flex-1 overflow-hidden p-4">
             <CanvasInspector canvasId={canvasId} />
           </div>
         </div>
