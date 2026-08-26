@@ -198,8 +198,7 @@ export const CanvasGraph = React.memo(
     // 但 ref 跨两次挂载存活——按组件记 boolean 会把新 Graph 的首次 fitView 吞掉。
     const viewportAppliedRef = useRef<Graph | null>(null);
     const appliedDocRef = useRef<CanvasDocument | null>(null);
-    const readonlyRef = useRef(readonly);
-    readonlyRef.current = readonly;
+    const readonlyRef = useLatest(readonly);
     // 中键(button===1)按下瞬间置位：让 interacting 拒绝 node/edge 移动，
     // X6 便会发 unhandled:mousedown → panning 平移（行为同空白处中键）。
     const middlePanRef = useRef(false);
@@ -211,13 +210,22 @@ export const CanvasGraph = React.memo(
       y: number;
       target: CanvasContextMenuTarget;
     } | null>(null);
+    // 外部 document 换新实例 → 整图重建 → 旧选区 id 已失效。渲染期清空选区
+    // （React 官方「调整 state 以响应 prop 变化」写法，见 you-might-not-need-an-effect），
+    // 避免在 document 变更 effect 里 setState 让用户先看到一帧旧选区。
+    const [appliedDoc, setAppliedDoc] = useState<CanvasDocument | null>(document ?? null);
+    if ((document ?? null) !== appliedDoc) {
+      setAppliedDoc(document ?? null);
+      setSelectedEdgeId(null);
+      setSelectedNodeIds([]);
+    }
 
     const emitDocument = useCallback(() => {
       if (readonlyRef.current || suppressEmitRef.current) return;
       const graph = graphRef.current;
       if (!graph) return;
       onDocumentChangeRef.current?.(graphToDocument(graph));
-    }, [onDocumentChangeRef]);
+    }, [onDocumentChangeRef, readonlyRef]);
 
     const scheduleEmit = useCallback(() => {
       if (readonlyRef.current || suppressEmitRef.current) return;
@@ -228,7 +236,7 @@ export const CanvasGraph = React.memo(
         if (suppressEmitRef.current) return;
         emitDocument();
       });
-    }, [emitDocument]);
+    }, [emitDocument, readonlyRef]);
 
     const openContextMenu = useCallback(
       (clientX: number, clientY: number, target: CanvasContextMenuTarget) => {
@@ -263,13 +271,14 @@ export const CanvasGraph = React.memo(
         suppressEmitRef.current = false;
         graph.getPlugin<History>("history")?.enable();
         if (emit) emitDocument();
-        setSelectedEdgeId(null);
-        setSelectedNodeIds([]);
       },
       [applyViewport, emitDocument, readViewport],
     );
 
     // 挂载：创建 Graph + 插件 + 事件订阅 + 首次加载
+    // 订阅全部挂在 graph / 插件上，cleanup 里的 graph.dispose() 统一解绑全部监听；
+    // 分析器不认 dispose 的级联解绑，显式豁免。
+    // eslint-disable-next-line react-doctor/effect-needs-cleanup
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
@@ -596,7 +605,7 @@ export const CanvasGraph = React.memo(
         cancelAnimationFrame(raf);
         observer.disconnect();
       };
-    }, [viewport, viewportReady, applyViewport]);
+    }, [viewport, viewportReady, applyViewport, readonlyRef]);
 
     // 外部 document 变化（审批应用 / 只读预览更新）→ 重建图；首次挂载除外（已加载）。
     useEffect(() => {
@@ -609,46 +618,49 @@ export const CanvasGraph = React.memo(
     // 组操作统一走 graph 命令（History 记录 → 可撤销），与工具栏 / 右键 / 选区工具条共用。
     // 几何唯一来源是纯函数 groupElements（含 zIndex/parentId/相对坐标换算）；
     // 命令层只做 X6 绑定（addNode + addChild 进 History）。
-    const runGroupSelection = (nodeIds: string[]) => {
-      const graph = graphRef.current;
-      if (!graph) return;
-      const doc = graphToDocument(graph);
-      const index = byId(doc.elements);
-      const selected = new Set(nodeIds);
-      if (
-        doc.elements.filter(
-          (element) =>
-            selected.has(element.id) && !isSelectedWithAncestor(element.id, selected, index),
-        ).length < 2
-      )
-        return;
-      const groupId = crypto.randomUUID();
-      const next = groupElements(doc, nodeIds, {
-        id: groupId,
-        canvasId,
-        createdAt: new Date().toISOString(),
-      });
-      const groupDto = next.elements.find((element) => element.id === groupId);
-      if (!groupDto) return;
-      // 坐标约定：X6 内一律存绝对坐标（文档契约是相对坐标）。
-      // 纯函数 groupElements 返回相对组坐标，落图前换算成绝对坐标。
-      const nextIndex = byId(next.elements);
-      const groupAbsolute = absolutePositionOf(groupDto, nextIndex);
-      // History 以 batch 为一个可撤销步骤
-      graph.startBatch("group");
-      const groupNode = graph.addNode(
-        nodeMetadataFor({ ...groupDto, x: groupAbsolute.x, y: groupAbsolute.y }),
-      );
-      // addChild 同时维护 child.parent 与 parent.children（setParent 只写 parent 一侧）
-      for (const element of next.elements) {
-        if (element.parentId !== groupId) continue;
-        const child = graph.getCellById(element.id);
-        if (child?.isNode()) groupNode.addChild(child);
-      }
-      graph.stopBatch("group");
-    };
+    const runGroupSelection = useCallback(
+      (nodeIds: string[]) => {
+        const graph = graphRef.current;
+        if (!graph) return;
+        const doc = graphToDocument(graph);
+        const index = byId(doc.elements);
+        const selected = new Set(nodeIds);
+        if (
+          doc.elements.filter(
+            (element) =>
+              selected.has(element.id) && !isSelectedWithAncestor(element.id, selected, index),
+          ).length < 2
+        )
+          return;
+        const groupId = crypto.randomUUID();
+        const next = groupElements(doc, nodeIds, {
+          id: groupId,
+          canvasId,
+          createdAt: new Date().toISOString(),
+        });
+        const groupDto = next.elements.find((element) => element.id === groupId);
+        if (!groupDto) return;
+        // 坐标约定：X6 内一律存绝对坐标（文档契约是相对坐标）。
+        // 纯函数 groupElements 返回相对组坐标，落图前换算成绝对坐标。
+        const nextIndex = byId(next.elements);
+        const groupAbsolute = absolutePositionOf(groupDto, nextIndex);
+        // History 以 batch 为一个可撤销步骤
+        graph.startBatch("group");
+        const groupNode = graph.addNode(
+          nodeMetadataFor({ ...groupDto, x: groupAbsolute.x, y: groupAbsolute.y }),
+        );
+        // addChild 同时维护 child.parent 与 parent.children（setParent 只写 parent 一侧）
+        for (const element of next.elements) {
+          if (element.parentId !== groupId) continue;
+          const child = graph.getCellById(element.id);
+          if (child?.isNode()) groupNode.addChild(child);
+        }
+        graph.stopBatch("group");
+      },
+      [canvasId],
+    );
 
-    const runUngroup = (groupIds: string[]) => {
+    const runUngroup = useCallback((groupIds: string[]) => {
       const graph = graphRef.current;
       if (!graph) return;
       const groups = groupIds
@@ -665,7 +677,7 @@ export const CanvasGraph = React.memo(
         graph.removeCells([group]);
       }
       graph.stopBatch("ungroup");
-    };
+    }, []);
 
     /** 置顶/置底：原子单位=选中分支根，deep 连带后代；相邻边跟随端点。 */
     const runZMove = (nodeIds: string[], dir: "front" | "back") => {
@@ -942,7 +954,7 @@ export const CanvasGraph = React.memo(
           graph.getPlugin<Selection>("selection")?.reset([cell]);
         },
       }),
-      [handleEdgeUpdate, renderGraph, runGroupSelection, runUngroup],
+      [handleEdgeUpdate, renderGraph, runGroupSelection, runUngroup, readonlyRef],
     );
 
     const onCellAction = useCallback((action: CanvasCellAction) => {
