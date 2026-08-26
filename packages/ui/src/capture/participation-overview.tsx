@@ -240,7 +240,10 @@ function ParticipationHeatmapSkeleton() {
     <div className="min-w-0 flex-1" aria-hidden>
       <div
         className="flex flex-col"
-        style={{ gap: HEATMAP_ROW_GAP, height: HEATMAP_ROWS * HEATMAP_ROW_HEIGHT + (HEATMAP_ROWS - 1) * HEATMAP_ROW_GAP }}
+        style={{
+          gap: HEATMAP_ROW_GAP,
+          height: HEATMAP_ROWS * HEATMAP_ROW_HEIGHT + (HEATMAP_ROWS - 1) * HEATMAP_ROW_GAP,
+        }}
       >
         {Array.from({ length: HEATMAP_ROWS }, (_, i) => (
           <Skeleton key={i} className="w-full" style={{ height: HEATMAP_ROW_HEIGHT }} />

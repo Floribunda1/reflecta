@@ -1,165 +1,565 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>React Flow 功能全景调研</title>
-  <style>
-    :root { color-scheme: light dark; --bg:#f7f6f2; --paper:#fff; --ink:#20231f; --muted:#656b63; --line:#d7d9d2; --accent:#315c4b; --core:#dcece4; --config:#e3eaf6; --recipe:#f4ead5; --pro:#eee1f1; --external:#e8e8e8; --warn:#8a4b2b; }
-    * { box-sizing: border-box; }
-    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
-    main { width:min(1120px,calc(100% - 32px)); margin:32px auto 72px; }
-    header { border-top:6px solid var(--accent); padding:30px 0 22px; }
-    h1 { margin:0 0 8px; font:700 clamp(30px,5vw,52px)/1.05 ui-serif,Georgia,serif; letter-spacing:-.03em; }
-    h2 { margin:48px 0 14px; font-size:22px; }
-    h3 { margin:24px 0 8px; font-size:17px; }
-    p { max-width:78ch; }
-    .lede { font-size:18px; color:var(--muted); }
-    .meta,.notice { color:var(--muted); font-size:13px; }
-    .summary { background:var(--paper); border:1px solid var(--line); padding:22px; display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-    .summary strong { display:block; font-size:26px; color:var(--accent); }
-    .summary span { color:var(--muted); }
-    .callout { border-left:4px solid var(--accent); background:var(--paper); padding:14px 18px; margin:20px 0; }
-    .filters { position:sticky; top:0; z-index:2; display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:12px; background:color-mix(in srgb,var(--bg) 92%,transparent); backdrop-filter:blur(10px); border-block:1px solid var(--line); }
-    .filters fieldset { display:flex; flex-wrap:wrap; gap:8px; border:0; padding:0; margin:0; }
-    .filters legend { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
-    label { cursor:pointer; user-select:none; }
-    .chip { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:4px 9px; background:var(--paper); }
-    .matrix { width:100%; border-collapse:collapse; background:var(--paper); }
-    th,td { padding:10px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }
-    th { font-size:13px; color:var(--muted); }
-    .findings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-    .finding { background:var(--paper); border:1px solid var(--line); padding:16px; }
-    .finding h3 { margin-top:0; }
-    .tag { display:inline-block; padding:2px 7px; margin:0 4px 4px 0; border-radius:4px; font-size:12px; font-weight:650; }
-    .core { background:var(--core); }.config { background:var(--config); }.recipe { background:var(--recipe); }.pro { background:var(--pro); }.external { background:var(--external); }
-    .confidence { float:right; font-size:12px; color:var(--accent); }
-    details { border-top:1px solid var(--line); margin-top:12px; padding-top:9px; }
-    summary { cursor:pointer; font-weight:650; }
-    a { color:var(--accent); }
-    footer { margin-top:50px; border-top:1px solid var(--line); padding-top:18px; color:var(--muted); }
-    [hidden] { display:none !important; }
-    @media (max-width:760px) {
-      .summary,.findings { grid-template-columns:1fr; }
-      .matrix thead { display:none; }
-      .matrix,.matrix tbody,.matrix tr,.matrix td { display:block; }
-      .matrix tr { border-bottom:2px solid var(--line); padding:8px 0; }
-      .matrix td { border:0; padding:5px 12px; }
-      .matrix td::before { content:attr(data-label) ": "; font-weight:700; color:var(--muted); }
-    }
-    @media print {
-      :root { color-scheme:light; }
-      body { background:#fff; }
-      main { width:100%; margin:0; }
-      .filters { display:none; }
-      .finding { break-inside:avoid; }
-      details > * { display:block; }
-      a { color:inherit; text-decoration:none; }
-    }
-    @media (prefers-color-scheme:dark) {
-      :root { --bg:#171a18; --paper:#202421; --ink:#ecf0eb; --muted:#abb3aa; --line:#3a413c; --accent:#8fc7ad; --core:#294438; --config:#2a3a51; --recipe:#4b4028; --pro:#463249; --external:#373b38; }
-    }
-  </style>
-</head>
-<body>
-<main>
-  <header>
-    <p class="meta">Reflecta · v2.0.0 · 2026-08-19 · 基准 @xyflow/react 12.11.3</p>
-    <h1>React Flow 功能全景调研</h1>
-    <p class="lede">真正需要分清的不是功能名字，而是能力归属：Core 默认、Core 配置、官方配方、Pro、UI 与外部生态不能混为一句“React Flow 支持”。</p>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>React Flow 功能全景调研</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f6f2;
+        --paper: #fff;
+        --ink: #20231f;
+        --muted: #656b63;
+        --line: #d7d9d2;
+        --accent: #315c4b;
+        --core: #dcece4;
+        --config: #e3eaf6;
+        --recipe: #f4ead5;
+        --pro: #eee1f1;
+        --external: #e8e8e8;
+        --warn: #8a4b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.6 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto 72px;
+      }
+      header {
+        border-top: 6px solid var(--accent);
+        padding: 30px 0 22px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font:
+          700 clamp(30px, 5vw, 52px)/1.05 ui-serif,
+          Georgia,
+          serif;
+        letter-spacing: -0.03em;
+      }
+      h2 {
+        margin: 48px 0 14px;
+        font-size: 22px;
+      }
+      h3 {
+        margin: 24px 0 8px;
+        font-size: 17px;
+      }
+      p {
+        max-width: 78ch;
+      }
+      .lede {
+        font-size: 18px;
+        color: var(--muted);
+      }
+      .meta,
+      .notice {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .summary {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        padding: 22px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+      }
+      .summary strong {
+        display: block;
+        font-size: 26px;
+        color: var(--accent);
+      }
+      .summary span {
+        color: var(--muted);
+      }
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: var(--paper);
+        padding: 14px 18px;
+        margin: 20px 0;
+      }
+      .filters {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        align-items: center;
+        padding: 12px;
+        background: color-mix(in srgb, var(--bg) 92%, transparent);
+        backdrop-filter: blur(10px);
+        border-block: 1px solid var(--line);
+      }
+      .filters fieldset {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        border: 0;
+        padding: 0;
+        margin: 0;
+      }
+      .filters legend {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+      }
+      label {
+        cursor: pointer;
+        user-select: none;
+      }
+      .chip {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: var(--paper);
+      }
+      .matrix {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--paper);
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .findings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .finding {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        padding: 16px;
+      }
+      .finding h3 {
+        margin-top: 0;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 7px;
+        margin: 0 4px 4px 0;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .core {
+        background: var(--core);
+      }
+      .config {
+        background: var(--config);
+      }
+      .recipe {
+        background: var(--recipe);
+      }
+      .pro {
+        background: var(--pro);
+      }
+      .external {
+        background: var(--external);
+      }
+      .confidence {
+        float: right;
+        font-size: 12px;
+        color: var(--accent);
+      }
+      details {
+        border-top: 1px solid var(--line);
+        margin-top: 12px;
+        padding-top: 9px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 650;
+      }
+      a {
+        color: var(--accent);
+      }
+      footer {
+        margin-top: 50px;
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+        color: var(--muted);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 760px) {
+        .summary,
+        .findings {
+          grid-template-columns: 1fr;
+        }
+        .matrix thead {
+          display: none;
+        }
+        .matrix,
+        .matrix tbody,
+        .matrix tr,
+        .matrix td {
+          display: block;
+        }
+        .matrix tr {
+          border-bottom: 2px solid var(--line);
+          padding: 8px 0;
+        }
+        .matrix td {
+          border: 0;
+          padding: 5px 12px;
+        }
+        .matrix td::before {
+          content: attr(data-label) ": ";
+          font-weight: 700;
+          color: var(--muted);
+        }
+      }
+      @media print {
+        :root {
+          color-scheme: light;
+        }
+        body {
+          background: #fff;
+        }
+        main {
+          width: 100%;
+          margin: 0;
+        }
+        .filters {
+          display: none;
+        }
+        .finding {
+          break-inside: avoid;
+        }
+        details > * {
+          display: block;
+        }
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171a18;
+          --paper: #202421;
+          --ink: #ecf0eb;
+          --muted: #abb3aa;
+          --line: #3a413c;
+          --accent: #8fc7ad;
+          --core: #294438;
+          --config: #2a3a51;
+          --recipe: #4b4028;
+          --pro: #463249;
+          --external: #373b38;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="meta">Reflecta · v2.0.0 · 2026-08-19 · 基准 @xyflow/react 12.11.3</p>
+        <h1>React Flow 功能全景调研</h1>
+        <p class="lede">
+          真正需要分清的不是功能名字，而是能力归属：Core 默认、Core 配置、官方配方、Pro、UI
+          与外部生态不能混为一句“React Flow 支持”。
+        </p>
+      </header>
 
-  <section class="summary" aria-label="调研摘要">
-    <div><strong>6</strong><span>个能力归属层</span></div>
-    <div><strong>10</strong><span>个功能域</span></div>
-    <div><strong>1</strong><span>个可靠基准：固定版本 + 固定 props</span></div>
-  </section>
+      <section class="summary" aria-label="调研摘要">
+        <div><strong>6</strong><span>个能力归属层</span></div>
+        <div><strong>10</strong><span>个功能域</span></div>
+        <div><strong>1</strong><span>个可靠基准：固定版本 + 固定 props</span></div>
+      </section>
 
-  <div class="callout"><strong>核心结论：</strong>官网出现过不等于 Core 已实现；默认行为被覆盖后，覆盖的组合状态就转移为 Reflecta 的责任。</div>
+      <div class="callout">
+        <strong>核心结论：</strong>官网出现过不等于 Core
+        已实现；默认行为被覆盖后，覆盖的组合状态就转移为 Reflecta 的责任。
+      </div>
 
-  <nav class="filters" aria-label="筛选调研发现">
-    <strong>显示：</strong>
-    <fieldset>
-      <legend>能力层</legend>
-      <label class="chip"><input type="checkbox" value="core" checked>Core 默认</label>
-      <label class="chip"><input type="checkbox" value="config" checked>Core 配置</label>
-      <label class="chip"><input type="checkbox" value="recipe" checked>官方配方</label>
-      <label class="chip"><input type="checkbox" value="pro" checked>Pro / UI</label>
-      <label class="chip"><input type="checkbox" value="external" checked>外部生态</label>
-    </fieldset>
-  </nav>
+      <nav class="filters" aria-label="筛选调研发现">
+        <strong>显示：</strong>
+        <fieldset>
+          <legend>能力层</legend>
+          <label class="chip"><input type="checkbox" value="core" checked />Core 默认</label>
+          <label class="chip"><input type="checkbox" value="config" checked />Core 配置</label>
+          <label class="chip"><input type="checkbox" value="recipe" checked />官方配方</label>
+          <label class="chip"><input type="checkbox" value="pro" checked />Pro / UI</label>
+          <label class="chip"><input type="checkbox" value="external" checked />外部生态</label>
+        </fieldset>
+      </nav>
 
-  <section>
-    <h2>功能域矩阵</h2>
-    <table class="matrix">
-      <thead><tr><th>能力域</th><th>Core 默认</th><th>Core 可配置</th><th>配方 / Pro / 外部</th></tr></thead>
-      <tbody>
-        <tr><td data-label="能力域">节点</td><td data-label="Core 默认">拖动、选择、键盘移动、删除</td><td data-label="Core 可配置">custom node、Handle、resize、toolbar</td><td data-label="扩展">旋转/邻近连接配方；动画/形状 Pro</td></tr>
-        <tr><td data-label="能力域">边</td><td data-label="Core 默认">选择、删除、Bezier、连接基础</td><td data-label="Core 可配置">五类边、标签、marker、校验、重连</td><td data-label="扩展">floating 配方；routing/editable Pro</td></tr>
-        <tr><td data-label="能力域">视口</td><td data-label="Core 默认">拖拽平移、滚轮/捏合/双击缩放</td><td data-label="Core 可配置">范围、fitView、snap grid、MiniMap</td><td data-label="扩展">contextual zoom、触摸配方</td></tr>
-        <tr><td data-label="能力域">选择</td><td data-label="Core 默认">点击、Shift 框选、平台修饰键多选</td><td data-label="Core 可配置">直接框选、full/partial、自动平移</td><td data-label="扩展">lasso 配方；helper lines/grouping Pro</td></tr>
-        <tr><td data-label="能力域">结构</td><td data-label="Core 默认">节点与边渲染</td><td data-label="Core 可配置">parentId、extent、expandParent</td><td data-label="扩展">动态 parent-child / 折叠 Pro</td></tr>
-        <tr><td data-label="能力域">布局</td><td data-label="Core 默认">无</td><td data-label="Core 可配置">测量、坐标与 viewport API</td><td data-label="扩展">Dagre/ELK/D3；高级布局 Pro</td></tr>
-        <tr><td data-label="能力域">历史与协作</td><td data-label="Core 默认">无</td><td data-label="Core 可配置">change API / JSON</td><td data-label="扩展">undo/copy/collab Pro；CRDT 外部</td></tr>
-        <tr><td data-label="能力域">白板</td><td data-label="Core 默认">非产品定位</td><td data-label="Core 可配置">底层事件可扩展</td><td data-label="扩展">rectangle/lasso/eraser；freehand Pro</td></tr>
-      </tbody>
-    </table>
-  </section>
+      <section>
+        <h2>功能域矩阵</h2>
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>能力域</th>
+              <th>Core 默认</th>
+              <th>Core 可配置</th>
+              <th>配方 / Pro / 外部</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="能力域">节点</td>
+              <td data-label="Core 默认">拖动、选择、键盘移动、删除</td>
+              <td data-label="Core 可配置">custom node、Handle、resize、toolbar</td>
+              <td data-label="扩展">旋转/邻近连接配方；动画/形状 Pro</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">边</td>
+              <td data-label="Core 默认">选择、删除、Bezier、连接基础</td>
+              <td data-label="Core 可配置">五类边、标签、marker、校验、重连</td>
+              <td data-label="扩展">floating 配方；routing/editable Pro</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">视口</td>
+              <td data-label="Core 默认">拖拽平移、滚轮/捏合/双击缩放</td>
+              <td data-label="Core 可配置">范围、fitView、snap grid、MiniMap</td>
+              <td data-label="扩展">contextual zoom、触摸配方</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">选择</td>
+              <td data-label="Core 默认">点击、Shift 框选、平台修饰键多选</td>
+              <td data-label="Core 可配置">直接框选、full/partial、自动平移</td>
+              <td data-label="扩展">lasso 配方；helper lines/grouping Pro</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">结构</td>
+              <td data-label="Core 默认">节点与边渲染</td>
+              <td data-label="Core 可配置">parentId、extent、expandParent</td>
+              <td data-label="扩展">动态 parent-child / 折叠 Pro</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">布局</td>
+              <td data-label="Core 默认">无</td>
+              <td data-label="Core 可配置">测量、坐标与 viewport API</td>
+              <td data-label="扩展">Dagre/ELK/D3；高级布局 Pro</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">历史与协作</td>
+              <td data-label="Core 默认">无</td>
+              <td data-label="Core 可配置">change API / JSON</td>
+              <td data-label="扩展">undo/copy/collab Pro；CRDT 外部</td>
+            </tr>
+            <tr>
+              <td data-label="能力域">白板</td>
+              <td data-label="Core 默认">非产品定位</td>
+              <td data-label="Core 可配置">底层事件可扩展</td>
+              <td data-label="扩展">rectangle/lasso/eraser；freehand Pro</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-  <section>
-    <h2>按主题综合发现</h2>
-    <div class="findings">
-      <article class="finding" data-layer="core config"><span class="confidence">高可信</span><span class="tag core">Core 默认</span><span class="tag config">Core 配置</span><h3>默认手势是地图式，不是设计工具式</h3><p>直接拖 pane 平移；Shift+拖拽框选；默认 Full 命中；macOS Meta / 其他 Ctrl 追加多选；默认删除键是 Backspace。</p><details><summary>证据与含义</summary><p><a href="https://reactflow.dev/api-reference/react-flow">ReactFlow API</a> 记录全部默认 props。设计工具式配置是官方展示的一组可选值，不是默认。</p></details></article>
+      <section>
+        <h2>按主题综合发现</h2>
+        <div class="findings">
+          <article class="finding" data-layer="core config">
+            <span class="confidence">高可信</span><span class="tag core">Core 默认</span
+            ><span class="tag config">Core 配置</span>
+            <h3>默认手势是地图式，不是设计工具式</h3>
+            <p>
+              直接拖 pane 平移；Shift+拖拽框选；默认 Full 命中；macOS Meta / 其他 Ctrl
+              追加多选；默认删除键是 Backspace。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>
+                <a href="https://reactflow.dev/api-reference/react-flow">ReactFlow API</a>
+                记录全部默认 props。设计工具式配置是官方展示的一组可选值，不是默认。
+              </p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="core config"><span class="confidence">高可信</span><span class="tag core">Core 默认</span><span class="tag config">Core 配置</span><h3>选择状态由 Core 管，选择视觉由自定义节点负责</h3><p>React Flow 会给自定义节点注入状态并添加公开 class，但节点样式本身属于应用。没有视觉反馈不代表 selection 没发生。</p><details><summary>证据与含义</summary><p>见 <a href="https://reactflow.dev/learn/customization/custom-nodes">Custom Nodes</a> 与 <a href="https://reactflow.dev/learn/customization/theming">Theming</a>。</p></details></article>
+          <article class="finding" data-layer="core config">
+            <span class="confidence">高可信</span><span class="tag core">Core 默认</span
+            ><span class="tag config">Core 配置</span>
+            <h3>选择状态由 Core 管，选择视觉由自定义节点负责</h3>
+            <p>
+              React Flow 会给自定义节点注入状态并添加公开
+              class，但节点样式本身属于应用。没有视觉反馈不代表 selection 没发生。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>
+                见
+                <a href="https://reactflow.dev/learn/customization/custom-nodes">Custom Nodes</a> 与
+                <a href="https://reactflow.dev/learn/customization/theming">Theming</a>。
+              </p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="config"><span class="confidence">高可信</span><span class="tag config">Core 配置</span><h3>受控模式是最容易阻断默认行为的接缝</h3><p>应用必须完整应用 NodeChange / EdgeChange。只保留“需要落库”的 change，会连 selection 等 UI 状态一起过滤掉。</p><details><summary>证据与含义</summary><p><a href="https://reactflow.dev/learn/concepts/adding-interactivity">Adding Interactivity</a> 要求受控 flow 接入 change handlers。</p></details></article>
+          <article class="finding" data-layer="config">
+            <span class="confidence">高可信</span><span class="tag config">Core 配置</span>
+            <h3>受控模式是最容易阻断默认行为的接缝</h3>
+            <p>
+              应用必须完整应用 NodeChange / EdgeChange。只保留“需要落库”的 change，会连 selection 等
+              UI 状态一起过滤掉。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>
+                <a href="https://reactflow.dev/learn/concepts/adding-interactivity"
+                  >Adding Interactivity</a
+                >
+                要求受控 flow 接入 change handlers。
+              </p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="recipe pro external"><span class="confidence">高可信</span><span class="tag recipe">官方配方</span><span class="tag pro">Pro</span><span class="tag external">外部</span><h3>撤销、布局、参考线与协作都不是 Core 默认</h3><p>undo/redo、copy/paste、helper lines、协作属于 Pro 示例；布局依赖外部引擎。采用后由应用维护完整行为。</p><details><summary>证据与含义</summary><p>见 <a href="https://reactflow.dev/examples/pro-examples">Pro Examples</a> 与 <a href="https://reactflow.dev/learn/layouting/layouting">Layouting</a>。</p></details></article>
+          <article class="finding" data-layer="recipe pro external">
+            <span class="confidence">高可信</span><span class="tag recipe">官方配方</span
+            ><span class="tag pro">Pro</span><span class="tag external">外部</span>
+            <h3>撤销、布局、参考线与协作都不是 Core 默认</h3>
+            <p>
+              undo/redo、copy/paste、helper lines、协作属于 Pro
+              示例；布局依赖外部引擎。采用后由应用维护完整行为。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>
+                见 <a href="https://reactflow.dev/examples/pro-examples">Pro Examples</a> 与
+                <a href="https://reactflow.dev/learn/layouting/layouting">Layouting</a>。
+              </p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="recipe pro"><span class="confidence">高可信</span><span class="tag recipe">官方配方</span><span class="tag pro">Pro</span><h3>React Flow 不是白板产品</h3><p>rectangle、eraser、lasso 是 OSS 配方，freehand 是 Pro；官方明确说 React Flow 并非为 whiteboard app 设计。</p><details><summary>证据与含义</summary><p>见 <a href="https://reactflow.dev/learn/advanced-use/whiteboard">Whiteboard Features</a>。</p></details></article>
+          <article class="finding" data-layer="recipe pro">
+            <span class="confidence">高可信</span><span class="tag recipe">官方配方</span
+            ><span class="tag pro">Pro</span>
+            <h3>React Flow 不是白板产品</h3>
+            <p>
+              rectangle、eraser、lasso 是 OSS 配方，freehand 是 Pro；官方明确说 React Flow 并非为
+              whiteboard app 设计。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>
+                见
+                <a href="https://reactflow.dev/learn/advanced-use/whiteboard">Whiteboard Features</a
+                >。
+              </p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="pro"><span class="confidence">高可信</span><span class="tag pro">React Flow UI</span><h3>React Flow UI 是源码分发层，不是 Core</h3><p>它基于 shadcn/ui 与 Tailwind，通过 CLI 把代码复制进项目。复制后可改，也由项目自己维护。</p><details><summary>证据与含义</summary><p>见 <a href="https://reactflow.dev/ui">React Flow UI</a>。</p></details></article>
+          <article class="finding" data-layer="pro">
+            <span class="confidence">高可信</span><span class="tag pro">React Flow UI</span>
+            <h3>React Flow UI 是源码分发层，不是 Core</h3>
+            <p>
+              它基于 shadcn/ui 与 Tailwind，通过 CLI
+              把代码复制进项目。复制后可改，也由项目自己维护。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>见 <a href="https://reactflow.dev/ui">React Flow UI</a>。</p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="config"><span class="confidence">高可信</span><span class="tag config">工程约束</span><h3>真实浏览器才是交互验收环境</h3><p>React Flow 依赖 DOM 尺寸和 transforms；官方推荐 Playwright/Cypress，Jest 需补浏览器 API mocks。</p><details><summary>证据与含义</summary><p>见 <a href="https://reactflow.dev/learn/advanced-use/testing">Testing</a>。</p></details></article>
+          <article class="finding" data-layer="config">
+            <span class="confidence">高可信</span><span class="tag config">工程约束</span>
+            <h3>真实浏览器才是交互验收环境</h3>
+            <p>
+              React Flow 依赖 DOM 尺寸和 transforms；官方推荐 Playwright/Cypress，Jest 需补浏览器
+              API mocks。
+            </p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>见 <a href="https://reactflow.dev/learn/advanced-use/testing">Testing</a>。</p>
+            </details>
+          </article>
 
-      <article class="finding" data-layer="external"><span class="confidence">高可信</span><span class="tag external">外部生态</span><h3>多人协作是完整同步系统，不是打开一个 prop</h3><p>需要持久/临时状态划分、网络、冲突、离线与同步引擎；官方示例以 Yjs 展示一种路径。</p><details><summary>证据与含义</summary><p>见 <a href="https://reactflow.dev/learn/advanced-use/multiplayer">Multiplayer</a>。</p></details></article>
-    </div>
-  </section>
+          <article class="finding" data-layer="external">
+            <span class="confidence">高可信</span><span class="tag external">外部生态</span>
+            <h3>多人协作是完整同步系统，不是打开一个 prop</h3>
+            <p>需要持久/临时状态划分、网络、冲突、离线与同步引擎；官方示例以 Yjs 展示一种路径。</p>
+            <details>
+              <summary>证据与含义</summary>
+              <p>
+                见 <a href="https://reactflow.dev/learn/advanced-use/multiplayer">Multiplayer</a>。
+              </p>
+            </details>
+          </article>
+        </div>
+      </section>
 
-  <section>
-    <h2>缺口与判断规则</h2>
-    <div class="callout"><strong>判断公式：</strong>固定版本 Core 默认 + 当前 props = 可继承基准；任何 adapter、样式、自定义节点、配方或外部依赖 = Reflecta 责任。</div>
-    <p>可以完整枚举官网产品层和本地集成接缝，不能用有限用例数学证明无限长的交互序列。工程上的完整保证应落到 import、props、handlers、instance API、自定义节点/边、CSS 和数据映射这组有限接缝。规范详见 <a href="./react-flow-integration-principles.md">React Flow 集成与行为基准原则</a>。</p>
-  </section>
+      <section>
+        <h2>缺口与判断规则</h2>
+        <div class="callout">
+          <strong>判断公式：</strong>固定版本 Core 默认 + 当前 props = 可继承基准；任何
+          adapter、样式、自定义节点、配方或外部依赖 = Reflecta 责任。
+        </div>
+        <p>
+          可以完整枚举官网产品层和本地集成接缝，不能用有限用例数学证明无限长的交互序列。工程上的完整保证应落到
+          import、props、handlers、instance API、自定义节点/边、CSS 和数据映射这组有限接缝。规范详见
+          <a href="./react-flow-integration-principles.md">React Flow 集成与行为基准原则</a>。
+        </p>
+      </section>
 
-  <section>
-    <h2>官方来源</h2>
-    <ul>
-      <li><a href="https://reactflow.dev/">React Flow 首页</a> — 产品定位与开箱能力</li>
-      <li><a href="https://reactflow.dev/api-reference">API Reference</a> — Core API 与默认值</li>
-      <li><a href="https://reactflow.dev/examples/overview">Examples Overview</a> — OSS 配方范围</li>
-      <li><a href="https://reactflow.dev/examples/pro-examples">Pro Examples</a> — 付费示例边界</li>
-      <li><a href="https://reactflow.dev/ui">React Flow UI</a> — 可复制 UI 层</li>
-    </ul>
-  </section>
+      <section>
+        <h2>官方来源</h2>
+        <ul>
+          <li><a href="https://reactflow.dev/">React Flow 首页</a> — 产品定位与开箱能力</li>
+          <li>
+            <a href="https://reactflow.dev/api-reference">API Reference</a> — Core API 与默认值
+          </li>
+          <li>
+            <a href="https://reactflow.dev/examples/overview">Examples Overview</a> — OSS 配方范围
+          </li>
+          <li>
+            <a href="https://reactflow.dev/examples/pro-examples">Pro Examples</a> — 付费示例边界
+          </li>
+          <li><a href="https://reactflow.dev/ui">React Flow UI</a> — 可复制 UI 层</li>
+        </ul>
+      </section>
 
-  <footer>
-    <p>AI-generated. Verify critical decisions independently.</p>
-    <p>本阅读版是 <a href="./react-flow-feature-research.md">Markdown 源报告</a> 的可筛选摘要；完整事实与引用以源报告为准。</p>
-  </footer>
-</main>
-<script>
-  const boxes = [...document.querySelectorAll('.filters input')];
-  const cards = [...document.querySelectorAll('.finding')];
-  function filter() {
-    const active = new Set(boxes.filter(box => box.checked).map(box => box.value));
-    cards.forEach(card => {
-      const layers = card.dataset.layer.split(' ');
-      card.hidden = !layers.some(layer => active.has(layer));
-    });
-  }
-  boxes.forEach(box => box.addEventListener('change', filter));
-</script>
-</body>
+      <footer>
+        <p>AI-generated. Verify critical decisions independently.</p>
+        <p>
+          本阅读版是
+          <a href="./react-flow-feature-research.md">Markdown 源报告</a>
+          的可筛选摘要；完整事实与引用以源报告为准。
+        </p>
+      </footer>
+    </main>
+    <script>
+      const boxes = [...document.querySelectorAll(".filters input")];
+      const cards = [...document.querySelectorAll(".finding")];
+      function filter() {
+        const active = new Set(boxes.filter((box) => box.checked).map((box) => box.value));
+        cards.forEach((card) => {
+          const layers = card.dataset.layer.split(" ");
+          card.hidden = !layers.some((layer) => active.has(layer));
+        });
+      }
+      boxes.forEach((box) => box.addEventListener("change", filter));
+    </script>
+  </body>
 </html>
