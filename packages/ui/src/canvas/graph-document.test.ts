@@ -259,6 +259,32 @@ describe("graph-document toX6Cells", () => {
       },
     });
   });
+
+  test("pairs a reflecta-curve connector with its router when the document omitted the router", () => {
+    const document: CanvasDocument = {
+      elements: [
+        element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 }),
+        element("b", "text", { x: 300, y: 0 }, { width: 100, height: 80 }),
+      ],
+      edges: [
+        {
+          id: "e",
+          canvasId: "canvas",
+          source: { cell: "a", port: "right" },
+          target: { cell: "b", port: "left" },
+          router: null,
+          connector: { name: "reflecta-curve" },
+          attrs: {},
+          label: "推导出",
+          createdAt: timestamp,
+        },
+      ],
+    };
+    expect(toX6Cells(document).find((c) => c.id === "e")).toMatchObject({
+      router: { name: "reflecta-curve" },
+      connector: { name: "reflecta-curve" },
+    });
+  });
 });
 
 describe("in-place cell updates", () => {
@@ -279,6 +305,15 @@ describe("in-place cell updates", () => {
   test("uses port-direction distance instead of vertical distance for horizontal curves", () => {
     expect(curvePathData({ x: 0, y: 0 }, { x: 100, y: 450 }, "right", "left")).toBe(
       "M 0 0 L 16 0 C 50 0 50 450 84 450 L 100 450",
+    );
+  });
+
+  test("rebuilds curve stubs when X6 passes empty routePoints (no reflecta-curve router)", () => {
+    // canvas_update / 手写草稿常见 router:null + connector:reflecta-curve：
+    // X6 此时走 normal router，routePoints=[]。空数组不能当 stub 用，否则 path 变 NaN，
+    // 标签会钉在画布原点（节点左上角），线消失。
+    expect(curvePathData({ x: 0, y: 0 }, { x: 100, y: 100 }, "right", "left", [])).toBe(
+      curvePathData({ x: 0, y: 0 }, { x: 100, y: 100 }, "right", "left"),
     );
   });
 

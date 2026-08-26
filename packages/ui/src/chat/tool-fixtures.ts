@@ -1,4 +1,5 @@
 import type { AgentReducedAssistantBlock } from "../../../../apps/electron/src/preload/typings/agent";
+import { curveEdgePath } from "../canvas/graph-document";
 
 type ToolBlock = Extract<AgentReducedAssistantBlock, { kind: "tool" }>;
 
@@ -462,8 +463,7 @@ export const completedTools: readonly ToolBlock[] = [
           canvasId: "canvas-irrigation",
           source: { cell: "elt-1", port: "right" },
           target: { cell: "elt-2", port: "left" },
-          router: null,
-          connector: { name: "reflecta-curve" },
+          ...curveEdgePath(),
           attrs: {
             line: {
               stroke: "#3c6fb4",

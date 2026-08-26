@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { normalizeCanvasChanges, PI_TOOL_LABELS, type PiToolName } from "@reflecta/shared";
 import type { CanvasDocument } from "../canvas";
+import { curveEdgePath } from "../canvas/graph-document";
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { AgentReducedAssistantBlock } from "../../../../apps/electron/src/preload/typings/agent";
@@ -130,8 +131,7 @@ const canvasDraftDocument = {
       canvasId: "canvas-irrigation",
       source: { cell: "cvn-1", port: "right" },
       target: { cell: "cvn-2", port: "left" },
-      router: null,
-      connector: { name: "reflecta-curve" },
+      ...curveEdgePath(),
       attrs: {
         line: {
           stroke: "#3c6fb4",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { Button } from "../../components/button";
 import type { CanvasDocument } from "../../canvas";
+import { curveEdgePath } from "../../canvas/graph-document";
 import { AgentProposalCard } from "./agent-proposal-card";
 import type { AgentProposalView } from "./types";
 
@@ -162,8 +163,7 @@ const canvasDraft: CanvasDocument = {
       canvasId: "canvas-1",
       source: { cell: "cvn-1", port: "right" },
       target: { cell: "cvn-2", port: "left" },
-      router: null,
-      connector: { name: "reflecta-curve" },
+      ...curveEdgePath(),
       attrs: {
         line: {
           stroke: "#3c6fb4",

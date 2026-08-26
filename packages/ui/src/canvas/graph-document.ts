@@ -132,9 +132,18 @@ function edgeVisuals(edge: CanvasEdgeDTO) {
   const attrs = edge.attrs
     ? { ...DEFAULT_CANVAS_EDGE_ATTRS, ...edge.attrs }
     : DEFAULT_CANVAS_EDGE_ATTRS;
+  const connector = edge.connector ?? DEFAULT_CANVAS_EDGE_CONNECTOR;
+  // reflecta-curve connector 依赖同名 router 给出两端 stub；router:null 时 X6 走
+  // normal router（routePoints=[]），path 崩成 NaN，标签钉在原点。曲线缺省补回 router。
+  // 直线（normal + router:null）保持无 router，不在这里误加。
+  const router =
+    edge.router ??
+    (connector.name === DEFAULT_CANVAS_EDGE_CONNECTOR.name
+      ? { name: DEFAULT_CANVAS_EDGE_CONNECTOR.name }
+      : null);
   return {
-    router: edge.router,
-    connector: edge.connector ?? DEFAULT_CANVAS_EDGE_CONNECTOR,
+    router,
+    connector,
     attrs,
     labels: edgeLabels(edge, attrs),
   };
@@ -345,9 +354,14 @@ export function curvePathData(
   target: { x: number; y: number },
   sourcePort: CanvasEdgePortId,
   targetPort: CanvasEdgePortId,
-  routePoints = curveTerminalRoutePoints(source, target, sourcePort, targetPort),
+  routePoints?: ReadonlyArray<{ x: number; y: number }>,
 ): string {
-  const [sourceStub, targetStub] = routePoints;
+  const providedSource = routePoints?.[0];
+  const providedTarget = routePoints?.[1];
+  const [sourceStub, targetStub] =
+    providedSource && providedTarget
+      ? [providedSource, providedTarget]
+      : curveTerminalRoutePoints(source, target, sourcePort, targetPort);
   const sourceControl = controlPoint(
     sourcePort,
     sourceStub.x,
@@ -410,7 +424,7 @@ export function ensureCanvasConnectors(): void {
         target,
         resolvedSourcePort,
         targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
-        routePoints as [{ x: number; y: number }, { x: number; y: number }],
+        routePoints,
       );
       return options.raw ? Path.parse(path) : path;
     },
