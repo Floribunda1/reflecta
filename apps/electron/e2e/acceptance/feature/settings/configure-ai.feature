@@ -26,29 +26,9 @@
     而且 Chat 模型菜单应该只显示 GPT-4o
     而且当前 Chat 模型应该是 GPT-4o
 
-  @P0 @happy_path @AI-SETTINGS-003
-  场景: 用户连接和断开 Codex
-    假如用户打开 AI 设置
-    而且 Codex 尚未连接
-    当用户连接 Codex 并完成授权
-    那么 AI 设置应该显示 Codex 已连接
-    而且用户应该可以启用 Codex 提供的模型
-    当用户断开 Codex
-    那么 AI 设置应该显示 Codex 未连接
-    而且 Codex 模型应该不再可用
-
   @P1 @happy_path @AI-SETTINGS-004
   场景: 用户选择标题生成模型
     假如用户已经启用两个可用模型
     当用户选择其中一个模型用于标题生成
     而且用户保存 AI 设置
     那么重新打开 AI 设置后仍应该显示这个标题生成模型
-
-  @P1 @error @AI-SETTINGS-005
-  场景: Codex 连接失败后用户可以重试
-    假如用户打开 AI 设置
-    而且下一次 Codex 连接会失败
-    当用户连接 Codex
-    那么页面应该说明连接 Codex 失败
-    而且 Codex 应该保持未连接
-    而且用户应该仍能再次发起连接

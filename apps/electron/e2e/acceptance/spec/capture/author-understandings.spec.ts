@@ -89,7 +89,9 @@ test("@CP-UNDERSTANDING-004 用户删除不再需要的 Understanding", async ()
   try {
     await openCapturePage(page);
     await openUnderstanding(page, "React Server Components");
-    await page.getByRole("article").getByRole("button", { name: "更多操作" }).click();
+    // 「删除理解」在详情头部（article 外）；article 内是正文里 wiki 链接的「更多操作」，
+    // 会删到上下文。用 exact 只匹配头部那个 aria-label 恰好为「更多操作」的按钮。
+    await page.getByRole("button", { name: "更多操作", exact: true }).click();
     await page.getByRole("menuitem", { name: "删除" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "删除" }).click();
 

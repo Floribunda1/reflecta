@@ -23,9 +23,9 @@ async function chooseChatFromContextMenu(page: Page) {
 async function expectAgentDockWithContext(page: Page, title: string) {
   await expect(page.getByTestId("capture-agent-dock")).toBeVisible();
   await expect(page.getByTestId("capture-agent-dock")).toContainText(title);
-  await expect(contextMention(page, title)).toBeVisible();
+  // a0b22b7c 起不再往 composer 注入实体 mention chip（上下文经 scope 传递），
+  // 也不再断言 mention 可见 / composer 自动聚焦。
   await expect(composer(page)).toBeEditable();
-  await expect(composer(page)).toBeFocused();
 }
 
 test("@CP-AGENT-001 用户从 Domain 右键菜单打开上下文 Agent", async () => {
@@ -143,7 +143,6 @@ test("@CP-AGENT-006 用户在上下文 Agent 中继续历史对话并开始新�
     await expect(page.getByText("HISTORY_CONTEXT_MESSAGE")).toBeVisible();
 
     await page.getByTestId("contextual-agent-new-button").click();
-    await expect(contextMention(page, "Programming")).toBeVisible();
     await expect(composer(page)).toBeEditable();
     await expect(page.getByText("HISTORY_CONTEXT_MESSAGE")).toHaveCount(0);
   } finally {

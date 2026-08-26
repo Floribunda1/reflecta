@@ -20,7 +20,9 @@ import {
 async function openTrash(page: Page) {
   await page.getByTestId("app-settings-menu-item").click();
   await page.getByTestId("settings-menu-trash").click();
-  await expect(page.getByRole("heading", { name: "回收站" })).toBeVisible();
+  // exact：删除后可能残留「已移到回收站」toast（toast-title 是 h2 heading），
+  // 子串匹配会撞名导致 strict mode。只匹配面板标题「回收站」。
+  await expect(page.getByRole("heading", { name: "回收站", exact: true })).toBeVisible();
 }
 
 async function openTrashType(page: Page, label: "理解" | "上下文" | "画布") {
@@ -99,7 +101,7 @@ test("@TRASH-003 用户永久删除回收站中的单项内容", async () => {
     const item = trashItem(page, "Soft Deleted Understanding A");
     await item.hover();
     await item.getByRole("button", { name: "永久删除" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog").filter({ hasText: "无法恢复" });
     await expect(dialog).toContainText("无法恢复");
     await dialog.getByRole("button", { name: "永久删除" }).click();
 
@@ -124,7 +126,7 @@ test("@TRASH-004 用户清空回收站", async () => {
     const total = understandingCount + contextCount;
 
     await page.getByRole("button", { name: "清空回收站" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog").filter({ hasText: "无法恢复" });
     await expect(dialog).toContainText(`将永久删除 ${total} 项内容`);
     await dialog.getByRole("button", { name: "全部清空" }).click();
     await expect(page.getByText("回收站为空")).toBeVisible();
@@ -178,7 +180,7 @@ test("@TRASH-006 用户永久删除回收站中的画布", async () => {
     const item = trashItem(page, "待永久删除画布乙");
     await item.hover();
     await item.getByRole("button", { name: "永久删除" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog").filter({ hasText: "无法恢复" });
     await expect(dialog).toContainText("无法恢复");
     await dialog.getByRole("button", { name: "永久删除" }).click();
 
@@ -202,7 +204,7 @@ test("@TRASH-007 清空回收站时画布计入待永久删除数量", async () 
     const total = understandingCount + contextCount + 1; // +1 = 回收站中的画布
 
     await page.getByRole("button", { name: "清空回收站" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog").filter({ hasText: "无法恢复" });
     await expect(dialog).toContainText(`将永久删除 ${total} 项内容`);
     await dialog.getByRole("button", { name: "全部清空" }).click();
     await expect(page.getByText("回收站为空")).toBeVisible();
