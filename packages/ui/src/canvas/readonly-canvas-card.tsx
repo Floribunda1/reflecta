@@ -4,7 +4,7 @@ import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
 import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y, POP_IN_SCALE } from "../lib/motion";
 import type { CanvasDocument } from "@reflecta/shared";
-import type { MarkdownRenderer } from "../chat/entity";
+import type { ChatEntityReference, MarkdownRenderer } from "../chat/entity";
 import type {
   CanvasReferencedCanvasView,
   CanvasShapeData,
@@ -150,6 +150,7 @@ function canvasShapeData(
   referencedCanvases: ReadonlyMap<string, CanvasReferencedCanvasView> | undefined,
   onCanvasRefClick: ((canvasId: string) => void) | undefined,
   renderMarkdown: MarkdownRenderer | undefined,
+  onWikiLinkOpen: ((reference: ChatEntityReference) => void) | undefined,
 ): CanvasShapeData {
   // 引用展示数据（消息层实时 hydration）优先；不足时用 output 冻结的标题兜底，
   // 保证实体已被删除 / 重命名时引用卡仍有可读标题（卡片标题本身，非双链解析）。
@@ -165,9 +166,11 @@ function canvasShapeData(
     referencedCanvases: referencedCanvases ?? new Map(),
     renderMarkdown,
     // 鼠标点理解卡正文里的 wiki link：画布引用交给已有的跳转回调；
-    // 理解 / context / domain 在只读卡没有导航入口，保持 inert（与现状一致）。
+    // understanding / context 由调用方打开 chat 侧边栏（与 chat 行为一致）；
+    // domain 无导航入口，保持 inert。
     onWikiLinkOpen: (reference) => {
       if (reference.type === "canvas") onCanvasRefClick?.(reference.id);
+      else onWikiLinkOpen?.(reference);
     },
     ...(onCanvasRefClick ? { onCanvasRefClick } : {}),
   };
@@ -183,6 +186,8 @@ export type ReadOnlyCanvasCardProps = {
   referencedCanvases?: ReadonlyMap<string, CanvasReferencedCanvasView>;
   /** 画布引用卡点击跳转（如 inspector 需要在对话内打开目标画布）。 */
   onCanvasRefClick?: (canvasId: string) => void;
+  /** 理解/上下文 wiki link 点击（画布引用仍走 onCanvasRefClick）；chat 侧用于打开右侧 inspector。 */
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
   /** 理解卡正文的 Markdown 渲染：renderer 传入解析版组件（默认不解析 [[u:id]]）。 */
   renderMarkdown?: MarkdownRenderer;
   /** false → 折叠占位，不挂载 X6（避免在 0 / 裁剪尺寸里初始化图的闪烁与损坏）。 */
@@ -201,6 +206,7 @@ export function ReadOnlyCanvasCard({
   understandingTitles,
   referencedCanvases,
   onCanvasRefClick,
+  onWikiLinkOpen,
   renderMarkdown,
   mounted = true,
   className,
@@ -222,6 +228,7 @@ export function ReadOnlyCanvasCard({
     referencedCanvases,
     onCanvasRefClick,
     renderMarkdown,
+    onWikiLinkOpen,
   );
   const content = mounted ? (
     <Suspense fallback={<ReadOnlyCanvasSkeleton />}>

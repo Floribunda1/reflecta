@@ -387,7 +387,12 @@ function AgentMessageContent({
 
     if (block.kind === "canvas-view") {
       renderedBlocks.push(
-        <AgentCanvasView key={block.id} block={block} renderMarkdown={renderMarkdown} />,
+        <AgentCanvasView
+          key={block.id}
+          block={block}
+          renderMarkdown={renderMarkdown}
+          onWikiLinkOpen={entityBindings?.onEntityOpen}
+        />,
       );
       continue;
     }

@@ -10,7 +10,12 @@ import {
 } from "../../components/input-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
-import type { ChatEntityBindings, ChatEntityType, MarkdownRenderer } from "../entity";
+import type {
+  ChatEntityBindings,
+  ChatEntityReference,
+  ChatEntityType,
+  MarkdownRenderer,
+} from "../entity";
 import {
   entityClassName,
   CHAT_ENTITY_ICON_FONT_SIZE,
@@ -728,10 +733,13 @@ function CanvasProposalDraft({
   proposal,
   open,
   renderMarkdown,
+  onWikiLinkOpen,
 }: {
   proposal: CanvasProposalView;
   open: boolean;
   renderMarkdown?: MarkdownRenderer;
+  /** 理解/上下文 wiki link 点击：chat 侧打开右侧 inspector（与正文点击一致）。 */
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
 }) {
   const content = proposal.content;
   if (content.variant === "delete") {
@@ -759,6 +767,7 @@ function CanvasProposalDraft({
       understandingRefs={content.understandingRefs}
       understandingTitles={content.understandingTitles}
       renderMarkdown={renderMarkdown}
+      onWikiLinkOpen={onWikiLinkOpen}
       mounted={open}
       className="h-64"
     />
@@ -826,7 +835,14 @@ function ProposalContent({
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
   if (proposal.kind === "canvas")
-    return <CanvasProposalDraft proposal={proposal} open={open} renderMarkdown={renderMarkdown} />;
+    return (
+      <CanvasProposalDraft
+        proposal={proposal}
+        open={open}
+        renderMarkdown={renderMarkdown}
+        onWikiLinkOpen={entityBindings?.onEntityOpen}
+      />
+    );
   return <UnknownProposal proposal={proposal} entityBindings={entityBindings} />;
 }
 
