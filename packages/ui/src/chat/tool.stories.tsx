@@ -188,18 +188,6 @@ const canvasBeforeUpdateDocument = {
   })),
 };
 
-const canvasStreamingFrames = [
-  {
-    changes: canvasCreateChanges.slice(0, 1),
-    document: { elements: canvasDraftDocument.elements.slice(0, 1), edges: [] },
-  },
-  {
-    changes: canvasCreateChanges.slice(0, 2),
-    document: { elements: canvasDraftDocument.elements, edges: [] },
-  },
-  { changes: canvasCreateChanges, document: canvasDraftDocument },
-] as const;
-
 const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval(
@@ -599,23 +587,29 @@ function AutoStreamingTool() {
 }
 
 function CanvasStreamingProposalCard() {
-  const frame = canvasStreamingFrames[useAutoFrame(canvasStreamingFrames.length)];
+  const complete = useAutoFrame(2) === 1;
   const block = approval(
     "canvas_create",
     "候选画布",
-    {
-      title: "极地温室的分区灌溉策略",
-      changes: frame.changes,
-      layout: "auto",
-      document: frame.document,
-    },
+    complete
+      ? {
+          title: "极地温室的分区灌溉策略",
+          changes: canvasCreateChanges,
+          layout: "auto",
+          document: canvasDraftDocument,
+        }
+      : {
+          title: "极地温室的分区灌溉策略",
+          changes: canvasCreateChanges,
+          layout: "auto",
+        },
     { approvalId: "approval-canvas-streaming", preview: true },
   );
 
   return (
     <div className="grid min-w-0 gap-1">
       <code className="px-3 text-xs text-muted-foreground">
-        canvas_create · {frame.changes.length}/3 changes
+        canvas_create · {complete ? "参数完整，草稿已水合" : "参数流式中（骨架 loading）"}
       </code>
       <AgentProposalCard proposal={proposalView(block)} />
     </div>
@@ -748,8 +742,8 @@ function ToolGallery() {
         <AutoStreamingTool />
       </StoryCase>
       <StoryCase
-        title="Canvas 累计流式预览"
-        description="Agent 依次提交节点与连线；host 每次归一化累计 changes，并用同一审批块替换草稿。"
+        title="Canvas 提案草稿水合"
+        description="参数流式期间只发一次原始 preview（骨架 loading），参数完整后统一水合一次并渲染完整草稿——不再逐 chunk 归一化累计 changes。"
       >
         <CanvasStreamingProposalCard />
       </StoryCase>
