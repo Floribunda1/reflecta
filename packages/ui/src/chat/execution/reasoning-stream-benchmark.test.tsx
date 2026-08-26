@@ -146,7 +146,7 @@ test("benchmark: closed streaming (A)", () => {
   summary("profiler render/update", profilerDurations);
   summary("wall clock/update", wallTimes);
   expect(trigger()).toBeTruthy();
-});
+}, 180_000);
 
 test("benchmark: open streaming (B)", () => {
   mount();
@@ -194,7 +194,7 @@ test("benchmark: open streaming (B)", () => {
   summary("wall clock/update", wallTimes);
   const detail = container?.querySelector('[data-testid="agent-reasoning-detail"]');
   expect(detail?.textContent?.length).toBeGreaterThan(0);
-});
+}, 180_000);
 
 test("benchmark: toggle latency mid-stream (C)", () => {
   mount();

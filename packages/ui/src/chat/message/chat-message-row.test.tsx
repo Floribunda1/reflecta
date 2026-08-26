@@ -155,13 +155,17 @@ describe("ChatMessageRow", () => {
     });
 
     const image = next.querySelector<HTMLImageElement>('[data-testid="agent-generated-image"]');
+    const zoomButton = image?.closest<HTMLButtonElement>("button");
     expect(image).toMatchObject({
       src: "asset:///generated.png",
       alt: "AI 生成图片：雨中的上海街道",
-      tabIndex: 0,
     });
+    // 3c40d0b9 把无障碍交互从 img 上移到了包图的 button（img 现为 pointer-events-none）：
+    // 焦点/键盘激活由原生 button 承担（Enter/Space → click → 切换 zoom）。
+    expect(zoomButton).not.toBeNull();
+    expect(zoomButton?.getAttribute("aria-label")).toBe("AI 生成图片：雨中的上海街道，点击放大");
     expect(mediumZoom).toHaveBeenCalledWith(image);
-    act(() => image?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    act(() => zoomButton?.click());
     expect(zoom.toggle).toHaveBeenCalledWith({ target: image });
   });
 
