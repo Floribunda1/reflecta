@@ -398,6 +398,7 @@ function AgentMessageContent({
           key={block.proposal.id}
           proposal={block.proposal}
           entityBindings={entityBindings}
+          renderMarkdown={renderMarkdown}
           onDecision={onProposalDecision}
         />,
       );

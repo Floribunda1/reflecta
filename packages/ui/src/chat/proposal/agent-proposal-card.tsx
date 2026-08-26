@@ -10,7 +10,7 @@ import {
 } from "../../components/input-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
-import type { ChatEntityBindings, ChatEntityType } from "../entity";
+import type { ChatEntityBindings, ChatEntityType, MarkdownRenderer } from "../entity";
 import {
   entityClassName,
   CHAT_ENTITY_ICON_FONT_SIZE,
@@ -40,6 +40,8 @@ export type AgentProposalCardProps = {
   proposal: AgentProposalView;
   onDecision?: (decision: AgentProposalDecision) => void;
   entityBindings?: ChatEntityBindings;
+  /** 画布提案草稿里的 Markdown 渲染：renderer 传入解析版组件（默认不解析）。 */
+  renderMarkdown?: MarkdownRenderer;
 };
 
 function ProposalStatus({
@@ -722,7 +724,15 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
 // 只读画布经共享 ReadOnlyCanvasCard 渲染：内部 lazy 引入 CanvasReadOnlyView，把 X6
 // 排除出本模块的 eager 依赖图（proposal-card 的单测跑在 ESM 环境，X6 CJS lib 载入会炸；
 // 且只在 canvas 提案实际渲染时才需要 X6）。
-function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView; open: boolean }) {
+function CanvasProposalDraft({
+  proposal,
+  open,
+  renderMarkdown,
+}: {
+  proposal: CanvasProposalView;
+  open: boolean;
+  renderMarkdown?: MarkdownRenderer;
+}) {
   const content = proposal.content;
   if (content.variant === "delete") {
     return (
@@ -748,6 +758,7 @@ function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView;
       document={content.document}
       understandingRefs={content.understandingRefs}
       understandingTitles={content.understandingTitles}
+      renderMarkdown={renderMarkdown}
       mounted={open}
       className="h-64"
     />
@@ -783,10 +794,12 @@ function UnknownProposal({
 function ProposalContent({
   proposal,
   entityBindings,
+  renderMarkdown,
   open,
 }: {
   proposal: AgentProposalView;
   entityBindings?: ChatEntityBindings;
+  renderMarkdown?: MarkdownRenderer;
   open: boolean;
 }) {
   if (proposal.kind === "understanding-create")
@@ -812,7 +825,8 @@ function ProposalContent({
   if (proposal.kind === "context-delete")
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
-  if (proposal.kind === "canvas") return <CanvasProposalDraft proposal={proposal} open={open} />;
+  if (proposal.kind === "canvas")
+    return <CanvasProposalDraft proposal={proposal} open={open} renderMarkdown={renderMarkdown} />;
   return <UnknownProposal proposal={proposal} entityBindings={entityBindings} />;
 }
 
@@ -824,6 +838,7 @@ export function AgentProposalCard({
   proposal,
   onDecision,
   entityBindings,
+  renderMarkdown,
 }: AgentProposalCardProps) {
   const [manualOpen, setManualOpen] = useState<{
     id: string;
@@ -891,7 +906,12 @@ export function AgentProposalCard({
             <ProposalMeta proposal={proposal} />
           </div>
           <div className="max-h-136 overflow-y-auto px-3 pb-3">
-            <ProposalContent proposal={proposal} entityBindings={entityBindings} open={open} />
+            <ProposalContent
+              proposal={proposal}
+              entityBindings={entityBindings}
+              renderMarkdown={renderMarkdown}
+              open={open}
+            />
             <Reason value={proposalReason(proposal)} />
             {hasToolDetails(proposal.result) ? (
               <div className="mt-5 text-sm text-muted-foreground">
