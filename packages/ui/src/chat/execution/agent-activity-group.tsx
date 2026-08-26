@@ -39,13 +39,18 @@ function ActivityGroupSummary({
       </>
     );
   }
-  // 完成态：由 presentation 提供的分段（语义动作短语 + 末尾思考耗时）渲染，等宽数字走 MonoNumber。
-  return presentation.completedRuns.map((run, index) =>
-    run.type === "mono" ? (
-      <MonoNumber key={index}>{run.text}</MonoNumber>
-    ) : (
-      <Fragment key={index}>{run.text}</Fragment>
-    ),
+  // 完成态：runs 包进单一非 flex span，走普通内联文字流——若让每个 run 成为外层 flex 的直接子项，
+  // flex 布局会裁掉 run 边界空格，导致数字与文本之间失去空隙。
+  return (
+    <span className="min-w-0">
+      {presentation.completedRuns.map((run, index) =>
+        run.type === "mono" ? (
+          <MonoNumber key={index}>{run.text}</MonoNumber>
+        ) : (
+          <Fragment key={index}>{run.text}</Fragment>
+        ),
+      )}
+    </span>
   );
 }
 

@@ -123,4 +123,6 @@ test("renders completed semantic summary with mono numerals", () => {
   expect(trigger?.querySelectorAll(".shimmer-text")).toHaveLength(0);
   const summary = trigger?.querySelector("span.flex.items-center.text-body");
   expect(summary?.className).toContain("gap-0");
+  // runs 包在单一 wrapper 里，不成为外层 flex 的直接子项（flex 会裁掉边界空格，导致数字与文本间无空隙）
+  expect(Array.from(summary?.children ?? [])).toHaveLength(1);
 });
