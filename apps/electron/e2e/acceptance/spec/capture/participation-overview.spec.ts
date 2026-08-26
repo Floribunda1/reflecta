@@ -67,6 +67,7 @@ test("@CP-OVERVIEW-002 用户悬停热力图某天查看当天细分", async () 
     title: "参与概览悬停对话",
     createdAt: new Date(now).toISOString(),
     updatedAt: new Date(now).toISOString(),
+    includeRuntimeMessages: true,
     messages: [
       userMessage("participation-user-2", "今天聊了什么"),
       assistantMessage("participation-assistant-2", [{ type: "text", text: "正在整理理解" }]),

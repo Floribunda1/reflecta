@@ -175,11 +175,12 @@ app.whenReady().then(async () => {
   ipcMain.on("ping", () => appLog.debug("ipc.ping"));
 
   startAutomaticUpdateChecks();
-  createWindow();
 
   // Effect IPC（electron-effect-rpc）—— 单一 app kit，typed domain error 跨进程往返。
   // 各域 handler 在 ipc-handlers/ 按域拆文件（业务逻辑在 services/），此处只做汇总与注册：
   // 域前缀 → 契约错误构造器由 rpc-guard 按方法名解析；全局兜底（catchAll + timeout + 日志）在注册处一次性包裹。
+  // 必须在 createWindow 之前注册：renderer 一旦加载就会发起查询，若 handler 未就绪
+  // 会命中 “No handler registered” 竞态，页面查询失败挂起（冷/热启动均可能撞上）。
   const handlerModules = [
     about,
     asset,
@@ -227,6 +228,8 @@ app.whenReady().then(async () => {
   app.once("before-quit", () => {
     appMain.dispose();
   });
+
+  createWindow();
 
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the

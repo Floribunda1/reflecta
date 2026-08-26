@@ -51,22 +51,25 @@ export async function launchApp(
   return { app, page };
 }
 
-export async function launchAgentPage(envOverrides: Record<string, string | undefined> = {}) {
+export async function launchAgentPage(
+  envOverrides: Record<string, string | undefined> = {},
+  openTimeoutMs = 15_000,
+) {
   const launched = await launchApp(envOverrides);
-  await openAgentPage(launched.page);
+  await openAgentPage(launched.page, openTimeoutMs);
   return launched;
 }
 
-export async function openAgentPage(page: Page) {
+export async function openAgentPage(page: Page, openTimeoutMs = 15_000) {
   await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible({
-    timeout: 15_000,
+    timeout: openTimeoutMs,
   });
   const agentPage = page.getByTestId("agent-page");
   await expect(async () => {
     if (await agentPage.isVisible()) return;
     await page.getByTestId("app-nav-module-agent").click();
-    await expect(agentPage).toBeVisible({ timeout: 3_000 });
-  }).toPass({ timeout: 15_000 });
+    await expect(agentPage).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: openTimeoutMs });
 }
 
 export async function configureE2eAiKey(page: Page, apiKey: string) {

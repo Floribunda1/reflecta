@@ -12,7 +12,11 @@ export async function openCapturePage(page: Page) {
 export const PARTICIPATION_HEATMAP_DAY_COUNT = 365;
 
 export function todayDateKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  // 应用端（renderer dayKey）用本地时区计算“今天”；测试必须用同一口径，
+  // 不能取 UTC 日期（跨日边界时 UTC 仍是前一天，悬停/点击的格子与数据错位）。
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /** 参与概览热力图中代表某一天的格子（react-activity-calendar 渲染的 SVG rect） */
