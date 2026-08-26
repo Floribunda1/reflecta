@@ -26,7 +26,7 @@ export function AgentCanvasView({ block, renderMarkdown, onWikiLinkOpen }: Agent
           understandingTitles={block.understandingTitles}
           renderMarkdown={renderMarkdown}
           onWikiLinkOpen={onWikiLinkOpen}
-          className="h-72"
+          className="h-96"
         />
       </CardContent>
     </Card>

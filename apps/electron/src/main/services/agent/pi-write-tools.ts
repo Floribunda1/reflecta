@@ -15,6 +15,10 @@ import {
   type CanvasDocument,
   type CanvasGraphChange,
   type CanvasUpdateChange,
+  isPiApprovalToolName,
+  PI_APPROVAL_TOOL_NAMES,
+  PI_TOOL_LABELS,
+  type PiApprovalToolName,
 } from "@reflecta/shared";
 import {
   domainService,
@@ -23,21 +27,8 @@ import {
   understandingCanvasService,
 } from "../core";
 
-export const PI_APPROVAL_TOOL_NAMES = [
-  "understanding_create",
-  "understanding_update",
-  "understanding_delete",
-  "domain_create",
-  "domain_update",
-  "domain_delete",
-  "context_create",
-  "context_update",
-  "context_delete",
-  "canvas_create",
-  "canvas_update",
-  "canvas_delete",
-] as const;
-export type PiApprovalToolName = (typeof PI_APPROVAL_TOOL_NAMES)[number];
+export { PI_APPROVAL_TOOL_NAMES, isPiApprovalToolName };
+export type { PiApprovalToolName };
 
 const mediums = ["experience", "video", "book", "article", "opinion", "ai", "other"] as const;
 const wikiDisplayRefPattern = /\[\[[\s\S]*?\]\]/;
@@ -180,7 +171,7 @@ type PiWriteToolSpec = {
 const toolSpecs: PiWriteToolSpec[] = [
   {
     name: "understanding_create",
-    label: "候选 Understanding",
+    label: PI_TOOL_LABELS.understanding_create,
     description:
       "Create a new Reflecta Understanding only after user approval. Call this when the user asks you to propose or create a Understanding and the content qualifies under the Understanding writing principles. The tool requests approval; it must not change Reflecta until the user confirms.",
     promptSnippet:
@@ -200,7 +191,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "understanding_update",
-    label: "候选修改 Understanding",
+    label: PI_TOOL_LABELS.understanding_update,
     description:
       "Update an existing Reflecta Understanding only after user approval. Use this when the user asks to rewrite, retitle, or recategorize an existing Understanding.",
     promptSnippet: "understanding_update: propose an update to an existing Reflecta Understanding.",
@@ -225,7 +216,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "understanding_delete",
-    label: "候选删除 Understanding",
+    label: PI_TOOL_LABELS.understanding_delete,
     description: "Delete an existing Reflecta Understanding only after user approval.",
     promptSnippet: "understanding_delete: propose deleting an existing Reflecta Understanding.",
     parameters: Type.Object({
@@ -235,7 +226,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "domain_create",
-    label: "候选 Domain",
+    label: PI_TOOL_LABELS.domain_create,
     description: "Create a new Reflecta Domain only after user approval.",
     promptSnippet: "domain_create: propose a new Reflecta Domain.",
     promptGuidelines: [
@@ -251,7 +242,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "domain_update",
-    label: "候选修改 Domain",
+    label: PI_TOOL_LABELS.domain_update,
     description: "Rename or move an existing Reflecta Domain only after user approval.",
     promptSnippet: "domain_update: propose updating or moving a Reflecta Domain.",
     parameters: Type.Object({
@@ -263,7 +254,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "domain_delete",
-    label: "候选删除 Domain",
+    label: PI_TOOL_LABELS.domain_delete,
     description: "Delete an existing Reflecta Domain only after user approval.",
     promptSnippet: "domain_delete: propose deleting a Reflecta Domain.",
     parameters: Type.Object({
@@ -274,7 +265,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "context_create",
-    label: "候选 Context",
+    label: PI_TOOL_LABELS.context_create,
     description: "Add Context to an existing Understanding only after user approval.",
     promptSnippet: "context_create: propose adding Context to an Understanding.",
     parameters: Type.Object({
@@ -289,7 +280,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "context_update",
-    label: "候选修改 Context",
+    label: PI_TOOL_LABELS.context_update,
     description: "Update an existing Reflecta Context only after user approval.",
     promptSnippet: "context_update: propose updating an existing Context.",
     parameters: Type.Object({
@@ -305,7 +296,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "context_delete",
-    label: "候选删除 Context",
+    label: PI_TOOL_LABELS.context_delete,
     description: "Delete an existing Reflecta Context only after user approval.",
     promptSnippet: "context_delete: propose deleting an existing Context.",
     parameters: Type.Object({
@@ -315,7 +306,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "canvas_create",
-    label: "候选画布",
+    label: PI_TOOL_LABELS.canvas_create,
     description:
       "Create a new Reflecta canvas from ordered graph changes only after user approval.",
     promptSnippet: "canvas_create: propose a new Reflecta canvas and request user approval.",
@@ -337,7 +328,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "canvas_update",
-    label: "候选修改画布",
+    label: PI_TOOL_LABELS.canvas_update,
     description:
       "Update an existing Reflecta canvas with ordered graph changes only after user approval.",
     promptSnippet: "canvas_update: propose ordered changes to an existing canvas.",
@@ -359,7 +350,7 @@ const toolSpecs: PiWriteToolSpec[] = [
   },
   {
     name: "canvas_delete",
-    label: "候选删除画布",
+    label: PI_TOOL_LABELS.canvas_delete,
     description:
       "Delete an existing Reflecta canvas (cascades its elements and edges) only after user approval.",
     promptSnippet: "canvas_delete: propose deleting an existing canvas.",
@@ -372,10 +363,6 @@ const toolSpecs: PiWriteToolSpec[] = [
     }),
   },
 ];
-
-export function isPiApprovalToolName(name: string): name is PiApprovalToolName {
-  return PI_APPROVAL_TOOL_NAMES.includes(name as PiApprovalToolName);
-}
 
 export function approvalTitleForTool(toolName: PiApprovalToolName): string {
   return toolSpecs.find((spec) => spec.name === toolName)?.label ?? "候选操作";

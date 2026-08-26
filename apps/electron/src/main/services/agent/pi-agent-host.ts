@@ -43,6 +43,7 @@ import {
   getTitleGenerationAiModelConfig,
 } from "../../config";
 import type { AiModelSelection, AgentSkillSummary } from "@reflecta/shared";
+import { PI_BUILTIN_TOOL_NAMES } from "@reflecta/shared";
 import { agentLog } from "../../logger";
 import { AgentSessionRuntime } from "./agent-session-runtime";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
@@ -112,7 +113,7 @@ type BashGatePendingApproval = {
 
 type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 
-export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
+export { PI_BUILTIN_TOOL_NAMES };
 export const PI_BUILTIN_SKILL_NAMES = [
   "reflecta-understanding",
   "reflecta-context",

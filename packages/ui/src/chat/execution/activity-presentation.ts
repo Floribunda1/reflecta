@@ -1,4 +1,5 @@
 import { formatElapsed } from "#hooks/use-elapsed";
+import { isPiToolName, type PiToolName } from "@reflecta/shared";
 import type { AgentActivityBlockView, AgentToolActivityView } from "./types";
 
 export type AgentToolIconKind =
@@ -27,14 +28,29 @@ export type AgentActivityGroupPresentation = {
   completedRuns: SummaryRun[];
 };
 
-/** 完成态摘要的语义桶：附件 / 知识（理解·上下文·领域·画布）/ 检索 / 生图 / 兜底。 */
-type AgentToolBucket = "attachment" | "knowledge" | "retrieval" | "image" | "other";
+/** 完成态摘要的语义桶：附件 / 知识 / 检索 / 生图 / 展示 / 修改 / 读取 / 搜索 / 命令 / 兜底。 */
+type AgentToolBucket =
+  | "attachment"
+  | "knowledge"
+  | "retrieval"
+  | "image"
+  | "present"
+  | "edit"
+  | "read"
+  | "search"
+  | "command"
+  | "other";
 
 const BUCKET_ORDER: readonly AgentToolBucket[] = [
   "attachment",
   "knowledge",
   "retrieval",
   "image",
+  "present",
+  "edit",
+  "read",
+  "search",
+  "command",
   "other",
 ];
 
@@ -56,27 +72,37 @@ function summaryRunsText(runs: readonly SummaryRun[]): string {
  * 按 Reflecta 实际工具面分类（pi-readonly-tools + image_generate）。
  * create/update/delete 等写工具走 proposal UI，不会出现在 activity group 里。
  */
+/**
+ * 工具 → 摘要桶：按真实工具面分派（键为 PiToolName union）；
+ * approval 写工具走 proposal UI，不会出现在 activity group，落兜底即可。
+ */
+export const TOOL_BUCKET: Partial<Record<PiToolName, AgentToolBucket>> = {
+  attachment_read: "attachment",
+  retrieve_knowledge: "retrieval",
+  image_generate: "image",
+  canvas_present: "present",
+  edit: "edit",
+  write: "edit",
+  read: "read",
+  fetch_content: "read",
+  get_search_content: "read",
+  web_search: "search",
+  source_check: "search",
+  bash: "command",
+  understanding_get: "knowledge",
+  understanding_list: "knowledge",
+  context_get: "knowledge",
+  context_list: "knowledge",
+  domain_list: "knowledge",
+  domain_inspect: "knowledge",
+  canvas_read: "knowledge",
+  canvas_list: "knowledge",
+  canvas_search: "knowledge",
+};
+
 export function toolBucket(toolName?: string): AgentToolBucket {
-  switch (toolName) {
-    case "attachment_read":
-      return "attachment";
-    case "retrieve_knowledge":
-      return "retrieval";
-    case "image_generate":
-      return "image";
-    case "understanding_get":
-    case "understanding_list":
-    case "context_get":
-    case "context_list":
-    case "domain_list":
-    case "domain_inspect":
-    case "canvas_read":
-    case "canvas_list":
-    case "canvas_search":
-      return "knowledge";
-    default:
-      return "other";
-  }
+  if (toolName === undefined || !isPiToolName(toolName)) return "other";
+  return TOOL_BUCKET[toolName] ?? "other";
 }
 
 function activityObjectName(activity: AgentToolActivityView): string | undefined {
@@ -124,6 +150,27 @@ function bucketRuns(
   }
   if (bucket === "image") {
     return [textRun("生成了 "), monoRun(String(count)), textRun(" 张图片")];
+  }
+  if (bucket === "present") {
+    if (count === 1 && first) return [textRun(`展示了画布视图「${truncateName(first)}」`)];
+    if (count === 1) return [textRun("展示了 1 个画布视图")];
+    return [textRun("展示了 "), monoRun(String(count)), textRun(" 个画布视图")];
+  }
+  if (bucket === "edit") {
+    if (count === 1 && first) return [textRun(`修改了「${truncateName(first)}」`)];
+    if (count === 1) return [textRun("修改了 1 份文件")];
+    return [textRun("修改了 "), monoRun(String(count)), textRun(" 份文件")];
+  }
+  if (bucket === "read") {
+    if (count === 1 && first) return [textRun(`读取了「${truncateName(first)}」`)];
+    if (count === 1) return [textRun("读取了 1 个内容")];
+    return [textRun("读取了 "), monoRun(String(count)), textRun(" 个内容")];
+  }
+  if (bucket === "search") {
+    return [textRun("搜索了 "), monoRun(String(count)), textRun(" 次")];
+  }
+  if (bucket === "command") {
+    return [textRun("运行了 "), monoRun(String(count)), textRun(" 条命令")];
   }
   return [textRun("调用了 "), monoRun(String(count)), textRun(" 个工具")];
 }
@@ -279,25 +326,32 @@ export function activityGroupPresentation(
   };
 }
 
+/** 工具 → 图标；键为 PiToolName union，覆盖完整性由测试锁定（含显式 other 的 image_generate）。 */
+export const TOOL_ICON_KIND: Partial<Record<PiToolName, AgentToolIconKind>> = {
+  read: "file",
+  fetch_content: "file",
+  get_search_content: "file",
+  edit: "edit",
+  write: "write",
+  bash: "command",
+  attachment_read: "attachment",
+  web_search: "web",
+  source_check: "web",
+  retrieve_knowledge: "search",
+  domain_list: "domain",
+  domain_inspect: "domain",
+  understanding_list: "understanding",
+  understanding_get: "understanding",
+  context_list: "context",
+  context_get: "context",
+  canvas_read: "canvas",
+  canvas_list: "canvas",
+  canvas_search: "canvas",
+  canvas_present: "canvas",
+  image_generate: "other",
+};
+
 export function toolIconKind(activity: AgentToolActivityView): AgentToolIconKind {
   const name = activity.toolName?.toLowerCase() ?? "";
-  if (name === "bash") return "command";
-  if (name === "edit") return "edit";
-  if (name === "write") return "write";
-  if (name === "attachment_read") return "attachment";
-  if (name === "web_search") return "web";
-  if (name.startsWith("canvas_") || name.startsWith("understanding_canvas")) return "canvas";
-  if (name.startsWith("domain_")) return "domain";
-  if (name.startsWith("understanding_")) return "understanding";
-  if (name.startsWith("context_")) return "context";
-  if (
-    name === "read" ||
-    name === "file_read" ||
-    name === "fetch_content" ||
-    name === "get_search_content"
-  ) {
-    return "file";
-  }
-  if (name.includes("search") || name === "retrieve_knowledge") return "search";
-  return "other";
+  return isPiToolName(name) && TOOL_ICON_KIND[name] ? TOOL_ICON_KIND[name] : "other";
 }

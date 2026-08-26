@@ -135,7 +135,7 @@ describe("agent activity presentation", () => {
     });
     expect(completedGroupSummary([activity("attachment_read")])).toBe("读取了 1 个附件");
     expect(completedGroupSummary([activity("understanding_get")])).toBe("查看了 1 条知识");
-    expect(completedGroupSummary([activity("bash")])).toBe("调用了 1 个工具");
+    expect(completedGroupSummary([activity("bash")])).toBe("运行了 1 条命令");
     expect(completedGroupSummary([])).toBe("已完成");
   });
 
@@ -269,17 +269,18 @@ describe("agent activity presentation", () => {
   });
 
   test.each<[readonly string[], AgentToolIconKind]>([
-    [["read", "file_read", "fetch_content", "get_search_content"], "file"],
-    [["canvas_plan", "canvas_create", "canvas_save", "understanding_canvas"], "canvas"],
-    [["edit"], "edit"],
-    [["write"], "write"],
-    [["bash"], "command"],
-    [["attachment_read"], "attachment"],
+    [["canvas_list", "canvas_read", "canvas_search", "canvas_present"], "canvas"],
     [["domain_list", "domain_inspect"], "domain"],
     [["understanding_list", "understanding_get"], "understanding"],
     [["context_list", "context_get"], "context"],
-    [["retrieve_knowledge", "search"], "search"],
-    [["web_search"], "web"],
+    [["attachment_read"], "attachment"],
+    [["retrieve_knowledge"], "search"],
+    [["web_search", "source_check"], "web"],
+    [["read", "fetch_content", "get_search_content"], "file"],
+    [["edit"], "edit"],
+    [["write"], "write"],
+    [["bash"], "command"],
+    [["image_generate"], "other"],
   ])("assigns %s tools to the %s icon", (toolNames, icon) => {
     for (const toolName of toolNames) {
       expect(toolIconKind(toolActivity(toolName))).toBe(icon);

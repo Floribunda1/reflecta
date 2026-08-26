@@ -2,6 +2,7 @@ import { performance } from "node:perf_hooks";
 import { Effect } from "effect";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { PI_READ_ONLY_TOOL_NAMES, PI_TOOL_LABELS } from "@reflecta/shared";
 import type { AgentFileAttachment } from "@shared/agent";
 import { diagnosticErrorAttrs } from "../../diagnostic-log";
 import { writeDiagnosticEvent } from "../../logger";
@@ -14,19 +15,7 @@ import {
 } from "../core";
 import { HARD_ATTACHMENT_READ_MAX_CHARS, readAttachmentForTool } from "./attachment-read";
 
-export const PI_READ_ONLY_TOOL_NAMES = [
-  "domain_list",
-  "domain_inspect",
-  "understanding_list",
-  "understanding_get",
-  "context_list",
-  "context_get",
-  "attachment_read",
-  "retrieve_knowledge",
-  "canvas_read",
-  "canvas_list",
-  "canvas_search",
-] as const;
+export { PI_READ_ONLY_TOOL_NAMES };
 
 const paginationParameters = {
   limit: Type.Optional(
@@ -140,7 +129,7 @@ export function createPiReadOnlyTools(
   const tools = [
     defineTool({
       name: "domain_list",
-      label: "列出 Domain",
+      label: PI_TOOL_LABELS.domain_list,
       description: "List Reflecta domains.",
       promptSnippet: "domain_list: list Reflecta domains.",
       parameters: Type.Object({}),
@@ -154,7 +143,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "domain_inspect",
-      label: "查看 Domain",
+      label: PI_TOOL_LABELS.domain_inspect,
       description:
         "Inspect a Reflecta domain by stable id and optionally include its Understandings, Contexts, and wiki-link mentions.",
       promptSnippet: "domain_inspect: inspect one Reflecta domain by stable id.",
@@ -177,7 +166,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "understanding_list",
-      label: "列出 Understanding",
+      label: PI_TOOL_LABELS.understanding_list,
       description: "List Reflecta Understandings, optionally filtered by domains.",
       promptSnippet: "understanding_list: list Reflecta Understandings.",
       parameters: Type.Object({
@@ -198,7 +187,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "understanding_get",
-      label: "读取 Understanding",
+      label: PI_TOOL_LABELS.understanding_get,
       description:
         "Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeMentions for its wiki-link mentions (weak citations, not structural relations). Also returns referencedByCanvases: the canvases this Understanding appears in.",
       promptSnippet: "understanding_get: read one Reflecta Understanding by stable id.",
@@ -220,7 +209,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "context_list",
-      label: "列出 Context",
+      label: PI_TOOL_LABELS.context_list,
       description: "List Contexts attached to a Reflecta Understanding by stable id.",
       promptSnippet: "context_list: list Contexts for a Understanding by stable id.",
       parameters: Type.Object({
@@ -236,7 +225,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "context_get",
-      label: "读取 Context",
+      label: PI_TOOL_LABELS.context_get,
       description: "Get one Reflecta Context by stable id.",
       promptSnippet: "context_get: read one Reflecta Context by stable id.",
       parameters: Type.Object({
@@ -252,7 +241,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "attachment_read",
-      label: "读取附件",
+      label: PI_TOOL_LABELS.attachment_read,
       description:
         "Read text from a user-uploaded attachment in the current message. Supports PDF and plain text attachments. Use attachmentId from the user message attachment metadata.",
       promptSnippet: "attachment_read: read a user-uploaded attachment by attachmentId.",
@@ -276,7 +265,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "retrieve_knowledge",
-      label: "检索知识",
+      label: PI_TOOL_LABELS.retrieve_knowledge,
       description:
         "Retrieve the user's prior Understandings and supporting Contexts when the discussion depends on their earlier views, experiences, comparisons, revisions, or possible conflicts.\n\nHow to query: describe in natural language the object and judgment the user is discussing, keeping proper nouns (titles, names, terms). Don't use keyword lists.\n\nAfter retrieval: read the 2-3 most relevant candidates. If coverage is insufficient, re-query using new clues from what you read (terms, experiences, connections), at most 2 more rounds — stop as soon as it's enough. If nothing relevant exists, say so instead of forcing an answer.\n\nA candidate Understanding is the user's judgment; matched Contexts are supporting material (experience/ai/article/video) — cite them as evidence, never as the user's understanding. When the user explicitly @-mentioned an entity, read it directly with understanding_get instead of retrieving.",
       promptSnippet:
@@ -314,7 +303,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "canvas_read",
-      label: "读取画布",
+      label: PI_TOOL_LABELS.canvas_read,
       description:
         "Read one Reflecta canvas structure (elements / edges / groups / labels and referenced Understanding titles). Bodies of referenced Understandings are omitted by default to save tokens; pass includeBodies to fetch them.",
       promptSnippet:
@@ -340,7 +329,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "canvas_list",
-      label: "列出画布",
+      label: PI_TOOL_LABELS.canvas_list,
       description: "List Reflecta canvases, optionally filtered by title keyword, newest first.",
       promptSnippet: "canvas_list: list Reflecta canvases.",
       parameters: Type.Object({
@@ -365,7 +354,7 @@ export function createPiReadOnlyTools(
     }),
     defineTool({
       name: "canvas_search",
-      label: "搜索画布",
+      label: PI_TOOL_LABELS.canvas_search,
       description:
         "Discover Reflecta canvases. Pass a free-text query (matched OR across canvas title, elements, edge labels, group names, referenced Understanding titles) or an understandingId to find canvases that reference that Understanding.",
       promptSnippet:

@@ -1,18 +1,15 @@
 import { Type } from "@earendil-works/pi-ai";
 import { Effect } from "effect";
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { normalizeCanvasChanges, type CanvasDocument } from "@reflecta/shared";
+import {
+  normalizeCanvasChanges,
+  type CanvasDocument,
+  PI_PRESENT_TOOL_NAMES,
+  PI_TOOL_LABELS,
+} from "@reflecta/shared";
 import { canvasGraphChangeParameter, layoutDirectionParameter } from "./pi-write-tools";
 
-/**
- * 第三类 agent 工具：present（展示）。
- *
- * 与 readonly（取已存在数据给自己看）、proposal（提案写入需审批）不同，present 工具
- * 是模型对一个临时分析结构做**只读展示**：不写入、不审批、不产生 artifact receipt。
- * 工具名即 UI 路由；completed output 元数据 `kind: "canvas-view", version: 1` 供
- * Turn Renderer 派生独立 canvas-view 消息块。
- */
-export const PI_PRESENT_TOOL_NAMES = ["canvas_present"] as const;
+export { PI_PRESENT_TOOL_NAMES };
 export type PiPresentToolName = (typeof PI_PRESENT_TOOL_NAMES)[number];
 export function isPiPresentToolName(name: string): name is PiPresentToolName {
   return PI_PRESENT_TOOL_NAMES.includes(name as PiPresentToolName);
@@ -24,7 +21,7 @@ export function createPiPresentTools() {
   return [
     defineTool({
       name: "canvas_present",
-      label: "展示画布视图",
+      label: PI_TOOL_LABELS.canvas_present,
       description:
         "Insert a read-only analysis canvas into the reply, derived from the current Understanding / Domain / Context / Canvas situation. It creates, modifies or saves nothing.",
       promptSnippet:

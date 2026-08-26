@@ -769,7 +769,7 @@ function CanvasProposalDraft({
       renderMarkdown={renderMarkdown}
       onWikiLinkOpen={onWikiLinkOpen}
       mounted={open}
-      className="h-64"
+      className="h-96"
     />
   );
 }

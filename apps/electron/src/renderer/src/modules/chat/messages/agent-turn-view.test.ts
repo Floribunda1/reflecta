@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
+import { PI_PLAIN_TOOL_NAMES } from "@reflecta/shared";
 import type { AgentReducedAssistantBlock } from "@shared/agent";
-import { buildAgentTurnView, canvasUnderstandingIds, toAgentProposalView } from "./agent-turn-view";
+import {
+  buildAgentTurnView,
+  canvasUnderstandingIds,
+  toAgentProposalView,
+  TOOL_DONE_SUMMARY,
+  TOOL_RUNNING_SUMMARY,
+} from "./agent-turn-view";
 
 function text(text: string): AgentReducedAssistantBlock {
   return { kind: "text", text, createdAt: "2026-06-23T00:00:00.000Z" };
@@ -95,7 +102,7 @@ function proposal(
 describe("buildAgentTurnView", () => {
   test("preserves interleaved tool and text order", () => {
     const turn = buildAgentTurnView([
-      tool("search", "tool-1", { hits: [{ type: "understanding", understanding: { id: "t1" } }] }),
+      tool("web_search", "tool-1", { results: [] }),
       reasoning("我先看相关内容"),
       text("first"),
       tool("bash", "tool-2", { exitCode: 0 }),
@@ -293,9 +300,7 @@ describe("buildAgentTurnView", () => {
     const turn = buildAgentTurnView(
       [
         reasoning("先查找相关内容"),
-        tool("search", "tool-1", {
-          hits: [{ type: "understanding", understanding: { id: "t1" } }],
-        }),
+        tool("understanding_get", "tool-1", { understanding: { id: "t1", title: "反馈" } }),
         reasoning("再确认详情"),
         tool("understanding_get", "tool-2", {
           understanding: { id: "t1", title: "Feedback Loop" },
@@ -316,10 +321,8 @@ describe("buildAgentTurnView", () => {
 
   test("keeps adjacent tools as separate tool activities", () => {
     const turn = buildAgentTurnView([
-      tool("search", "tool-1", {
-        hits: [{ type: "understanding", understanding: { id: "t1" } }],
-      }),
-      tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "A" } }),
+      tool("understanding_get", "tool-1", { understanding: { id: "t1", title: "A" } }),
+      tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "B" } }),
       text("answer"),
       tool("context_list", "tool-3", { contexts: [{ id: "c1" }] }),
     ]);
@@ -329,14 +332,14 @@ describe("buildAgentTurnView", () => {
       kind: "tool-activity",
       activity: {
         groupType: "lookup",
-        items: [expect.objectContaining({ toolName: "search" })],
+        items: [expect.objectContaining({ toolName: "understanding_get" })],
       },
     });
     expect(turn.blocks[1]).toMatchObject({
       kind: "tool-activity",
       activity: {
         groupType: "lookup",
-        items: [expect.objectContaining({ label: "读取了「A」" })],
+        items: [expect.objectContaining({ label: "读取了「B」" })],
       },
     });
     expect(turn.blocks[3]).toMatchObject({
@@ -345,19 +348,29 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("shows search query and result details in its own tool activity", () => {
+  test("shows retrieval candidates and evidence in its own tool activity", () => {
     const turn = buildAgentTurnView([
       tool(
-        "search",
+        "retrieve_knowledge",
         "tool-1",
         {
-          hits: [
+          candidates: [
             {
-              type: "understanding",
-              understanding: { id: "t1", title: "拖延与自我保护" },
-              matchedText: "拖延有时是在保护自己",
+              id: "u1",
+              title: "拖延与自我保护",
+              snippet: "拖延有时是在保护自己",
+              matches: [
+                {
+                  entityType: "context",
+                  id: "c1",
+                  medium: "experience",
+                  snippet: "复盘片段",
+                  rank: 0,
+                  channels: ["dense"],
+                  reason: "",
+                },
+              ],
             },
-            { type: "context", context: { id: "c1", title: "复盘片段" }, understandingId: "t1" },
           ],
         },
         "completed",
@@ -369,12 +382,12 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        title: "搜索相关内容",
+        title: "检索知识",
         status: "done",
-        summary: "搜索「拖延」 · 1 条 Understanding / 1 条 Context",
+        summary: "检索「拖延」 · 1 条 Understanding / 1 条 Context 证据",
         items: [
           expect.objectContaining({
-            label: "搜索「拖延」 · 1 条 Understanding / 1 条 Context",
+            label: "检索「拖延」 · 1 条 Understanding / 1 条 Context 证据",
             status: "done",
             details: {
               rows: [
@@ -383,8 +396,17 @@ describe("buildAgentTurnView", () => {
                   title: "拖延与自我保护",
                   description: "拖延有时是在保护自己",
                   format: "markdown",
+                  appearance: "list-item",
+                  previewLines: 2,
                 },
-                { label: "Context", title: "复盘片段", format: "markdown" },
+                {
+                  label: "Context 证据",
+                  title: "实践",
+                  description: "复盘片段",
+                  format: "markdown",
+                  appearance: "nested-list-item",
+                  previewLines: 1,
+                },
               ],
             },
           }),
@@ -425,7 +447,7 @@ describe("buildAgentTurnView", () => {
         kind: "tool-activity",
         activity: {
           groupType: "lookup",
-          title: "读取来源",
+          title: "读取网页",
           status: "done",
           summary: "读取网页「example.com/source」",
           items: [
@@ -794,12 +816,16 @@ describe("buildAgentTurnView", () => {
     ]);
   });
 
-  test("summarizes mixed search hits", () => {
+  test("summarizes retrieval candidates with context evidence", () => {
     const turn = buildAgentTurnView([
-      tool("search", "tool-1", {
-        hits: [
-          { type: "understanding", understanding: { id: "t1" } },
-          { type: "context", context: { id: "c1" }, understandingId: "t1" },
+      tool("retrieve_knowledge", "tool-1", {
+        candidates: [
+          { id: "u1", title: "反馈" },
+          {
+            id: "u2",
+            title: "习惯",
+            matches: [{ entityType: "context", id: "c1", medium: "ai" }],
+          },
         ],
       }),
     ]);
@@ -807,11 +833,11 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        title: "搜索相关内容",
-        summary: "搜索了 1 条 Understanding / 1 条 Context",
+        title: "检索知识",
+        summary: "检索到 2 条 Understanding / 1 条 Context 证据",
         items: [
           expect.objectContaining({
-            label: "搜索了 1 条 Understanding / 1 条 Context",
+            label: "检索到 2 条 Understanding / 1 条 Context 证据",
             status: "done",
           }),
         ],
@@ -886,7 +912,6 @@ describe("buildAgentTurnView", () => {
 
   test.each([
     ["read", { path: "/tmp/note.md" }, { content: "body" }, "读取了「note.md」"],
-    ["file_read", { path: "/tmp/legacy.md" }, { content: "body" }, "读取了「legacy.md」"],
     ["edit", { path: "/tmp/app.ts" }, { patch: "diff" }, "编辑了「app.ts」"],
     [
       "write",
@@ -940,12 +965,6 @@ describe("buildAgentTurnView", () => {
       "读取了「发布复盘」",
     ],
     [
-      "search",
-      { query: "反馈" },
-      { hits: [{ type: "understanding", understanding: { id: "u1" } }] },
-      "搜索「反馈」 · 1 条 Understanding / 0 条 Context",
-    ],
-    [
       "retrieve_knowledge",
       { query: "反馈" },
       {
@@ -980,6 +999,32 @@ describe("buildAgentTurnView", () => {
       { responseId: "search-1", query: "agent ux" },
       { query: "agent ux", resultCount: 3 },
       "读取搜索「agent ux」的完整内容 · 3 个来源",
+    ],
+    [
+      "source_check",
+      { claim: "低温下先稳定主管压力再开支路更稳" },
+      { results: [{ rank: 1 }, { rank: 2 }] },
+      "已核验观点「低温下先稳定主管压力再开支路更稳」 · 2 个来源",
+    ],
+    [
+      "image_generate",
+      { prompt: "灌溉示意图" },
+      { kind: "generated-image", assetUrl: "asset:///sim.png", mediaType: "image/png" },
+      "已生成图片",
+    ],
+    ["canvas_list", {}, [{ id: "c1", title: "灌溉画布" }], "列出画布 · 1 个"],
+    [
+      "canvas_read",
+      { canvasId: "c1" },
+      { canvas: { id: "c1", title: "灌溉画布" } },
+      "读取了画布「灌溉画布」",
+    ],
+    ["canvas_search", { query: "灌溉 策略" }, [{ id: "c1" }], "搜索画布「灌溉 策略」"],
+    [
+      "canvas_present",
+      { title: "灌溉策略的因果结构" },
+      { kind: "canvas-view", version: 1, document: { elements: [], edges: [] } },
+      "展示了画布视图「灌溉策略的因果结构」",
     ],
   ])("describes the action, target and result for %s", (name, input, output, summary) => {
     const turn = buildAgentTurnView([
@@ -1083,7 +1128,7 @@ describe("buildAgentTurnView", () => {
   });
 
   test("keeps running and failed tool activity states in thinking", () => {
-    const runningTurn = buildAgentTurnView([tool("search", "tool-1", {}, "running")]);
+    const runningTurn = buildAgentTurnView([tool("understanding_get", "tool-1", {}, "running")]);
     const failedTurn = buildAgentTurnView([tool("bash", "tool-2", {}, "failed", "Command failed")]);
 
     expect(runningTurn.blocks[0]).toMatchObject({
@@ -1465,5 +1510,16 @@ describe("buildAgentTurnView", () => {
     expect(view.content.document?.elements).toHaveLength(2);
     expect(view.content.understandingTitles).toEqual([{ id: "u-1", title: "复验结论" }]);
     expect(view.content.understandingRefs?.get("u-1")?.body).toBe("正文");
+  });
+});
+
+describe("tool surface coverage", () => {
+  test("every plain tool has a running and a done summary handler", () => {
+    const runningKeys = new Set(Object.keys(TOOL_RUNNING_SUMMARY));
+    const doneKeys = new Set(Object.keys(TOOL_DONE_SUMMARY));
+    for (const name of PI_PLAIN_TOOL_NAMES) {
+      expect(runningKeys.has(name), `缺少 running summary：${name}`).toBe(true);
+      expect(doneKeys.has(name), `缺少 done summary：${name}`).toBe(true);
+    }
   });
 });

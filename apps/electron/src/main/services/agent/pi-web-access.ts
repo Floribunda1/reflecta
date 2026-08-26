@@ -2,13 +2,9 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { InlineExtension } from "@earendil-works/pi-coding-agent";
+import { PI_WEB_ACCESS_TOOL_NAMES } from "@reflecta/shared";
 
-export const PI_WEB_ACCESS_TOOL_NAMES = [
-  "web_search",
-  "source_check",
-  "fetch_content",
-  "get_search_content",
-] as const;
+export { PI_WEB_ACCESS_TOOL_NAMES };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

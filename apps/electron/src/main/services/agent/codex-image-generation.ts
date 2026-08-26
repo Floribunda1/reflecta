@@ -4,9 +4,10 @@ import { delimiter } from "node:path";
 import { createInterface } from "node:readline";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { PI_IMAGE_TOOL_NAMES, PI_TOOL_LABELS } from "@reflecta/shared";
 import { saveAssetFile } from "../asset-storage";
 
-export const PI_IMAGE_TOOL_NAMES = ["image_generate"] as const;
+export { PI_IMAGE_TOOL_NAMES };
 
 type JsonRecord = Record<string, unknown>;
 type CodexProcess = Pick<
@@ -259,7 +260,7 @@ export function createPiImageTools(contentStorageRoot: string): ToolDefinition[]
   return [
     defineTool({
       name: PI_IMAGE_TOOL_NAMES[0],
-      label: "生成图片",
+      label: PI_TOOL_LABELS[PI_IMAGE_TOOL_NAMES[0]],
       description:
         "Generate exactly one image with the user's signed-in Codex subscription. Use only when the user asks to create an image.",
       promptSnippet: "image_generate: generate one image from a complete visual prompt.",
