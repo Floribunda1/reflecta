@@ -308,7 +308,7 @@ function CanvasCompositionShowcase() {
   return (
     <StoryShowcase
       title="画布工作区核心组合"
-      description="验收图与工具条、空态、理解库、搜索、只读嵌入叠在一起时的密度与层级。同一时间只挂一张图。"
+      description="验收图与工具条、空态、理解库、搜索 Dialog、只读嵌入叠在一起时的密度与层级。同一时间只挂一张图。"
     >
       <StoryCaseSwitch
         cases={[
@@ -328,8 +328,8 @@ function CanvasCompositionShowcase() {
             content: <WorkspaceShell document={typicalCanvasDocument} libraryOpen />,
           },
           {
-            title: "搜索浮层",
-            description: "搜索叠在图上方中央，不挡住左上工具条和左下缩放。",
+            title: "搜索 Dialog",
+            description: "搜索以 Command Dialog 打开，浮在工作区之上。",
             content: <WorkspaceShell document={typicalCanvasDocument} searchOpen />,
           },
           {

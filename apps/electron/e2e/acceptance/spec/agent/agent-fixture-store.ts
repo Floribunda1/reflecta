@@ -176,20 +176,20 @@ function approvedFor(part: Record<string, unknown>, fallback: boolean) {
 }
 
 function proposalTitle(toolName: string) {
-  if (toolName === "understanding_create") return "候选 Understanding";
-  if (toolName === "understanding_update") return "候选修改 Understanding";
-  if (toolName === "understanding_delete") return "候选删除 Understanding";
-  if (toolName === "domain_create") return "候选 Domain";
-  if (toolName === "domain_update") return "候选修改 Domain";
-  if (toolName === "domain_delete") return "候选删除 Domain";
-  if (toolName === "context_create") return "候选 Context";
-  if (toolName === "context_update") return "候选修改 Context";
-  if (toolName === "context_delete") return "候选删除 Context";
+  if (toolName === "understanding_create") return "创建理解";
+  if (toolName === "understanding_update") return "修改理解";
+  if (toolName === "understanding_delete") return "删除理解";
+  if (toolName === "domain_create") return "创建领域";
+  if (toolName === "domain_update") return "修改领域";
+  if (toolName === "domain_delete") return "删除领域";
+  if (toolName === "context_create") return "创建上下文";
+  if (toolName === "context_update") return "修改上下文";
+  if (toolName === "context_delete") return "删除上下文";
   if (toolName === "bash") return "执行 Bash";
-  if (toolName === "canvas_create") return "候选画布";
-  if (toolName === "canvas_update") return "候选修改画布";
-  if (toolName === "canvas_delete") return "候选删除画布";
-  return "候选操作";
+  if (toolName === "canvas_create") return "创建画布";
+  if (toolName === "canvas_update") return "修改画布";
+  if (toolName === "canvas_delete") return "删除画布";
+  return "待审批操作";
 }
 
 function isProposalPart(part: Record<string, unknown>, toolName: string) {

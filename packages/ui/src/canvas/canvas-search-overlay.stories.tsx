@@ -1,16 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
+import { Button } from "../components/button";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./canvas-search-overlay";
 import { typicalSearchIndex } from "./canvas-story-fixtures";
-
-function SearchStage({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative h-[320px] w-full max-w-[720px] overflow-hidden rounded-lg border bg-muted/30">
-      {children}
-    </div>
-  );
-}
 
 function SearchDemo({
   index = typicalSearchIndex,
@@ -20,22 +13,13 @@ function SearchDemo({
   onSelect?: (id: string) => void;
 }) {
   const [selected, setSelected] = useState("尚未选择");
-  const [open, setOpen] = useState(true);
-  if (!open) {
-    return (
-      <div className="grid gap-2">
-        <SearchStage>
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            已关闭
-          </div>
-        </SearchStage>
-        <p className="text-xs text-muted-foreground">{selected}</p>
-      </div>
-    );
-  }
+  const [open, setOpen] = useState(false);
   return (
     <div className="grid gap-2">
-      <SearchStage>
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        打开搜索
+      </Button>
+      {open ? (
         <CanvasSearchOverlay
           index={index}
           onSelect={(id) => {
@@ -45,9 +29,9 @@ function SearchDemo({
           }}
           onClose={() => setOpen(false)}
         />
-      </SearchStage>
+      ) : null}
       <p className="text-xs text-muted-foreground">
-        {selected}。输入后用方向键移动，Enter 选中，Esc 关闭。
+        {selected}。打开后可直接输入，方向键移动，Enter 选中，Esc 关闭。
       </p>
     </div>
   );
@@ -57,7 +41,7 @@ function CanvasSearchShowcase() {
   return (
     <StoryShowcase
       title="Canvas Search"
-      description="验收画布内搜索浮层的输入、类型标记、空匹配、长标题截断和键盘选择。打开后可直接输入操作。"
+      description="验收画布搜索 Command Dialog 的输入、类型标记、空匹配、长标题截断和键盘选择。每个案例点「打开搜索」后操作。"
     >
       <StoryCase
         title="输入与键盘"
@@ -68,19 +52,19 @@ function CanvasSearchShowcase() {
 
       <StoryCase
         title="各类命中"
-        description="理解、文本、组、画布引用、连线共用同一结果行，靠类型标记区分。"
+        description="理解、文本、组、画布引用、连线共用同一结果行，靠左侧图标区分类型。"
       >
         <SearchDemo />
       </StoryCase>
 
       <StoryCase
         title="无匹配"
-        description="索引里没有与查询相关的条目时显示空状态。打开后输入任意不存在的词即可看到；下面同时放一份只含无关条目的索引便于对照。"
+        description="打开后输入任意不存在的词即可看到空状态；下面这份索引只含无关条目，便于对照。"
       >
         <SearchDemo index={[{ id: "other", kind: "text", text: "与灌溉无关的临时笔记" }]} />
       </StoryCase>
 
-      <StoryCase title="长标题截断" description="超长主文本在 320px 浮层宽度内单行截断。">
+      <StoryCase title="长标题截断" description="超长主文本在 Dialog 宽度内单行截断。">
         <SearchDemo
           index={[
             {

@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Search } from "lucide-react";
-import { Input } from "../components/input";
+import { FileText, Group, LayoutGrid, Spline, Type, type LucideIcon } from "lucide-react";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../components/command";
 
 /**
- * 画布内搜索浮层：⌘/Ctrl+F 打开。
+ * 画布内搜索：⌘/Ctrl+F 打开 Command Dialog。
  * 范围由上层从文档 + 展示数据构建：理解卡标题 / 正文、文本卡内容、组名、连线标签、画布引用标题。
- * 过滤在浮层内做；命中后由上层定位/选中。Esc 关闭。
+ * 过滤由 Command 承担；命中后由上层定位/选中。Esc / 点遮罩关闭。
  */
 const KIND_LABEL: Record<string, string> = {
   understanding: "理解",
@@ -13,6 +20,14 @@ const KIND_LABEL: Record<string, string> = {
   group: "组",
   canvas_ref: "画布引用",
   edge: "连线",
+};
+
+const KIND_ICON: Record<string, LucideIcon> = {
+  understanding: FileText,
+  text: Type,
+  group: Group,
+  canvas_ref: LayoutGrid,
+  edge: Spline,
 };
 
 export type CanvasSearchIndexItem = {
@@ -29,83 +44,40 @@ export type CanvasSearchOverlayProps = {
 };
 
 export function CanvasSearchOverlay({ index, onSelect, onClose }: CanvasSearchOverlayProps) {
-  const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [active, setActive] = useState(0);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return index.filter((item) => item.text.toLowerCase().includes(q));
-  }, [index, query]);
-
-  const commit = (id: string) => onSelect(id);
-
   return (
-    <div
-      data-testid="canvas-search-overlay"
-      className="absolute left-1/2 top-3 z-30 w-80 -translate-x-1/2 rounded-lg border bg-background/95 shadow-lg"
+    <CommandDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title="搜索画布"
+      description="按标题、组名或连线标签查找元素"
+      className="sm:max-w-lg"
     >
-      <div className="flex items-center gap-2 border-b px-3 py-2">
-        <Search size={14} className="shrink-0 text-muted-foreground" />
-        <Input
-          ref={inputRef}
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setActive(0);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setActive((a) => Math.min(a + 1, matches.length - 1));
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setActive((a) => Math.max(a - 1, 0));
-            } else if (event.key === "Enter" && matches[active]) {
-              commit(matches[active].id);
-            }
-          }}
-          data-testid="canvas-search-input"
-          placeholder="搜索卡片 / 组 / 连线标签…"
-          className="h-7 border-transparent bg-transparent px-1 shadow-none focus-visible:ring-0"
-        />
-      </div>
-      <div className="max-h-64 overflow-y-auto p-1">
-        {query.trim() && matches.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-muted-foreground">无匹配结果</div>
-        ) : (
-          matches.map((item, i) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => commit(item.id)}
-              onMouseEnter={() => setActive(i)}
-              data-testid="canvas-search-result"
-              className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${
-                i === active ? "bg-accent" : ""
-              }`}
-            >
-              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {KIND_LABEL[item.kind] ?? item.kind}
-              </span>
-              <span className="truncate">{item.text}</span>
-            </button>
-          ))
-        )}
-      </div>
-    </div>
+      <Command data-testid="canvas-search-overlay">
+        <CommandInput placeholder="搜索卡片 / 组 / 连线标签…" data-testid="canvas-search-input" />
+        <CommandList>
+          <CommandEmpty>无匹配结果</CommandEmpty>
+          <CommandGroup>
+            {index.map((item) => {
+              const kindLabel = KIND_LABEL[item.kind] ?? item.kind;
+              const Icon = KIND_ICON[item.kind];
+              return (
+                <CommandItem
+                  key={item.id}
+                  value={`${item.text} ${kindLabel} ${item.id}`}
+                  aria-label={`${kindLabel} ${item.text}`}
+                  data-testid="canvas-search-result"
+                  onSelect={() => onSelect(item.id)}
+                >
+                  {Icon ? <Icon className="text-muted-foreground" /> : null}
+                  <span className="min-w-0 flex-1 truncate">{item.text}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </CommandDialog>
   );
 }
