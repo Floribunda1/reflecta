@@ -1,4 +1,5 @@
 import { ArrowUpDown, FileText, GitBranch, LayoutGrid, Search, X } from "lucide-react";
+import { useRef } from "react";
 import { Button } from "../components/button";
 import { Empty, EmptyDescription } from "../components/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../components/input-group";
@@ -77,6 +78,12 @@ function LibraryRow({
   onStartDrag: (id: string, title: string, event: React.MouseEvent | React.PointerEvent) => void;
   onPick: (id: string, title: string) => void;
 }) {
+  const downRef = useRef<{
+    x: number;
+    y: number;
+    event: React.MouseEvent;
+  } | null>(null);
+  const dragStartedRef = useRef(false);
   return (
     <button
       key={id}
@@ -86,7 +93,28 @@ function LibraryRow({
       title={title}
       aria-label={`添加「${title}」到画布`}
       className="flex min-h-9 cursor-grab items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
-      onMouseDown={(event) => onStartDrag(id, title, event)}
+      onMouseDown={(event) => {
+        // 延迟启动拖拽：位移超阈值才开始 dnd.start，纯点击不触发（click 事件不被 X6
+        // 的 preventDefault 吞掉，onClick 正常走 onPick）。真拖拽时 mouseup 落在画布上。
+        const start = { x: event.clientX, y: event.clientY, event };
+        downRef.current = start;
+        dragStartedRef.current = false;
+        const onMove = (e: MouseEvent) => {
+          if (dragStartedRef.current || !downRef.current) return;
+          if (Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 6) {
+            dragStartedRef.current = true;
+            cleanup();
+            onStartDrag(id, title, start.event);
+          }
+        };
+        const cleanup = () => {
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        };
+        const onUp = () => cleanup();
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      }}
       onClick={() => onPick(id, title)}
     >
       <span className="shrink-0 text-muted-foreground">{icon}</span>

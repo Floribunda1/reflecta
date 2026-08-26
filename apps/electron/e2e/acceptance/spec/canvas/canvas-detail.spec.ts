@@ -148,7 +148,7 @@ test("@CV-DETAIL-004 理解详情显示画布归属并可跳转", async () => {
     // 关联画布计数 = 2（DV4_A + DV4_B 都引用了这条理解）
     const membership = page!.getByTestId("canvas-detail-panel").getByLabel("查看关联画布，共 2 个");
     await expect(membership).toBeVisible();
-    await membership.hover();
+    await membership.click();
     await expect(page!.getByText("关联画布")).toBeVisible();
     await page!.getByRole("button").filter({ hasText: "DV4_B" }).first().click();
     // 跳转到 DV4_B 的工作区

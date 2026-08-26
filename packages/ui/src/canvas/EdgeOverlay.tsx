@@ -51,6 +51,7 @@ export function EdgeOverlay({
 }) {
   const [labelDraft, setLabelDraft] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
   // 切换选中边（edgeId prop 变化）时重置草稿 / 退出编辑：渲染期调整
   // （React 官方 you-might-not-need-an-effect 写法），避免 effect 里 setState 露出旧编辑态。
   const [labelForEdgeId, setLabelForEdgeId] = useState(edgeId);
@@ -154,7 +155,7 @@ export function EdgeOverlay({
       className="absolute z-20 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
       style={{ left: point.x - container.left, top: point.y - container.top - 8 }}
     >
-      <Popover>
+      <Popover open={colorOpen} onOpenChange={setColorOpen}>
         <PopoverTrigger
           render={
             <Button
@@ -172,7 +173,10 @@ export function EdgeOverlay({
         <PopoverContent className="w-auto flex-row items-center" align="center">
           <CanvasColorSwatches
             value={swatch}
-            onChange={(color) => patchLine({ stroke: canvasPaintColor(color) })}
+            onChange={(color) => {
+              patchLine({ stroke: canvasPaintColor(color) });
+              setColorOpen(false);
+            }}
           />
         </PopoverContent>
       </Popover>

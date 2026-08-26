@@ -83,9 +83,10 @@ export function CanvasNodeActions({
   showRemove?: boolean;
   showEdit?: boolean;
 }) {
+  const [colorOpen, setColorOpen] = useState(false);
   return (
     <div className="flex gap-1">
-      <Popover>
+      <Popover open={colorOpen} onOpenChange={setColorOpen}>
         <PopoverTrigger
           render={
             <Button
@@ -103,7 +104,10 @@ export function CanvasNodeActions({
         <PopoverContent className="w-auto flex-row items-center" align="center">
           <CanvasColorSwatches
             value={color}
-            onChange={onColorChange ?? (() => undefined)}
+            onChange={(next) => {
+              onColorChange?.(next);
+              setColorOpen(false);
+            }}
             allowClear
           />
         </PopoverContent>
@@ -349,6 +353,7 @@ export function CanvasGroupCard({
 }: CanvasGroupCardProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
+  const [colorOpen, setColorOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = () => {
@@ -378,7 +383,7 @@ export function CanvasGroupCard({
       style={nodeColorStyle(color, "var(--muted)")}
     >
       <CanvasNodeActionBar visible={selected && !readonly && !multiSelected}>
-        <Popover>
+        <Popover open={colorOpen} onOpenChange={setColorOpen}>
           <PopoverTrigger
             render={
               <Button
@@ -396,7 +401,10 @@ export function CanvasGroupCard({
           <PopoverContent className="w-auto flex-row items-center" align="center">
             <CanvasColorSwatches
               value={color}
-              onChange={onColorChange ?? (() => undefined)}
+              onChange={(next) => {
+                onColorChange?.(next);
+                setColorOpen(false);
+              }}
               allowClear
             />
           </PopoverContent>

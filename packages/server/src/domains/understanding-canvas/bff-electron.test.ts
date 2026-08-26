@@ -164,6 +164,31 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     expect(detail!.understandingRefs[0].deleted).toBe(true);
   });
 
+  test("marks missing canvas targets as deleted in referenced canvases", async () => {
+    // saveCanvas 的写路径会以 FK 校验拒绝无效 canvas_ref（种子直写数据库才可能出现），
+    // 这里关掉 FK 直接插行，模拟读路径面对脏数据时优雅降级。
+    const client = (
+      db as unknown as { $client: { prepare(sql: string): { run(...p: unknown[]): unknown } } }
+    ).$client;
+    client.prepare("PRAGMA foreign_keys = OFF").run();
+    client
+      .prepare(
+        "INSERT INTO understanding_canvas_elements (id, canvas_id, kind, canvas_ref_id, props, x, y, width, height, created_at, updated_at) VALUES (?, ?, 'canvas_ref', ?, '{}', 100, 100, 220, 140, ?, ?)",
+      )
+      .run(
+        "ref",
+        canvasId,
+        "does-not-exist",
+        "2026-08-01T00:00:00.000Z",
+        "2026-08-01T00:00:00.000Z",
+      );
+
+    const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
+    expect(detail!.referencedCanvases).toEqual([
+      expect.objectContaining({ id: "does-not-exist", title: "", deleted: true }),
+    ]);
+  });
+
   test("listCanvasesByUnderstanding returns canvases referencing the understanding", async () => {
     const u = new UnderstandingCliBff(db);
     const understanding = await u.createUnderstanding({ title: "常用理解", body: "x" });

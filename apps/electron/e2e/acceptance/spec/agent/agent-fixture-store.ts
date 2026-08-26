@@ -71,7 +71,7 @@ type Fixture =
       domainIds?: string[];
     }
   | { type: "seedContext"; id: string; understandingId: string; title: string; content: string }
-  | { type: "seedDomain"; id: string; name: string }
+  | { type: "seedDomain"; id: string; name: string; parentId?: string | null }
   | {
       type: "seedPortfolio";
       domains: Array<{ id: string; name: string }>;
@@ -689,7 +689,7 @@ try {
   }
 
   if (fixture.type === "seedDomain") {
-    seedDomain(fixture.id, fixture.name);
+    seedDomain(fixture.id, fixture.name, fixture.parentId ?? null);
   }
 
   if (fixture.type === "seedPortfolio") {

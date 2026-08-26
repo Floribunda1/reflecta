@@ -65,7 +65,7 @@ export const CanvasGet = rpc(
 export const CanvasListByIds = rpc(
   "understandingCanvas.listCanvasesByIds",
   S.Struct({ ids: S.Array(S.String) }),
-  S.Array(CanvasDetailDTO),
+  S.Array(S.NullOr(CanvasDetailDTO)),
   CanvasError,
 );
 export const CanvasCreate = rpc(

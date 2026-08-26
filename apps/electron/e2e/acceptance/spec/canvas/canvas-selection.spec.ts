@@ -70,7 +70,8 @@ test("@CV-SEL-004 空白处拖拽框选多个节点", async () => {
 test("@CV-SEL-005 点击空白清空选区", async () => {
   await h.openCanvasRow(page!, "SEL");
   const graphBox = (await page!.getByTestId("canvas-graph").first().boundingBox())!;
-  await page!.mouse.click(graphBox.x + graphBox.width / 2, graphBox.y + 30);
+  // 选区工具条固定在容器顶部中央；点右下角空白处（避开工具栏与左下缩放控件）
+  await page!.mouse.click(graphBox.x + graphBox.width - 60, graphBox.y + graphBox.height - 60);
   await page!.waitForTimeout(150);
   await expect(page!.getByTestId("canvas-selection-toolbar")).toHaveCount(0);
   await expect

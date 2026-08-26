@@ -35,7 +35,9 @@ test.beforeAll(async () => {
         id: "z_hi",
         kind: "text",
         props: { text: "HIGH" },
-        x: 200,
+        // 与 z_lo 部分重叠（x 向右偏移 120），保留可点击的露出区域；
+        // 完全同坐标时上层节点会拦截对下层节点的点击，X6 下无法点到。
+        x: 320,
         y: 150,
         width: 180,
         height: 110,
@@ -145,8 +147,8 @@ test("@CV-SEL-011 置顶 / 置底调整叠放顺序", async () => {
   await h.nodeInGraph(page!, "z_lo").first().click({ button: "right" });
   await page!.getByTestId("canvas-context-to-front").click();
   await expect.poll(async () => (await zIndex("z_lo"))! > (await zIndex("z_hi"))!).toBe(true);
-  // 置底 HIGH → 恢复 LOW 在下
-  await h.nodeInGraph(page!, "z_hi").first().click({ button: "right" });
+  // 置底 LOW（现为上层节点）→ 恢复 LOW 在下
+  await h.nodeInGraph(page!, "z_lo").first().click({ button: "right" });
   await page!.getByTestId("canvas-context-to-back").click();
   await expect.poll(async () => (await zIndex("z_lo"))! < (await zIndex("z_hi"))!).toBe(true);
 });

@@ -698,18 +698,23 @@ export const CanvasGraph = React.memo(
             affected.has(edge.getTargetCellId() ?? ""),
         );
       graph.startBatch("z-move");
-      // 多层分支：置顶按层序升序、置底降序逐一移动，保留多分支相对序
+      // X6 的 toFront/toBack 依赖 collection 按 zIndex 排序，而本图未配置 comparator：
+      // getMinZIndex/getMaxZIndex 读的是 collection 首/尾元素的 zIndex，连续置顶/置底会
+      // 产生重复 zIndex 或直接 no-op（置底常不生效）。这里改为显式分配连续 zIndex，
+      // 渲染端（scheduler FLAG_INSERT）会按 zIndex 重排 DOM，视觉叠放与模型一致。
+      const allNodes = graph.getNodes();
+      const zs = allNodes.map((node) => node.getZIndex());
+      const base = dir === "front" ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - nodes.length;
+      // 多层分支：置顶按层序升序、置底降序逐一分配，保留多分支相对序
       const ordered = [...nodes].sort((a, b) =>
         dir === "front" ? a.getZIndex() - b.getZIndex() : b.getZIndex() - a.getZIndex(),
       );
-      for (const node of ordered) {
-        if (dir === "front") node.toFront({ deep: true });
-        else node.toBack({ deep: true });
-      }
-      for (const edge of edges) {
-        if (dir === "front") edge.toFront();
-        else edge.toBack();
-      }
+      ordered.forEach((node, index) => node.setZIndex(base + index));
+      // 相邻边跟随端点：边与节点共用同一 z 序空间，显式分配——
+      // 置顶时边在节点之上、置底时边在节点之下（与原先 toFront/toBack 意图一致）。
+      edges.forEach((edge, index) => {
+        edge.setZIndex(dir === "front" ? base + nodes.length + index : base - 1 - index);
+      });
       graph.stopBatch("z-move");
       scheduleEmit(); // change:zIndex 不在 modelEvents 里，主动回写文档
     };

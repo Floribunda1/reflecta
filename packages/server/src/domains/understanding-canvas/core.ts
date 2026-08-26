@@ -492,13 +492,13 @@ export class CanvasCore {
         .from(understandingCanvases)
         .where(inArray(understandingCanvases.id, ids));
       const byId = new Map(rows.map((row) => [row.id, row]));
-      return ids
-        .map((id) => {
-          const row = byId.get(id);
-          if (!row) return null;
-          return { id: row.id, title: row.title, deleted: Boolean(row.deletedAt) };
-        })
-        .filter((ref): ref is CanvasReferencedCanvas => ref !== null);
+      return ids.map((id) => {
+        const row = byId.get(id);
+        // 目标画布已不存在（被删除或从未存在）：仍保留引用并标记 deleted，
+        // 让引用卡渲染「（已删除）」占位；直接过滤会让 UI 当成可打开的正常引用。
+        if (!row) return { id, title: "", deleted: true };
+        return { id: row.id, title: row.title, deleted: Boolean(row.deletedAt) };
+      });
     });
   }
 
