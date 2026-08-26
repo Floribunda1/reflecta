@@ -28,13 +28,11 @@ export type AgentActivityGroupPresentation = {
   completedRuns: SummaryRun[];
 };
 
-/** 完成态摘要的语义桶：附件 / 知识 / 检索 / 生图 / 展示 / 修改 / 读取 / 搜索 / 命令 / 兜底。 */
+/** 完成态摘要的语义桶（交付类工具 image_generate / canvas_present 由独立消息块承载，不进此列）。 */
 type AgentToolBucket =
   | "attachment"
   | "knowledge"
   | "retrieval"
-  | "image"
-  | "present"
   | "edit"
   | "read"
   | "search"
@@ -45,8 +43,6 @@ const BUCKET_ORDER: readonly AgentToolBucket[] = [
   "attachment",
   "knowledge",
   "retrieval",
-  "image",
-  "present",
   "edit",
   "read",
   "search",
@@ -68,10 +64,7 @@ function summaryRunsText(runs: readonly SummaryRun[]): string {
   return runs.map((run) => run.text).join("");
 }
 
-/**
- * 按 Reflecta 实际工具面分类（pi-readonly-tools + image_generate）。
- * create/update/delete 等写工具走 proposal UI，不会出现在 activity group 里。
- */
+/** 按 Reflecta 实际工具面分类（过程工具；交付类由独立消息块承载）。 */
 /**
  * 工具 → 摘要桶：按真实工具面分派（键为 PiToolName union）；
  * approval 写工具走 proposal UI，不会出现在 activity group，落兜底即可。
@@ -79,8 +72,6 @@ function summaryRunsText(runs: readonly SummaryRun[]): string {
 export const TOOL_BUCKET: Partial<Record<PiToolName, AgentToolBucket>> = {
   attachment_read: "attachment",
   retrieve_knowledge: "retrieval",
-  image_generate: "image",
-  canvas_present: "present",
   edit: "edit",
   write: "edit",
   read: "read",
@@ -147,14 +138,6 @@ function bucketRuns(
   }
   if (bucket === "retrieval") {
     return [textRun("检索了 "), monoRun(String(count)), textRun(" 次你的知识")];
-  }
-  if (bucket === "image") {
-    return [textRun("生成了 "), monoRun(String(count)), textRun(" 张图片")];
-  }
-  if (bucket === "present") {
-    if (count === 1 && first) return [textRun(`展示了画布视图「${truncateName(first)}」`)];
-    if (count === 1) return [textRun("展示了 1 个画布视图")];
-    return [textRun("展示了 "), monoRun(String(count)), textRun(" 个画布视图")];
   }
   if (bucket === "edit") {
     if (count === 1 && first) return [textRun(`修改了「${truncateName(first)}」`)];
@@ -326,7 +309,7 @@ export function activityGroupPresentation(
   };
 }
 
-/** 工具 → 图标；键为 PiToolName union，覆盖完整性由测试锁定（含显式 other 的 image_generate）。 */
+/** 工具 → 图标；键为 PiToolName union，覆盖完整性由测试锁定。 */
 export const TOOL_ICON_KIND: Partial<Record<PiToolName, AgentToolIconKind>> = {
   read: "file",
   fetch_content: "file",
@@ -347,8 +330,6 @@ export const TOOL_ICON_KIND: Partial<Record<PiToolName, AgentToolIconKind>> = {
   canvas_read: "canvas",
   canvas_list: "canvas",
   canvas_search: "canvas",
-  canvas_present: "canvas",
-  image_generate: "other",
 };
 
 export function toolIconKind(activity: AgentToolActivityView): AgentToolIconKind {

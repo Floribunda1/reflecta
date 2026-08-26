@@ -98,6 +98,7 @@ const generatedImageRow: ChatMessageRowView = {
       {
         kind: "image",
         id: "image-1",
+        status: "done",
         src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='768' height='512'%3E%3Cdefs%3E%3ClinearGradient id='g' x2='1' y2='1'%3E%3Cstop stop-color='%231e293b'/%3E%3Cstop offset='1' stop-color='%230f766e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23g)'/%3E%3Ccircle cx='570' cy='150' r='72' fill='%23fef3c7' opacity='.9'/%3E%3Cpath d='M0 430 Q180 300 360 430 T768 390 V512 H0Z' fill='%230f172a' opacity='.8'/%3E%3Ctext x='48' y='76' fill='white' font-size='28'%3ECodex Generated Image%3C/text%3E%3C/svg%3E",
         alt: "AI 生成图片：月光下的青绿色山谷",
       },

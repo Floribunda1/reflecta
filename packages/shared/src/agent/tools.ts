@@ -75,9 +75,17 @@ export const PI_TOOL_NAMES: readonly PiToolName[] = [
   ...PI_PRESENT_TOOL_NAMES,
 ];
 
-/** 非 approval 工具（直接执行、出现在 activity group），供 UI 与完整性测试使用。 */
+/** 非 approval 工具（直接执行），供 UI 与完整性测试使用。 */
 export const PI_PLAIN_TOOL_NAMES: readonly PiToolName[] = PI_TOOL_NAMES.filter(
   (name) => !isPiApprovalToolName(name),
+);
+
+/**
+ * 出现在 activity group 里的「过程工具」：非 approval，且排除派生独立消息块的交付工具
+ * （image_generate -> 图片块，canvas_present -> canvas-view 块）。
+ */
+export const PI_ACTIVITY_TOOL_NAMES: readonly PiToolName[] = PI_PLAIN_TOOL_NAMES.filter(
+  (name) => name !== "image_generate" && name !== "canvas_present",
 );
 
 export function isPiApprovalToolName(name: string): name is PiApprovalToolName {

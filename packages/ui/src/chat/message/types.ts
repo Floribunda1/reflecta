@@ -45,15 +45,19 @@ export type AgentImageBlockView = {
   id: string;
   src: string;
   alt: string;
+  status: "streaming" | "done" | "failed";
+  error?: string;
 };
 
-/** 独立只读分析画布视图（canvas_present completed output 派生）。不写入、不审批，属临时分析展示。 */
+/** 独立只读分析画布视图（canvas_present 输出派生）。不写入、不审批，属临时分析展示。 */
 export type AgentCanvasViewBlock = {
   kind: "canvas-view";
   id: string;
   title: string;
   caption?: string;
   document: CanvasDocument;
+  status: "streaming" | "done" | "failed";
+  error?: string;
   /** 展示数据由消息 projection 层按当前实体状态（hydration B）批量加载。 */
   understandingTitles?: ReadonlyArray<{ id: string; title: string }>;
   understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;

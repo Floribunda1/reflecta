@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { PI_PLAIN_TOOL_NAMES } from "@reflecta/shared";
+import { PI_ACTIVITY_TOOL_NAMES, PI_PLAIN_TOOL_NAMES, isPiToolName } from "@reflecta/shared";
 import type { AgentReducedAssistantBlock } from "@shared/agent";
 import {
   buildAgentTurnView,
@@ -136,7 +136,7 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks.map((block) => block.kind)).toEqual(["text", "context-compaction", "text"]);
   });
 
-  test("derives an inline image from a completed image tool", () => {
+  test("derives an image block from a completed image tool (no tool-activity)", () => {
     const turn = buildAgentTurnView([
       tool(
         "image_generate",
@@ -148,18 +148,37 @@ describe("buildAgentTurnView", () => {
       ),
     ]);
 
-    expect(turn.blocks).toMatchObject([
-      { kind: "tool-activity", activity: { summary: "已生成图片" } },
-      {
-        kind: "image",
-        id: "tool-image:image",
-        src: "asset:///generated.png",
-        alt: "AI 生成图片：雨中的上海街道",
-      },
-    ]);
+    expect(turn.blocks.map((block) => block.kind)).toEqual(["image"]);
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "image",
+      id: "tool-image:image",
+      src: "asset:///generated.png",
+      alt: "AI 生成图片：雨中的上海街道",
+      status: "done",
+    });
   });
 
-  test("derives a canvas-view from a completed canvas_present with valid v1 output", () => {
+  test("image_generate with invalid output or failure becomes a failed image block", () => {
+    const invalid = buildAgentTurnView([
+      tool("image_generate", "t1", { kind: "nope" }, "completed"),
+    ]);
+    const failed = buildAgentTurnView([
+      tool("image_generate", "t2", undefined, "failed", "生成服务超时"),
+    ]);
+    expect(invalid.blocks[0]).toMatchObject({ kind: "image", status: "failed" });
+    expect(failed.blocks[0]).toMatchObject({
+      kind: "image",
+      status: "failed",
+      error: "生成服务超时",
+    });
+  });
+
+  test("running image_generate becomes a streaming image placeholder", () => {
+    const turn = buildAgentTurnView([tool("image_generate", "tool-image", undefined, "running")]);
+    expect(turn.blocks).toMatchObject([{ kind: "image", status: "streaming" }]);
+  });
+
+  test("derives a canvas-view block from a completed canvas_present with valid v1 output", () => {
     const document = {
       elements: [
         { id: "e1", kind: "understanding", understandingId: "u-frontend" },
@@ -176,18 +195,17 @@ describe("buildAgentTurnView", () => {
       ),
     ]);
 
-    expect(turn.blocks).toMatchObject([
-      { kind: "tool-activity" },
-      {
-        kind: "canvas-view",
-        id: "tool-canvas:canvas-view",
-        title: "前端知识结构",
-        document,
-      },
-    ]);
+    expect(turn.blocks.map((block) => block.kind)).toEqual(["canvas-view"]);
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "canvas-view",
+      id: "tool-canvas:canvas-view",
+      title: "前端知识结构",
+      document,
+      status: "done",
+    });
   });
 
-  test("running canvas_present stays a plain tool activity (no canvas-view yet)", () => {
+  test("running canvas_present becomes a streaming canvas-view placeholder", () => {
     const turn = buildAgentTurnView([
       tool(
         "canvas_present",
@@ -196,10 +214,10 @@ describe("buildAgentTurnView", () => {
         "running",
       ),
     ]);
-    expect(turn.blocks.map((block) => block.kind)).toEqual(["tool-activity"]);
+    expect(turn.blocks).toMatchObject([{ kind: "canvas-view", status: "streaming" }]);
   });
 
-  test("canvas_present with unknown version or invalid document falls back to tool activity", () => {
+  test("canvas_present with unknown version, invalid document or failure becomes a failed block", () => {
     const unknownVersion = buildAgentTurnView([
       tool("canvas_present", "t1", { kind: "canvas-view", version: 99, document: {} }, "completed"),
     ]);
@@ -209,9 +227,14 @@ describe("buildAgentTurnView", () => {
     const wrongKind = buildAgentTurnView([
       tool("canvas_present", "t3", { kind: "other", version: 1 }, "completed"),
     ]);
-    for (const turn of [unknownVersion, invalidDoc, wrongKind]) {
-      expect(turn.blocks.map((block) => block.kind)).toEqual(["tool-activity"]);
+    const failed = buildAgentTurnView([
+      tool("canvas_present", "t4", undefined, "failed", "画布生成失败"),
+    ]);
+    for (const turn of [unknownVersion, invalidDoc, wrongKind, failed]) {
+      expect(turn.blocks.map((block) => block.kind)).toEqual(["canvas-view"]);
+      expect(turn.blocks[0]).toMatchObject({ kind: "canvas-view", status: "failed" });
     }
+    expect(failed.blocks[0]).toMatchObject({ error: "画布生成失败" });
   });
 
   test("canvasUnderstandingIds collects refs from canvas_present and canvas proposals", () => {
@@ -1006,12 +1029,6 @@ describe("buildAgentTurnView", () => {
       { results: [{ rank: 1 }, { rank: 2 }] },
       "已核验观点「低温下先稳定主管压力再开支路更稳」 · 2 个来源",
     ],
-    [
-      "image_generate",
-      { prompt: "灌溉示意图" },
-      { kind: "generated-image", assetUrl: "asset:///sim.png", mediaType: "image/png" },
-      "已生成图片",
-    ],
     ["canvas_list", {}, [{ id: "c1", title: "灌溉画布" }], "列出画布 · 1 个"],
     [
       "canvas_read",
@@ -1020,12 +1037,6 @@ describe("buildAgentTurnView", () => {
       "读取了画布「灌溉画布」",
     ],
     ["canvas_search", { query: "灌溉 策略" }, [{ id: "c1" }], "搜索画布「灌溉 策略」"],
-    [
-      "canvas_present",
-      { title: "灌溉策略的因果结构" },
-      { kind: "canvas-view", version: 1, document: { elements: [], edges: [] } },
-      "展示了画布视图「灌溉策略的因果结构」",
-    ],
   ])("describes the action, target and result for %s", (name, input, output, summary) => {
     const turn = buildAgentTurnView([
       tool(name as string, `tool-${name}`, output, "completed", undefined, input),
@@ -1514,12 +1525,23 @@ describe("buildAgentTurnView", () => {
 });
 
 describe("tool surface coverage", () => {
-  test("every plain tool has a running and a done summary handler", () => {
+  test("every activity tool has a running and a done summary handler", () => {
+    const runningKeys = new Set(Object.keys(TOOL_RUNNING_SUMMARY));
+    const doneKeys = new Set(Object.keys(TOOL_DONE_SUMMARY));
+    for (const name of PI_ACTIVITY_TOOL_NAMES) {
+      expect(runningKeys.has(name), `缺少 running summary：${name}`).toBe(true);
+      expect(doneKeys.has(name), `缺少 done summary：${name}`).toBe(true);
+    }
+  });
+
+  test("deliverable tools (image/present) have no activity-group summary handlers", () => {
     const runningKeys = new Set(Object.keys(TOOL_RUNNING_SUMMARY));
     const doneKeys = new Set(Object.keys(TOOL_DONE_SUMMARY));
     for (const name of PI_PLAIN_TOOL_NAMES) {
-      expect(runningKeys.has(name), `缺少 running summary：${name}`).toBe(true);
-      expect(doneKeys.has(name), `缺少 done summary：${name}`).toBe(true);
+      if (isPiToolName(name) && (name === "image_generate" || name === "canvas_present")) {
+        expect(runningKeys.has(name), `交付工具不该有 running summary：${name}`).toBe(false);
+        expect(doneKeys.has(name), `交付工具不该有 done summary：${name}`).toBe(false);
+      }
     }
   });
 });

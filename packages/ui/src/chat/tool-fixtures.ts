@@ -414,50 +414,7 @@ export const completedTools: readonly ToolBlock[] = [
     { id: "canvas-irrigation", title: "极地温室的分区灌溉策略" },
     { id: "canvas-valve-order", title: "低温启动顺序画布" },
   ]),
-  tool(
-    "canvas_present",
-    {
-      title: "灌溉策略的因果结构",
-      caption: "分区灌溉与告警降级之间的单向依赖。",
-      changes: [
-        {
-          op: "add_element",
-          ref: "n-1",
-          element: { kind: "text", text: "主管压力稳定" },
-        },
-        {
-          op: "add_element",
-          ref: "n-2",
-          element: { kind: "text", text: "按顺序开启支路" },
-        },
-        { op: "add_edge", ref: "e-1", sourceRef: "n-1", targetRef: "n-2", label: "依赖" },
-      ],
-      layout: "vertical",
-    },
-    {
-      kind: "canvas-view",
-      version: 1,
-      title: "灌溉策略的因果结构",
-      document: {
-        elements: [
-          { id: "n-1", kind: "text", text: "主管压力稳定" },
-          { id: "n-2", kind: "text", text: "按顺序开启支路" },
-        ],
-        edges: [{ id: "e-1", sourceId: "n-1", targetId: "n-2", label: "依赖" }],
-      },
-    },
-  ),
-  tool(
-    "image_generate",
-    { prompt: "极地温室分层灌溉的全景示意图，等宽透视" },
-    {
-      kind: "generated-image",
-      assetUrl: "asset:///sim-irrigation-canvas.png",
-      mediaType: "image/png",
-    },
-  ),
 ];
-
 export const failedTool = tool(
   "bash",
   {

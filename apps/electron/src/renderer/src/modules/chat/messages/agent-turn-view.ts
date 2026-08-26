@@ -179,6 +179,8 @@ export type CanvasViewTurnBlock = {
   title: string;
   caption?: string;
   document: { elements: unknown[]; edges: unknown[] };
+  status: "streaming" | "done" | "failed";
+  error?: string;
   /** 供消息层按当前实体状态（hydration B）解析引用卡展示数据 */
   understandingIds: string[];
 };
@@ -194,7 +196,14 @@ export type AgentTurnBlock =
   | { kind: "reasoning"; reasoning: AgentReasoningView }
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-activity"; activity: ToolActivityView }
-  | { kind: "image"; id: string; src: string; alt: string }
+  | {
+      kind: "image";
+      id: string;
+      src: string;
+      alt: string;
+      status: "streaming" | "done" | "failed";
+      error?: string;
+    }
   | CanvasViewTurnBlock
   | { kind: "proposal"; proposal: ProposalView };
 
@@ -219,7 +228,14 @@ type InternalTurnBlock =
   | { kind: "reasoning"; text: string; status: AgentReasoningView["status"]; createdAt?: string }
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
-  | { kind: "image"; id: string; src: string; alt: string }
+  | {
+      kind: "image";
+      id: string;
+      src: string;
+      alt: string;
+      status: "streaming" | "done" | "failed";
+      error?: string;
+    }
   | CanvasViewTurnBlock
   | { kind: "proposal"; proposal: ProposalView };
 
@@ -256,11 +272,19 @@ export function buildAgentTurnView(
       });
       continue;
     }
+    // 交付工具：结果由独立消息块承载（图片 / 只读画布），不进 activity group，
+    // 与 proposal 同理——有自己的承载 UI，不污染过程时间线。
+    if (block.toolName === "image_generate") {
+      const image = imageBlock(block);
+      if (image) internalBlocks.push(image);
+      continue;
+    }
+    if (block.toolName === "canvas_present") {
+      const canvasView = canvasPresentBlock(block);
+      if (canvasView) internalBlocks.push(canvasView);
+      continue;
+    }
     appendTool(internalBlocks, block);
-    const image = generatedImageBlock(block);
-    if (image) internalBlocks.push(image);
-    const canvasView = canvasPresentBlock(block);
-    if (canvasView) internalBlocks.push(canvasView);
   }
 
   return {
@@ -376,6 +400,8 @@ function toAgentCanvasViewBlock(
     title: block.title,
     ...(block.caption ? { caption: block.caption } : {}),
     document: block.document as CanvasDocument,
+    status: block.status,
+    ...(block.error ? { error: block.error } : {}),
     ...(understandingTitles?.length ? { understandingTitles } : {}),
     ...(understandingRefs.size ? { understandingRefs } : {}),
   };
@@ -446,35 +472,100 @@ function appendTool(blocks: InternalTurnBlock[], block: AgentToolBlock) {
   });
 }
 
-function generatedImageBlock(block: AgentToolBlock): InternalTurnBlock | undefined {
-  if (block.toolName !== "image_generate" || block.state !== "completed") return undefined;
+function imageBlock(block: AgentToolBlock): InternalTurnBlock | undefined {
+  if (block.toolName !== "image_generate") return undefined;
+  const id = `${block.toolCallId}:image`;
+  if (block.state === "failed") {
+    return {
+      kind: "image",
+      id,
+      src: "",
+      alt: "AI 生成图片",
+      status: "failed",
+      error: block.error,
+    };
+  }
+  if (block.state !== "completed") {
+    return { kind: "image", id, src: "", alt: "AI 生成图片", status: "streaming" };
+  }
   const output = isRecord(block.output) ? block.output : {};
   const assetUrl = stringValue(output.assetUrl);
   const mediaType = stringValue(output.mediaType);
-  if (
-    output.kind !== "generated-image" ||
-    !/^asset:\/\/\/[^/\\]+$/.test(assetUrl) ||
-    !mediaType.startsWith("image/")
-  ) {
-    return undefined;
-  }
   const prompt = stringValue(toolInput(block).prompt).replace(/\s+/g, " ").trim();
+  if (
+    block.state === "completed" &&
+    (output.kind !== "generated-image" ||
+      !/^asset:\/\/\/[^/\\]+$/.test(assetUrl) ||
+      !mediaType.startsWith("image/"))
+  ) {
+    return {
+      kind: "image",
+      id,
+      src: "",
+      alt: "AI 生成图片",
+      status: "failed",
+      error: "图片生成结果无效。",
+    };
+  }
   return {
     kind: "image",
-    id: `${block.toolCallId}:image`,
+    id,
     src: assetUrl,
     alt: prompt ? `AI 生成图片：${truncateText(prompt, 160)}` : "AI 生成图片",
+    status: "done",
   };
 }
 
 function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefined {
-  if (block.toolName !== "canvas_present" || block.state !== "completed") return undefined;
+  if (block.toolName !== "canvas_present") return undefined;
+  const id = `${block.toolCallId}:canvas-view`;
+  if (block.state === "failed") {
+    return {
+      kind: "canvas-view",
+      id,
+      title: "",
+      document: { elements: [], edges: [] },
+      status: "failed",
+      error: block.error,
+      understandingIds: [],
+    };
+  }
+  if (block.state !== "completed") {
+    return {
+      kind: "canvas-view",
+      id,
+      title: "",
+      document: { elements: [], edges: [] },
+      status: "streaming",
+      understandingIds: [],
+    };
+  }
   const output = isRecord(block.output) ? block.output : {};
-  if (output.kind !== "canvas-view" || output.version !== 1) return undefined;
+  if (output.kind !== "canvas-view" || output.version !== 1) {
+    return {
+      kind: "canvas-view",
+      id,
+      title: "",
+      document: { elements: [], edges: [] },
+      status: "failed",
+      error: "画布视图结果无效。",
+      understandingIds: [],
+    };
+  }
   const rawDoc = isRecord(output.document) ? output.document : undefined;
   const elements = Array.isArray(rawDoc?.elements) ? rawDoc.elements : undefined;
   const edges = Array.isArray(rawDoc?.edges) ? rawDoc.edges : undefined;
-  if (!elements || !edges) return undefined;
+  if (!elements || !edges) {
+    return {
+      kind: "canvas-view",
+      id,
+      title: "",
+      document: { elements: [], edges: [] },
+      status: "failed",
+      error: "画布视图结果无效。",
+      understandingIds: [],
+    };
+  }
   const document = { elements, edges };
   const understandingIds: string[] = [];
   for (const element of document.elements) {
@@ -490,10 +581,11 @@ function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefi
   }
   return {
     kind: "canvas-view",
-    id: `${block.toolCallId}:canvas-view`,
+    id,
     title: stringValue(output.title),
     ...(typeof output.caption === "string" && output.caption ? { caption: output.caption } : {}),
     document,
+    status: "done",
     understandingIds,
   };
 }
@@ -1653,7 +1745,6 @@ function fileReadRunningLabel(input: Record<string, unknown>) {
 
 /** 运行态文案按工具名分派；键为 PiToolName union，覆盖完整性由测试锁定。 */
 export const TOOL_RUNNING_SUMMARY: Partial<Record<PiToolName, ToolRunningSummary>> = {
-  image_generate: () => "正在生成图片",
   web_search: (input) => `正在搜索网页${queryLabel(input)}`,
   source_check: (input) => `正在核验观点${claimLabel(input)}`,
   retrieve_knowledge: (input) => `正在检索${queryLabel(input) || "知识"}`,
@@ -1673,7 +1764,6 @@ export const TOOL_RUNNING_SUMMARY: Partial<Record<PiToolName, ToolRunningSummary
   canvas_list: () => "正在列出画布",
   canvas_read: (input) => `正在读取画布${quotedValue(input.canvasId)}`,
   canvas_search: () => "正在搜索画布",
-  canvas_present: () => "正在展示画布视图",
 };
 
 export function toolRunningSummary(name: string, input: Record<string, unknown>): string {
@@ -1757,7 +1847,6 @@ function retrieveKnowledgeDoneLabel(input: Record<string, unknown>, output: unkn
 
 /** 完成态文案按工具名分派；键为 PiToolName union，覆盖完整性由测试锁定。 */
 export const TOOL_DONE_SUMMARY: Partial<Record<PiToolName, ToolDoneSummary>> = {
-  image_generate: () => "已生成图片",
   source_check: (input, output) => {
     const claim = stringValue(input.claim).trim();
     const results = isRecord(output) ? arrayValue(output.results) : [];
@@ -1818,10 +1907,6 @@ export const TOOL_DONE_SUMMARY: Partial<Record<PiToolName, ToolDoneSummary>> = {
   canvas_read: (_input, output) =>
     `读取了画布「${entityTitle(objectOutput(output).canvas) || "画布"}」`,
   canvas_search: (input) => `搜索画布${queryLabel(input)}`,
-  canvas_present: (input) => {
-    const title = stringValue(input.title).trim();
-    return `展示了画布视图${title ? `「${truncateText(title, 60)}」` : ""}`;
-  },
 };
 
 export function toolDoneSummary(

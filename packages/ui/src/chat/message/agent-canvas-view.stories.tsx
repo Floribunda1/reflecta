@@ -15,6 +15,7 @@ const completedBlock: AgentCanvasViewBlock = {
   title: "夜班灌溉知识结构",
   caption: "基于现有 Understanding 的分析视图，未保存。",
   document: typicalCanvasDocument,
+  status: "done",
   understandingRefs: typicalUnderstandingRefs,
 };
 
@@ -24,6 +25,7 @@ const titleFallbackBlock: AgentCanvasViewBlock = {
   id: "card-canvas-view-titles",
   title: "长标题：低温条件下的分区灌溉策略与阀门启动顺序",
   document: typicalCanvasDocument,
+  status: "done",
   understandingTitles: [...typicalUnderstandingRefs.values()].map((ref) => ({
     id: ref.id,
     title: ref.title ?? ref.id,

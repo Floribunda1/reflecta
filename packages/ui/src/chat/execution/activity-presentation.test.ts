@@ -117,14 +117,28 @@ describe("agent activity presentation", () => {
       {
         kind: "tool-activity",
         activity: {
-          ...toolActivity("image_generate"),
-          summary: "已生成图片",
+          ...toolActivity("read"),
+          summary: "读取了「irrigation-zones.ts」",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("web_search"),
+          summary: "搜索网页 「agent ux」 · 5 个来源",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("bash"),
+          summary: "执行 Bash「bun test」 · 退出码 0",
         },
       },
     ];
 
     expect(completedGroupSummary(blocks, "3.2s")).toBe(
-      "查看了「反馈回路」「习惯养成」等 3 条知识，检索了 1 次你的知识，生成了 1 张图片，思考了 3.2s",
+      "查看了「反馈回路」「习惯养成」等 3 条知识，检索了 1 次你的知识，读取了「irrigation-zones.…」，搜索了 1 次，运行了 1 条命令，思考了 3.2s",
     );
   });
 
@@ -269,7 +283,7 @@ describe("agent activity presentation", () => {
   });
 
   test.each<[readonly string[], AgentToolIconKind]>([
-    [["canvas_list", "canvas_read", "canvas_search", "canvas_present"], "canvas"],
+    [["canvas_list", "canvas_read", "canvas_search"], "canvas"],
     [["domain_list", "domain_inspect"], "domain"],
     [["understanding_list", "understanding_get"], "understanding"],
     [["context_list", "context_get"], "context"],
@@ -280,7 +294,7 @@ describe("agent activity presentation", () => {
     [["edit"], "edit"],
     [["write"], "write"],
     [["bash"], "command"],
-    [["image_generate"], "other"],
+    [["image_generate", "canvas_present"], "other"],
   ])("assigns %s tools to the %s icon", (toolNames, icon) => {
     for (const toolName of toolNames) {
       expect(toolIconKind(toolActivity(toolName))).toBe(icon);

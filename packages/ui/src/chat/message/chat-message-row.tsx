@@ -372,28 +372,70 @@ function AgentMessageContent({
     }
 
     if (block.kind === "image") {
-      renderedBlocks.push(
-        <ZoomableChatImage
-          key={block.id}
-          data-testid="agent-generated-image"
-          data-block-id={block.id}
-          src={block.src}
-          alt={block.alt}
-          className="max-h-128 max-w-full rounded-lg border border-border object-contain"
-        />,
-      );
+      if (block.status === "failed") {
+        renderedBlocks.push(
+          <div
+            key={block.id}
+            className="max-w-full rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          >
+            {block.error || "图片生成失败"}
+          </div>,
+        );
+      } else if (block.status === "streaming") {
+        renderedBlocks.push(
+          <div
+            key={block.id}
+            data-testid="agent-image-placeholder"
+            className="flex h-32 max-w-full animate-pulse items-center justify-center rounded-lg border border-border bg-muted text-sm text-muted-foreground"
+          >
+            正在生成图片…
+          </div>,
+        );
+      } else {
+        renderedBlocks.push(
+          <ZoomableChatImage
+            key={block.id}
+            data-testid="agent-generated-image"
+            data-block-id={block.id}
+            src={block.src}
+            alt={block.alt}
+            className="max-h-128 max-w-full rounded-lg border border-border object-contain"
+          />,
+        );
+      }
       continue;
     }
 
     if (block.kind === "canvas-view") {
-      renderedBlocks.push(
-        <AgentCanvasView
-          key={block.id}
-          block={block}
-          renderMarkdown={renderMarkdown}
-          onWikiLinkOpen={entityBindings?.onEntityOpen}
-        />,
-      );
+      if (block.status === "failed") {
+        renderedBlocks.push(
+          <div
+            key={block.id}
+            className="max-w-full rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          >
+            {block.error || "画布视图生成失败"}
+          </div>,
+        );
+      } else if (block.status === "streaming") {
+        renderedBlocks.push(
+          <div
+            key={block.id}
+            data-testid="agent-canvas-placeholder"
+            className="flex h-40 max-w-full animate-pulse items-center justify-center rounded-lg border border-border bg-muted text-sm text-muted-foreground"
+          >
+            正在生成画布视图…
+          </div>,
+        );
+      } else {
+        renderedBlocks.push(
+          <AgentCanvasView
+            key={block.id}
+            block={block}
+            renderMarkdown={renderMarkdown}
+            onWikiLinkOpen={entityBindings?.onEntityOpen}
+          />,
+        );
+      }
       continue;
     }
 
