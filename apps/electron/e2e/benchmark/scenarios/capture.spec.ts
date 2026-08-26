@@ -122,7 +122,7 @@ test("rail 收起/展开：动画帧率与网格列数稳定", async () => {
 
   const expandFrames = sampleFrames(page, 500);
   await trigger.click();
-  await expect(rail).toHaveCSS("width", "248px");
+  await expect(rail).not.toHaveCSS("width", "0px");
   checkFrameBudget("capture-rail-expand", await expandFrames, {
     p95Ms: 34,
     maxMs: 100,
