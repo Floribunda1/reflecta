@@ -29,18 +29,6 @@ AI 可以帮助搜索、追问、比较和提出候选修改，但最终的理�
 
 更完整的产品理念与边界见 [Reflecta Value Proposition](docs/references/product/value-proposition.md)。
 
-## 界面预览
-
-以下截图使用合成演示数据。
-
-### 在领域中沉淀和回看理解
-
-![Reflecta 理解工作区](assets/screenshots/understanding-workspace.png)
-
-### 带着已有理解继续与 Agent 对话
-
-![Reflecta Agent 对话](assets/screenshots/agent-conversation.png)
-
 ## 目前包含什么
 
 - 在领域中创建、编辑和回看理解。
