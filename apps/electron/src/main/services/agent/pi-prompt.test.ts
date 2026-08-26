@@ -29,6 +29,22 @@ describe("buildPiPromptText", () => {
     expect(prompt).not.toContain("<reflecta_entities");
   });
 
+  test("labels a canvas @-mention as Canvas, not Domain", () => {
+    const prompt = buildPiPromptText({
+      text: "帮我看看这个画布",
+      contextCatalog: [
+        {
+          key: "canvas:canvas-1",
+          entity: { type: "canvas", id: "canvas-1", title: "未命名画布" },
+          origin: { kind: "user_context", messageId: "user-1" },
+        },
+      ],
+    });
+
+    expect(prompt).toContain("Canvas: 未命名画布; id=canvas-1");
+    expect(prompt).not.toContain("Domain");
+  });
+
   test("injects attachment metadata without embedding file data URLs", () => {
     const prompt = buildPiPromptText({
       text: "请总结附件",

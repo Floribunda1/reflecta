@@ -32,5 +32,6 @@ export function selectedAgentContextBlockFromCatalog(entries: AgentEntityCatalog
 function contextTypeLabel(type: AgentContextRef["type"]) {
   if (type === "understanding") return "Understanding";
   if (type === "context") return "Context";
+  if (type === "canvas") return "Canvas";
   return "Domain";
 }
