@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { Clock, ExternalLink, Plus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { AgentContextRef, AgentSessionSummary } from "@shared/agent";
@@ -27,15 +27,18 @@ type ContextualAgentDockProps = {
 
 function scopeTitle(scope: AgentContextRef | null) {
   if (!scope) return "当前上下文";
-  return scope.title?.trim() || (scope.type === "domain" ? "当前领域" : "当前理解");
+  if (scope.title?.trim()) return scope.title.trim();
+  return scope.type === "domain"
+    ? "当前领域"
+    : scope.type === "understanding"
+      ? "当前理解"
+      : scope.type === "canvas"
+        ? "当前画布"
+        : "当前上下文";
 }
 
 function contextThreadTitle(title: string) {
   return `聊聊：${title}`;
-}
-
-export function contextualAgentThreadTitle(scope: AgentContextRef | null) {
-  return contextThreadTitle(scopeTitle(scope));
 }
 
 export function buildContextualAgentHistoryItems(
@@ -62,6 +65,12 @@ export function ContextualAgentDock({
   const threadsQuery = useThreadsQuery();
   const threads = threadsQuery.data ?? [];
   const title = scopeTitle(scope);
+  useEffect(() => {
+    if (!scope || threadId || createThreadPending) return;
+    createThread(contextThreadTitle(title), {
+      onSuccess: (thread) => onBindThread(thread.id),
+    });
+  }, [createThread, createThreadPending, onBindThread, scope, threadId, title]);
   const historyItems = buildContextualAgentHistoryItems(threads, threadId);
   const historyLoading = threadsQuery.isFetching;
   const createContextThread = useCallback(() => {

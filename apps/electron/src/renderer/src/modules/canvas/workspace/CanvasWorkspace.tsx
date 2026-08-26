@@ -15,6 +15,7 @@ import {
   type CanvasViewport,
 } from "@reflecta/ui/canvas";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
+import { captureActions } from "@renderer/modules/capture/store";
 import { ResizablePanel, ResizablePanelGroup } from "@reflecta/ui/components/resizable";
 import {
   canvasQueryKeys,
@@ -293,7 +294,19 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           className="min-h-0 min-w-0"
         >
           <div className="flex h-full min-h-0 flex-col">
-            <CanvasToolbar canvas={canvas} onExportPng={() => void graphRef.current?.exportPng()} />
+            <CanvasToolbar
+              canvas={canvas}
+              onExportPng={() => void graphRef.current?.exportPng()}
+              onChat={() => {
+                if (!canvas) return;
+                dispatchCanvasAction({ type: "panel/close" });
+                captureActions.openAgentDock({
+                  type: "canvas",
+                  id: canvas.id,
+                  title: canvas.title,
+                });
+              }}
+            />
             <div className="relative flex min-h-0 flex-1">
               <CanvasGraphMount canvasId={canvasId} graphRef={graphRef} shapeData={shapeData} />
               <CanvasToolStrip graphRef={graphRef} />

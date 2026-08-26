@@ -22,9 +22,11 @@ import { useRenameCanvasMutation } from "../queries";
 export function CanvasToolbar({
   canvas,
   onExportPng,
+  onChat,
 }: {
   canvas: CanvasDTO | null;
   onExportPng: () => void;
+  onChat: () => void;
 }) {
   const renameCanvas = useRenameCanvasMutation();
   const [draftTitle, setDraftTitle] = useState("");
@@ -77,6 +79,9 @@ export function CanvasToolbar({
               <MoreHorizontal size={16} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem data-testid="canvas-chat-ai" onClick={onChat}>
+                和 AI 聊聊
+              </DropdownMenuItem>
               <DropdownMenuItem data-testid="canvas-export-png" onClick={onExportPng}>
                 <Download size={14} />
                 导出 PNG

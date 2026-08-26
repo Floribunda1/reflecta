@@ -31,7 +31,7 @@ export type CaptureDraft = {
 };
 
 export type CaptureAgentScope = {
-  type: "domain" | "understanding";
+  type: "domain" | "understanding" | "canvas";
   id: string;
   title?: string;
 };

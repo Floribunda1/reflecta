@@ -13,6 +13,8 @@ import {
 import { ResizableHandle, ResizablePanel } from "@reflecta/ui/components/resizable";
 import { cn } from "@reflecta/ui/lib/utils";
 import { RESIZE_HANDLE_CLASS } from "@renderer/modules/shared/layout/layout-constants";
+import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
+import { agentDockAtom, captureActions } from "@renderer/modules/capture/store";
 import {
   canvasIsEmptyAtom,
   canvasLibraryOpenAtom,
@@ -136,7 +138,8 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
   graphRef: RefObject<CanvasGraphHandle | null>;
 }) {
   const rightPanel = useAtomValue(canvasPanelAtom);
-  if (!rightPanel) return null;
+  const agentDock = useAtomValue(agentDockAtom);
+  if (!rightPanel && !agentDock.open) return null;
   return (
     <>
       <ResizableHandle
@@ -151,7 +154,15 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
         defaultSize={60}
         className="min-h-0 min-w-0"
       >
-        {rightPanel.mode === "library" ? (
+        {agentDock.open ? (
+          <ContextualAgentDock
+            testId="canvas-agent-dock"
+            scope={agentDock.scope}
+            threadId={agentDock.threadId}
+            onBindThread={captureActions.bindAgentDockThread}
+            onClose={captureActions.closeAgentDock}
+          />
+        ) : rightPanel!.mode === "library" ? (
           <CanvasLibraryPanel
             canvasId={canvasId}
             onClose={() => dispatchCanvasAction({ type: "panel/close" })}
@@ -170,9 +181,9 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
           />
         ) : (
           <CanvasDetailPanel
-            key={rightPanel.understandingId}
+            key={rightPanel!.understandingId}
             canvasId={canvasId}
-            understandingId={rightPanel.understandingId}
+            understandingId={rightPanel!.understandingId}
             onClose={() => dispatchCanvasAction({ type: "panel/close" })}
             onSwitch={(nextId) =>
               dispatchCanvasAction({ type: "panel/openDetail", understandingId: nextId })
