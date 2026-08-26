@@ -30,7 +30,6 @@ import {
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { AgentCanvasView } from "./agent-canvas-view";
 import { AgentProposalCard } from "../proposal/agent-proposal-card";
-import { ReadOnlyCanvasSkeleton } from "../../canvas/readonly-canvas-card";
 import type { AgentProposalDecision } from "../proposal/types";
 import {
   ChatSearchProvider,
@@ -415,16 +414,6 @@ function AgentMessageContent({
             className="max-w-full rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
           >
             {block.error || "画布视图生成失败"}
-          </div>,
-        );
-      } else if (block.status === "streaming") {
-        renderedBlocks.push(
-          <div
-            key={block.id}
-            data-testid="agent-canvas-placeholder"
-            className="h-64 max-w-full overflow-hidden rounded-md border border-border"
-          >
-            <ReadOnlyCanvasSkeleton />
           </div>,
         );
       } else {
