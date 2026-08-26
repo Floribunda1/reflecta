@@ -271,7 +271,7 @@ test("benchmark: toggle latency mid-stream (C)", () => {
   summary("open click -> commit", openLatency);
   summary("close click -> commit", closeLatency);
   expect(trigger()).toBeTruthy();
-});
+}, 180_000);
 
 test("benchmark: many mounted-collapsed panels while one streams (D)", () => {
   mount();

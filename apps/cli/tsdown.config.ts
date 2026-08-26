@@ -17,5 +17,22 @@ export default defineConfig({
   deps: {
     alwaysBundle: [/^@reflecta\//],
   },
-  plugins: [],
+  plugins: [
+    {
+      name: "suppress-optional-web-worker",
+      // elkjs 的 main.js 在 workerUrl 分支里 require('web-worker')；该分支
+      // 被 runtime try/catch 守卫（require.resolve 失败即跳过），且本项目从不传
+      // workerUrl，产物里该分支已被 tree-shake 掉。这是可选的浏览器 worker shim，
+      // 并非缺失依赖，抑制其 UNRESOLVED_IMPORT 告警以免发布烟测误报。
+      onLog(level, log) {
+        if (
+          log.code === "UNRESOLVED_IMPORT" &&
+          log.id?.includes("elkjs") &&
+          log.message.includes("web-worker")
+        ) {
+          return false;
+        }
+      },
+    },
+  ],
 });
