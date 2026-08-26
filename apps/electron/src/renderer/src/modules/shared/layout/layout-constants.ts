@@ -38,4 +38,4 @@ export const RESIZE_HANDLE_SLIM_CLASS =
 
 /** rail 与主区之间：只占 1px 线，热区用 after 叠在两侧，避免透明缝透出未染色的 vibrancy */
 export const RAIL_RESIZE_HANDLE_CLASS =
-  "w-px cursor-col-resize bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2 after:bg-transparent hover:bg-border data-[resize-handle-active]:bg-ring";
+  "w-[0.5px] cursor-col-resize bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2 after:bg-transparent hover:bg-border data-[resize-handle-active]:bg-ring";
