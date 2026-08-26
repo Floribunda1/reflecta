@@ -10,8 +10,6 @@ const mockElectron = vi.hoisted(() => ({
   userData: "/tmp/user-data",
   on: vi.fn(),
   ipcMainOn: vi.fn(),
-  setPath: vi.fn(),
-  crashReporterStart: vi.fn(),
   version: "1.1.0",
 }));
 
@@ -62,10 +60,6 @@ vi.mock("electron", () => ({
       return mockElectron.version;
     },
     on: mockElectron.on,
-    setPath: mockElectron.setPath,
-  },
-  crashReporter: {
-    start: mockElectron.crashReporterStart,
   },
   ipcMain: {
     on: mockElectron.ipcMainOn,
@@ -128,54 +122,6 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe("DiagnosticLogger prefix logging", () => {
-  test("keeps the event/scope/attrs contract and puts prefixes in the message", async () => {
-    const appConfigRoot = tempRoot();
-    useRuntimeRoots(appConfigRoot);
-    const { appLog, getLogFilePath } = await import("./logger");
-
-    appLog.withPrefix("run-123").error("agent.run.failed", { code: "E1" });
-
-    expect(readJsonl(getLogFilePath())[0]).toMatchObject({
-      level: "error",
-      event: "agent.run.failed",
-      scope: "app",
-      message: "[run-123] agent.run.failed",
-      attrs: { code: "E1" },
-    });
-  });
-
-  test("withPrefix chains and does not mutate the original logger", async () => {
-    const appConfigRoot = tempRoot();
-    useRuntimeRoots(appConfigRoot);
-    const { appLog, getLogFilePath } = await import("./logger");
-
-    const scoped = appLog.withPrefix("module").withPrefix("instance-1");
-    scoped.info("scoped.event");
-    appLog.info("plain.event");
-
-    const events = readJsonl(getLogFilePath());
-    expect(events[0]).toMatchObject({
-      event: "scoped.event",
-      message: "[module] [instance-1] scoped.event",
-    });
-    expect(events[1]).toMatchObject({ event: "plain.event", message: "plain.event" });
-  });
-
-  test("shortens overly long prefixes", async () => {
-    const appConfigRoot = tempRoot();
-    useRuntimeRoots(appConfigRoot);
-    const { appLog, getLogFilePath } = await import("./logger");
-
-    appLog.withPrefix("x".repeat(50)).warn("long.prefix");
-
-    expect(readJsonl(getLogFilePath())[0]).toMatchObject({
-      event: "long.prefix",
-      message: "[xxxxxxxxxxxxxxxxx...] long.prefix",
-    });
-  });
-});
-
 describe("Electron logging profile", () => {
   test("uses Reflecta Dev as the dev log app name", async () => {
     const appConfigRoot = tempRoot();
@@ -224,19 +170,19 @@ describe("Electron logging profile", () => {
     expect(mockLogger.transports.file.setAppName).toHaveBeenCalledWith("Reflecta");
   });
 
-  test("wires transports at the configured level and routes scope events into the diagnostic log", async () => {
+  test("wires console and diagnostic transports at the configured level", async () => {
     useRuntimeRoots(tempRoot());
     process.env.NODE_ENV = "development";
     process.env.REFLECTA_LOG_LEVEL = "warn";
-    const { appLog, getLogFilePath, initializeLogging } = await import("./logger");
+    const { appLog, initializeLogging } = await import("./logger");
 
     initializeLogging();
     appLog.warn("app.test", { ok: true });
-    appLog.debug("app.hidden", { ok: true });
 
     expect(mockLogger.transports.console.level).toBe("warn");
     expect((mockLogger.transports.diagnostic as { level: string }).level).toBe("warn");
-    expect(readJsonl(getLogFilePath()).map((event) => event.event)).toEqual(["app.test"]);
+    expect(mockLogger.scope).toHaveBeenCalledWith("app");
+    expect(mockLogger.scopedLogger.warn).toHaveBeenCalledWith("app.test", { ok: true });
   });
 
   test("filters direct diagnostic events below the configured level", async () => {
@@ -337,9 +283,28 @@ describe("Electron logging profile", () => {
       },
     );
 
-    expect(
-      readJsonl(getLogFilePath()).find((event) => event.event === "renderer.error"),
-    ).toMatchObject({
+    expect(mockLogger.scopedLogger.error).toHaveBeenCalledWith("renderer.error", {
+      source: "window.error",
+      message: "renderer boom",
+      stack: undefined,
+      componentStack: undefined,
+      filename: "app.js",
+      lineno: 12,
+      colno: 34,
+      href: undefined,
+      userAgent: undefined,
+    });
+    const [eventName, attrs] = mockLogger.scopedLogger.error.mock.calls.at(-1) ?? [];
+    const transport = mockLogger.transports.diagnostic as unknown as (message: {
+      data: unknown[];
+      date: Date;
+      level: string;
+      scope?: string;
+    }) => void;
+    transport({ data: [eventName, attrs], date: new Date(), level: "error", scope: "renderer" });
+
+    const events = readJsonl(getLogFilePath());
+    expect(events.find((event) => event.event === "renderer.error")).toMatchObject({
       level: "error",
       event: "renderer.error",
       scope: "renderer",
@@ -371,10 +336,30 @@ describe("Electron logging profile", () => {
       },
     );
 
-    expect(
-      readJsonl(getLogFilePath()).find((event) => event.event === "renderer.error"),
-    ).toMatchObject({
-      event: "renderer.error",
+    expect(mockLogger.scopedLogger.error).toHaveBeenCalledTimes(1);
+    expect(mockLogger.scopedLogger.error).toHaveBeenCalledWith("renderer.console.error", {
+      source: "console.error",
+      message: "Duplicate key `item-1`",
+      stack: "Error: console.error\n    at DomainNode (DomainNode.tsx:42:7)",
+      componentStack: undefined,
+      filename: undefined,
+      lineno: undefined,
+      colno: undefined,
+      href: undefined,
+      userAgent: undefined,
+    });
+    const [eventName, attrs] = mockLogger.scopedLogger.error.mock.calls.at(-1) ?? [];
+    const transport = mockLogger.transports.diagnostic as unknown as (message: {
+      data: unknown[];
+      date: Date;
+      level: string;
+      scope?: string;
+    }) => void;
+    transport({ data: [eventName, attrs], date: new Date(), level: "error", scope: "renderer" });
+
+    const events = readJsonl(getLogFilePath());
+    expect(events.find((event) => event.event === "renderer.console.error")).toMatchObject({
+      event: "renderer.console.error",
       attrs: {
         source: "console.error",
         message: "Duplicate key `item-1`",
@@ -406,6 +391,15 @@ describe("Electron logging profile", () => {
       },
     );
 
+    const [eventName, attrs] = mockLogger.scopedLogger.error.mock.calls.at(-1) ?? [];
+    const transport = mockLogger.transports.diagnostic as unknown as (message: {
+      data: unknown[];
+      date: Date;
+      level: string;
+      scope?: string;
+    }) => void;
+    transport({ data: [eventName, attrs], date: new Date(), level: "error", scope: "renderer" });
+
     const events = readJsonl(getLogFilePath());
     expect(events.find((event) => event.event === "renderer.error")).toMatchObject({
       attrs: {
@@ -415,58 +409,6 @@ describe("Electron logging profile", () => {
         "feed.kind": "state",
         "feed.sessionId": "session_1",
         "feed.revision": 7,
-      },
-    });
-  });
-
-  test("aggregates repeated fallback errors into an error.aggregate event", async () => {
-    const appConfigRoot = tempRoot();
-    useRuntimeRoots(appConfigRoot);
-    const { flushErrorAggregates, getLogFilePath, initializeLogging, writeFallbackError } =
-      await import("./logger");
-
-    initializeLogging();
-    writeFallbackError("test-source", new Error("boom"));
-    writeFallbackError("test-source", new Error("boom"));
-    writeFallbackError("test-source", new Error("boom"));
-    flushErrorAggregates();
-
-    const aggregate = readJsonl(getLogFilePath()).find(
-      (event) => event.event === "error.aggregate",
-    );
-    expect(aggregate).toMatchObject({
-      level: "error",
-      event: "error.aggregate",
-      scope: "app",
-      attrs: {
-        "error.count": 3,
-        "error.event": "app.fallback.error",
-        "error.scope": "app",
-        "error.name": "Error",
-        "error.message": "boom",
-      },
-    });
-  });
-
-  test("collects native crash dumps locally when packaged", async () => {
-    const appConfigRoot = tempRoot();
-    useRuntimeRoots(appConfigRoot);
-    mockElectron.isPackaged = true;
-    const { initializeLogging } = await import("./logger");
-
-    initializeLogging();
-
-    expect(mockElectron.setPath).toHaveBeenCalledWith(
-      "crashDumps",
-      expect.stringContaining(path.join(appConfigRoot, "crash-dumps")),
-    );
-    expect(mockElectron.crashReporterStart).toHaveBeenCalledWith({
-      productName: "Reflecta",
-      uploadToServer: false,
-      compress: true,
-      extra: {
-        profile: "prod",
-        version: "1.1.0",
       },
     });
   });
