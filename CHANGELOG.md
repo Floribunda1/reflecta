@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0 - 2026-08-27
+
+- Added the understanding canvas: place understanding cards on a canvas and explicitly mark derivation, dependency, scenario and constraint edges, organizing scattered judgments into a visible mental structure for a domain. The same card can be referenced by multiple canvases, and deleted references degrade to placeholders instead of silently dropping cards.
+- Canvas works with the agent: the agent analyzes the canvas in a read-only view and proposes candidate edits and structural changes that the user confirms one by one before they are written back. Structure is always user-built — the AI only proposes, never decides.
+- Updated the concept model: inline `[[u:]]` links are now presented as weak mentions ("I mentioned X") for provenance, while structural relationships (what derives from what, what depends on what, which constraints apply) are carried by canvas edges.
+- Migrated main and renderer to Effect TS: process IPC is a typed RPC with cross-process contracts and a global error guard, validation is unified on Schema, and business logging follows a Spring-style layered pipeline (request / exception / business). Renderer errors are mirrored to the console with the full `console.error` argument context preserved.
+- Chat workspace upgrades: session artifacts moved into a header popover, canvas proposals render as read-only draft previews, and the context picker filters by entity type tabs.
+- Capture and review polish: participation view loading skeletons, day details listing contexts created that day, and a refined understanding detail panel.
+- Added a Playwright-based frontend performance regression suite covering cold starts and realistic data scenarios.
+
 ## 1.5.1 - 2026-08-15
 
 - Rebuilt error observability: repeated errors are counted by a stable fingerprint into `error.aggregate` events instead of flooding the log with identical lines, native crashes are collected locally via Crashpad, and a redacted telemetry seam is available behind an explicit opt-in flag.
