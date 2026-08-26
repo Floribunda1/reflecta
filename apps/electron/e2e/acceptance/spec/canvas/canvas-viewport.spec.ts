@@ -62,12 +62,21 @@ test("@CV-VIEW-001 中键拖拽平移画布", async () => {
   expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(10);
 });
 
-test("@CV-VIEW-002 滚动滚轮缩放画布", async () => {
+test("@CV-VIEW-002 滚轮平移、⌘/Ctrl+滚轮缩放画布", async () => {
   await h.openCanvasRow(page!, "VIEW");
   const before = await h.waitViewport(page!);
   const box = await graphBox();
   await page!.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // Figma 惯例：滚轮 = 平移（trackpad 插件接管 wheel）
   await page!.mouse.wheel(0, -240);
+  await page!.waitForTimeout(200);
+  const panned = await h.waitViewport(page!);
+  expect(Math.abs(panned.x - before!.x) + Math.abs(panned.y - before!.y)).toBeGreaterThan(10);
+  expect(panned.zoom).toBeCloseTo(before!.zoom, 5); // 平移不改变缩放
+  // ⌘+滚轮 = 缩放（光标为锚点）
+  await page!.keyboard.down("Meta");
+  await page!.mouse.wheel(0, -240);
+  await page!.keyboard.up("Meta");
   await page!.waitForTimeout(200);
   const after = await h.graphViewport(page!);
   expect(after && after.zoom).toBeGreaterThan(before!.zoom);
@@ -97,7 +106,9 @@ test("@CV-VIEW-006 已存视口重进后保持", async () => {
   await h.openCanvasRow(page!, "VIEW");
   const box = await graphBox();
   await page!.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page!.keyboard.down("Meta");
   await page!.mouse.wheel(0, -240);
+  await page!.keyboard.up("Meta");
   await page!.waitForTimeout(1000);
   const saved = await h.graphViewport(page!);
   await h.openCanvasRow(page!, "VIEW");

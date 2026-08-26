@@ -118,7 +118,9 @@ test("@CV-RO-002 只读画布保留缩放查看", async () => {
   const before = await h.graphViewport(page!);
   const box = (await dialog.boundingBox())!;
   await page!.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page!.keyboard.down("Meta");
   await page!.mouse.wheel(0, -240);
+  await page!.keyboard.up("Meta");
   await page!.waitForTimeout(250);
   const after = await h.graphViewport(page!);
   expect(after && after.zoom).toBeGreaterThan(before!.zoom);

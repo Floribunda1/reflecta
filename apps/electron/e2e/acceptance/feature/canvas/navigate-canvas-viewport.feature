@@ -1,7 +1,9 @@
 # language: zh-CN
 @canvas @v2.0.0
 功能: 用户控制画布视口与网格
-  平移 / 缩放 / 吸附走 X6 原生能力（panning / mousewheel / snapToGrid / zoomToFit）。
+  平移 / 缩放遵循 Figma 惯例（trackpad 插件接管 wheel）：
+  滚轮 / 触控板双指滚动 = 平移，⌘(Mac)/Ctrl+滚轮 = 以光标为锚点缩放；
+  吸附由 X6 snapToGrid 提供，缩放控件提供精确视口调整。
 
   @P0 @happy_path @CV-VIEW-001
   场景: 用户按住中键拖拽平移画布
@@ -10,10 +12,12 @@
     那么画布视口应平移
 
   @P0 @happy_path @CV-VIEW-002
-  场景: 用户滚动滚轮缩放画布
+  场景: 用户用滚轮平移、⌘/Ctrl+滚轮缩放画布
     假如用户已进入画布
     当用户滚动滚轮
-    那么画布应按滚轮方向放大或缩小
+    那么画布应按滚轮方向平移
+    当用户按住 ⌘（Mac 控制键）滚动滚轮
+    那么画布应以光标为锚点放大或缩小
 
   @P0 @happy_path @CV-VIEW-003
   场景: 用户用左下缩放控件调整视口
