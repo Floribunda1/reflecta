@@ -22,7 +22,10 @@ import { createUtilityProcessEmbeddingProvider } from "../retrievalEmbeddingRunn
 
 let db: ReflectaDb;
 
-export const initializeDB = async (): Promise<{ executed: string[] }> => {
+export const initializeDB = async (): Promise<{
+  executed: string[];
+  retrievalIndexRebuildRequested: boolean;
+}> => {
   const contentStorageRoot = getContentStorageRoot();
   const dbPath = path.join(contentStorageRoot, "reflecta.db");
   const retrievalIndexPath = getRetrievalIndexPath();
@@ -31,6 +34,7 @@ export const initializeDB = async (): Promise<{ executed: string[] }> => {
   // conditionally assigned after `await` is misread as never-in-scope at the
   // trailing return; declaring here keeps the exact same semantics.
   let executed: string[] = [];
+  let retrievalIndexRebuildRequested = false;
   try {
     process.env.REFLECTA_RETRIEVAL_INDEX_PATH = retrievalIndexPath;
     configureRetrievalEmbeddingProviderFactory(createUtilityProcessEmbeddingProvider);
@@ -47,6 +51,7 @@ export const initializeDB = async (): Promise<{ executed: string[] }> => {
     if (profile === "prod") {
       const result = await performDbMigration(db, app.getVersion());
       executed = result.executed;
+      retrievalIndexRebuildRequested = result.retrievalIndexRebuildRequested;
     }
     if (!getRuntimeArg("reflecta-app-config-dir") && !getRuntimeArg("reflecta-content-root")) {
       ensureStoreDataEnvironment(db, profile);
@@ -77,7 +82,7 @@ export const initializeDB = async (): Promise<{ executed: string[] }> => {
     });
     throw error;
   }
-  return { executed };
+  return { executed, retrievalIndexRebuildRequested };
 };
 
 export const getDBInstance = () => db;

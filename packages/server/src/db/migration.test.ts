@@ -111,7 +111,8 @@ describe("versioned migrations", () => {
         "2026-01-03T00:00:00.000Z",
       );
 
-    await performDbMigration(db, "1.1.0");
+    const result = await performDbMigration(db, "1.1.0");
+    expect(result.retrievalIndexRebuildRequested).toBe(true);
 
     expect(hasTable(db, "understandings")).toBe(true);
     expect(hasTable(db, "domains")).toBe(true);
@@ -176,7 +177,8 @@ describe("versioned migrations", () => {
         createdAt,
       );
 
-    await performDbMigration(db, "1.3.5");
+    const result = await performDbMigration(db, "1.3.5");
+    expect(result.retrievalIndexRebuildRequested).toBe(true);
 
     expect(
       db.$client
@@ -193,7 +195,7 @@ describe("versioned migrations", () => {
   });
 
   test("renames wiki-link connections to mentions in v2.0.0 (TBD-3)", async () => {
-    const db = await createTestDb("1.1.0");
+    const db = await createTestDb("1.3.5");
     const createdAt = "2026-08-01T00:00:00.000Z";
 
     for (const [id, title] of [
@@ -210,7 +212,9 @@ describe("versioned migrations", () => {
       .prepare(`INSERT INTO understanding_connections (source_id, target_id) VALUES (?, ?)`)
       .run("understanding-source", "understanding-target");
 
-    await performDbMigration(db, "2.0.0");
+    const result200 = await performDbMigration(db, "2.0.0");
+    // 画布/提及改名不影响检索投影：v2.0.0 不应触发向量重建
+    expect(result200.retrievalIndexRebuildRequested).toBe(false);
 
     expect(hasTable(db, "understanding_mentions")).toBe(true);
     expect(hasTable(db, "understanding_connections")).toBe(false);
@@ -260,6 +264,7 @@ describe("code migrations (A7)", () => {
         },
       ],
     });
+    expect(result.retrievalIndexRebuildRequested).toBe(true);
     expect(hasTable(db, "code_migrated")).toBe(true);
     expect(result.executed).toEqual(["v1.1.0.sql", "v1.1.0-code.sql"]);
   });

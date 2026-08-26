@@ -22,6 +22,8 @@ export type CodeMigration = {
 export type MigrationResult = {
   /** 本次实际执行的迁移名（按版本顺序）；空 = 数据已是最新 */
   executed: string[];
+  /** 本次迁移是否显式声明需要全量重建检索索引（投影来源被改写） */
+  retrievalIndexRebuildRequested: boolean;
 };
 
 type Migration = {
@@ -136,11 +138,12 @@ export async function performDbMigration(
       client.exec(statement);
     },
     requestRetrievalIndexRebuild: () => {
-      // 保留 API：迁移可显式声明需要重建检索索引（Electron 按版本执行，见启动逻辑）
+      retrievalIndexRebuildRequested = true;
     },
   };
 
   const executedThisRun: string[] = [];
+  let retrievalIndexRebuildRequested = false;
   for (const migration of allMigrations) {
     if (compareVersions(migration.version, targetVersion) > 0) continue;
     if (executed.has(migration.name)) continue;
@@ -149,5 +152,5 @@ export async function performDbMigration(
     executedThisRun.push(migration.name);
   }
 
-  return { executed: executedThisRun };
+  return { executed: executedThisRun, retrievalIndexRebuildRequested };
 }
