@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 - 2026-08-27
+
+- Fixed a startup hang after upgrading: migrations no longer force a full vector index rebuild on the main process before the window is created. Rebuilds now run in the background and only trigger when a migration actually rewrites the retrieval projection (v1.1.0 renames, v1.3.5 body rewrite), so future upgrades that only touch unrelated tables (e.g. canvas) start immediately.
+
 ## 2.0.0 - 2026-08-27
 
 - Added the understanding canvas: place understanding cards on a canvas and explicitly mark derivation, dependency, scenario and constraint edges, organizing scattered judgments into a visible mental structure for a domain. The same card can be referenced by multiple canvases, and deleted references degrade to placeholders instead of silently dropping cards.

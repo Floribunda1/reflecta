@@ -20,7 +20,7 @@
     },
     "apps/cli": {
       "name": "@reflecta/cli",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "bin": {
         "reflecta": "./dist/index.mjs",
       },
@@ -45,7 +45,7 @@
     },
     "apps/electron": {
       "name": "@reflecta/electron",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "dependencies": {
         "@earendil-works/pi-ai": "0.84.0",
         "@earendil-works/pi-coding-agent": "0.84.0",
@@ -115,7 +115,7 @@
     },
     "packages/server": {
       "name": "@reflecta/server",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "dependencies": {
         "@lancedb/lancedb": "0.33.0",
         "@reflecta/shared": "workspace:*",
@@ -150,7 +150,7 @@
     },
     "packages/ui": {
       "name": "@reflecta/ui",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "dependencies": {
         "@antv/x6": "^3.1.8",
         "@antv/x6-react-shape": "^3.0.1",
