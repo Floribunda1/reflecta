@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Effect } from "effect";
 import {
   normalizeCanvasChanges,
+  PI_TOOL_LABELS,
   type CanvasDocument,
   type CanvasGraphChange,
 } from "@reflecta/shared";
@@ -489,7 +490,7 @@ function contextApproval(lifecycle: ApprovalLifecycle): ApprovalBlock {
     approvalId: "approval-context-create",
     toolCallId: "approval-context-create-tool",
     toolName: "context_create",
-    title: "候选 Context",
+    title: PI_TOOL_LABELS.context_create,
     payload: {
       understandingId: "u-irrigation",
       medium: "experience",

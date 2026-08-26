@@ -1,3 +1,4 @@
+import { PI_TOOL_LABELS } from "@reflecta/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
@@ -181,7 +182,7 @@ const canvasUnderstandingTitles = [{ id: "u-irrigation", title: "极地温室的
 
 const canvasCreateProposal: AgentProposalView = {
   id: "proposal-6",
-  title: "候选画布",
+  title: PI_TOOL_LABELS.canvas_create,
   lifecycle: "pending",
   decisionEnabled: true,
   kind: "canvas",
@@ -194,7 +195,7 @@ const canvasCreateProposal: AgentProposalView = {
 
 const canvasUpdateProposal: AgentProposalView = {
   id: "proposal-7",
-  title: "候选修改画布",
+  title: PI_TOOL_LABELS.canvas_update,
   lifecycle: "pending",
   decisionEnabled: true,
   kind: "canvas",
@@ -209,7 +210,7 @@ const canvasUpdateProposal: AgentProposalView = {
 
 const canvasDeleteProposal: AgentProposalView = {
   id: "proposal-8",
-  title: "候选删除画布",
+  title: PI_TOOL_LABELS.canvas_delete,
   lifecycle: "pending",
   decisionEnabled: true,
   kind: "canvas",

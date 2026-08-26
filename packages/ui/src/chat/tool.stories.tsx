@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { normalizeCanvasChanges } from "@reflecta/shared";
+import { normalizeCanvasChanges, PI_TOOL_LABELS, type PiToolName } from "@reflecta/shared";
 import type { CanvasDocument } from "../canvas";
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
@@ -48,7 +48,6 @@ const presentation: AgentViewPresentation = {
 
 function approval(
   toolName: string,
-  title: string,
   payload: unknown,
   overrides: Partial<ApprovalBlock> = {},
 ): ApprovalBlock {
@@ -57,7 +56,7 @@ function approval(
     approvalId: `approval-${toolName}`,
     toolCallId: `approval-tool-${toolName}`,
     toolName,
-    title,
+    title: overrides.title ?? PI_TOOL_LABELS[toolName as PiToolName] ?? toolName,
     payload,
     state: "pending",
     approvalState: "pending",
@@ -199,7 +198,6 @@ const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval(
       "understanding_create",
-      "候选 Understanding",
       {
         title: "低温条件下的阀门启动顺序",
         body: syntheticMarkdown("低温条件下的阀门启动顺序", 3),
@@ -216,7 +214,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("understanding_update", "候选修改 Understanding", {
+    block: approval("understanding_update", {
       understandingId: "u-irrigation",
       before: {
         title: "极地温室的分区灌溉策略",
@@ -242,7 +240,6 @@ const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval(
       "understanding_update",
-      "候选修改 Understanding",
       {
         understandingId: "u-valve-sequence",
         before: {
@@ -267,7 +264,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("understanding_delete", "候选删除 Understanding", {
+    block: approval("understanding_delete", {
       understandingId: "u-obsolete-sensor",
       reason:
         "这条结论只适用于已经退役的第一代探头，当前校准流程不会再引用它，历史数据已经保留在实验归档中。",
@@ -280,7 +277,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("domain_create", "候选 Domain", {
+    block: approval("domain_create", {
       name: "故障注入",
       parentId: "d-engineering",
       reason: "集中记录演练条件、预期降级行为和复验结论。",
@@ -293,7 +290,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("domain_update", "候选修改 Domain", {
+    block: approval("domain_update", {
       domainId: "d-irrigation",
       before: {
         name: "灌溉控制",
@@ -311,7 +308,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("domain_delete", "候选删除 Domain", {
+    block: approval("domain_delete", {
       domainId: "d-retired-prototype",
       deleteUnderstandings: false,
       reason: "原型设备已经拆除，仍有价值的结论会保留并迁移到设施工程。",
@@ -324,7 +321,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("context_create", "候选 Context", {
+    block: approval("context_create", {
       understandingId: "u-irrigation",
       medium: "experience",
       title: "夜班联调纪要",
@@ -339,7 +336,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("context_update", "候选修改 Context", {
+    block: approval("context_update", {
       contextId: "c-night-shift",
       before: {
         understandingId: "u-irrigation",
@@ -362,7 +359,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("context_delete", "候选删除 Context", {
+    block: approval("context_delete", {
       contextId: "c-duplicate-log",
       reason: "同一班次的设备日志被重复导入，校验和与已有记录一致。",
     }),
@@ -374,12 +371,16 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("bash", "确认危险 Bash", {
-      command:
-        "bun run --cwd apps/control inject:fault --station polar-bay-07 --zone west-03 --signal inlet-temperature --value -38 --duration 90s",
-      cwd: "/workspace/polar-greenhouse",
-      timeoutMs: 120_000,
-    }),
+    block: approval(
+      "bash",
+      {
+        command:
+          "bun run --cwd apps/control inject:fault --station polar-bay-07 --zone west-03 --signal inlet-temperature --value -38 --duration 90s",
+        cwd: "/workspace/polar-greenhouse",
+        timeoutMs: 120_000,
+      },
+      { title: "确认危险 Bash" },
+    ),
     output: {
       approvalStatus: "approved",
       proposalType: "bash",
@@ -390,7 +391,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("canvas_create", "候选画布", {
+    block: approval("canvas_create", {
       title: "极地温室的分区灌溉策略",
       changes: canvasCreateChanges,
       layout: "auto",
@@ -404,7 +405,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("canvas_update", "候选修改画布", {
+    block: approval("canvas_update", {
       canvasId: "canvas-irrigation",
       changes: canvasUpdateChanges,
       reason: "把昨夜复验的推导链显式画出来，用户据此验收结构与缺失。",
@@ -422,7 +423,7 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
-    block: approval("canvas_delete", "候选删除画布", {
+    block: approval("canvas_delete", {
       canvasId: "canvas-irrigation",
       reason: "复验结论已并入主策略画布，删除旧版避免双源。",
     }),
@@ -437,7 +438,6 @@ const approvalTools: readonly ApprovalFixture[] = [
 
 const approvedExecutionFailure = approval(
   "understanding_update",
-  "修改 Understanding",
   {
     understandingId: "u-irrigation",
     before: {
@@ -610,7 +610,6 @@ function CanvasStreamingProposalCard() {
   }, []);
   const block = approval(
     "canvas_create",
-    "候选画布",
     complete && document
       ? {
           title: "极地温室的分区灌溉策略",

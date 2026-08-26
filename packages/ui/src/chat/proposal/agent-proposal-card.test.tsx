@@ -101,7 +101,7 @@ describe("AgentProposalCard", () => {
     const trigger = rendered.container.querySelector<HTMLButtonElement>(
       '[aria-label="折叠 Proposal"]',
     );
-    expect(trigger?.textContent).toContain("新增 Understanding");
+    expect(trigger?.textContent).toContain("创建理解");
     act(() => trigger?.click());
     expect(card?.getAttribute("data-proposal-open")).toBe("false");
     expect(card?.querySelector("svg.lucide-chevron-down")).not.toBeNull();

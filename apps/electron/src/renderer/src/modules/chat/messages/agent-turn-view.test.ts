@@ -733,7 +733,7 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        title: "列出 Understanding",
+        title: "列出理解",
         summary: "列出 Understanding · 2 条",
         items: [
           expect.objectContaining({
@@ -818,7 +818,7 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        title: "查看 Domain",
+        title: "查看领域",
         summary: "查看 Domain「三观」 · 0 条 Understanding / 0 条 Context",
         items: [
           expect.objectContaining({

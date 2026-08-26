@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import { PI_TOOL_LABELS, type PiApprovalToolName } from "@reflecta/shared";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
@@ -141,24 +142,27 @@ function fallback(value: string | undefined, pending = "正在生成…") {
   return value?.trim() || pending;
 }
 
+/** proposal kind（canvas 以 variant 合成 key）→ 工具名；标题统一取 shared 真源（PI_TOOL_LABELS），改文案只动一处。 */
+const PROPOSAL_KIND_TO_TOOL: Record<string, PiApprovalToolName | "bash"> = {
+  "understanding-create": "understanding_create",
+  "understanding-update": "understanding_update",
+  "understanding-delete": "understanding_delete",
+  "domain-create": "domain_create",
+  "domain-update": "domain_update",
+  "domain-delete": "domain_delete",
+  "context-create": "context_create",
+  "context-update": "context_update",
+  "context-delete": "context_delete",
+  "canvas-create": "canvas_create",
+  "canvas-update": "canvas_update",
+  "canvas-delete": "canvas_delete",
+  bash: "bash",
+};
+
 function proposalTitle(proposal: AgentProposalView) {
-  if (proposal.kind === "understanding-create") return "新增 Understanding";
-  if (proposal.kind === "understanding-update") return "修改 Understanding";
-  if (proposal.kind === "understanding-delete") return "删除 Understanding";
-  if (proposal.kind === "domain-create") return "新增 Domain";
-  if (proposal.kind === "domain-update") return "修改 Domain";
-  if (proposal.kind === "domain-delete") return "删除 Domain";
-  if (proposal.kind === "context-create") return "新增 Context";
-  if (proposal.kind === "context-update") return "修改 Context";
-  if (proposal.kind === "context-delete") return "删除 Context";
-  if (proposal.kind === "bash") return "执行 Bash";
-  if (proposal.kind === "canvas")
-    return proposal.content.variant === "create"
-      ? "候选画布"
-      : proposal.content.variant === "update"
-        ? "候选修改画布"
-        : "候选删除画布";
-  return proposal.title;
+  const key = proposal.kind === "canvas" ? `canvas-${proposal.content.variant}` : proposal.kind;
+  const tool = PROPOSAL_KIND_TO_TOOL[key];
+  return tool ? PI_TOOL_LABELS[tool] : proposal.title;
 }
 
 function proposalReason(proposal: AgentProposalView) {
