@@ -40,7 +40,7 @@ const RAIL_DURATION_S = 0.3;
 
 function AppMain() {
   return (
-    <main className="m-0 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background shadow-sm ring-1 ring-foreground/10">
+    <main className="m-0 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background shadow-sm">
       <Outlet />
     </main>
   );
