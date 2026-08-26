@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
@@ -222,13 +222,24 @@ export function ReadOnlyCanvasCard({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [fullscreen]);
 
-  const shapeData = canvasShapeData(
-    understandingRefs,
-    understandingTitles,
-    referencedCanvases,
-    onCanvasRefClick,
-    renderMarkdown,
-    onWikiLinkOpen,
+  const shapeData = useMemo(
+    () =>
+      canvasShapeData(
+        understandingRefs,
+        understandingTitles,
+        referencedCanvases,
+        onCanvasRefClick,
+        renderMarkdown,
+        onWikiLinkOpen,
+      ),
+    [
+      onCanvasRefClick,
+      onWikiLinkOpen,
+      referencedCanvases,
+      renderMarkdown,
+      understandingRefs,
+      understandingTitles,
+    ],
   );
   const content = mounted ? (
     <Suspense fallback={<ReadOnlyCanvasSkeleton />}>

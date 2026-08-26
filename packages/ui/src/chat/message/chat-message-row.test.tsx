@@ -189,6 +189,27 @@ describe("ChatMessageRow", () => {
     expect(next.querySelector('[data-testid="agent-proposal-confirm-button"]')).toBeNull();
   });
 
+  test("reuses the canvas proposal skeleton while canvas_present is streaming", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-canvas",
+        status: "streaming",
+        blocks: [
+          {
+            kind: "canvas-view",
+            id: "tool-canvas:canvas-view",
+            title: "",
+            document: { elements: [], edges: [] },
+            status: "streaming",
+          },
+        ],
+      },
+    });
+
+    expect(next.querySelector('[data-testid="canvas-view-skeleton"]')).not.toBeNull();
+  });
+
   test("emits message actions without performing workflow side effects", () => {
     const onAction = vi.fn();
     const row: ChatMessageRowView = {

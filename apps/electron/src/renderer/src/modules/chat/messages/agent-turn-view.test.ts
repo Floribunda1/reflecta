@@ -217,7 +217,7 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks).toMatchObject([{ kind: "canvas-view", status: "streaming" }]);
   });
 
-  test("completed canvas_present stays a placeholder while the assistant turn is running", () => {
+  test("completed canvas_present renders while the assistant turn continues", () => {
     const turn = buildAgentTurnView(
       [
         tool(
@@ -229,7 +229,7 @@ describe("buildAgentTurnView", () => {
       ],
       true,
     );
-    expect(turn.blocks).toMatchObject([{ kind: "canvas-view", status: "streaming" }]);
+    expect(turn.blocks).toMatchObject([{ kind: "canvas-view", status: "done" }]);
   });
 
   test("canvas_present with unknown version, invalid document or failure becomes a failed block", () => {

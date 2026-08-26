@@ -383,6 +383,113 @@ describe("createPiBashTool", () => {
 });
 
 describe("PiAgentHost", () => {
+  test("publishes canvas_present as running while its arguments are still streaming", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("分析画布");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    let frames: AgentSessionFeedFrame[] = [];
+    let streamedBlock: unknown;
+    const output = {
+      kind: "canvas-view",
+      version: 1,
+      title: "关系图",
+      document: { elements: [], edges: [] },
+    };
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_delta",
+              contentIndex: 0,
+              partial: {
+                content: [
+                  {
+                    type: "toolCall",
+                    id: "tool_canvas",
+                    name: "canvas_present",
+                    arguments: { title: "关系图" },
+                  },
+                ],
+              },
+            },
+          });
+          streamedBlock = stateFrames(frames)
+            .at(-1)
+            ?.messages.at(-1)
+            ?.blocks?.find((block) => block.kind === "tool");
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "tool_canvas",
+            toolName: "canvas_present",
+            args: { title: "关系图", changes: [] },
+          });
+          listener?.({
+            type: "tool_execution_end",
+            toolCallId: "tool_canvas",
+            toolName: "canvas_present",
+            result: { content: [], details: output },
+            isError: false,
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "tool_canvas",
+                  name: "canvas_present",
+                  arguments: { title: "关系图", changes: [] },
+                },
+              ],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "toolUse",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const host = new PiAgentHost(root);
+    ({ frames } = await recordSessionFrames(host, thread.id));
+
+    await (
+      host as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
+      }
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "画出来",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
+
+    expect(streamedBlock).toMatchObject({
+      toolCallId: "tool_canvas",
+      toolName: "canvas_present",
+      state: "running",
+    });
+  });
+
   test("manually compacts a conversation and persists a visible checkpoint event", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

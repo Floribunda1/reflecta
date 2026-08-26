@@ -280,7 +280,7 @@ export function buildAgentTurnView(
       continue;
     }
     if (block.toolName === "canvas_present") {
-      const canvasView = canvasPresentBlock(block, assistantRunning);
+      const canvasView = canvasPresentBlock(block);
       if (canvasView) internalBlocks.push(canvasView);
       continue;
     }
@@ -382,18 +382,13 @@ function toAgentCanvasViewBlock(
   block: CanvasViewTurnBlock,
   presentation: AgentViewPresentation,
 ): AgentMessageBlockView {
-  const understandingTitles = block.understandingIds.length
+  const understandingRefs = presentation.understandingRefs;
+  const understandingTitles = block.understandingIds.some((id) => !understandingRefs?.has(id))
     ? block.understandingIds.map((id) => ({
         id,
         title: presentation.entityLabels.get(`understanding:${id}`) ?? id,
       }))
     : undefined;
-  const understandingRefs = new Map(
-    block.understandingIds.flatMap((id) => {
-      const ref = presentation.understandingRefs?.get(id);
-      return ref ? [[id, ref] as const] : [];
-    }),
-  );
   return {
     kind: "canvas-view",
     id: block.id,
@@ -403,7 +398,7 @@ function toAgentCanvasViewBlock(
     status: block.status,
     ...(block.error ? { error: block.error } : {}),
     ...(understandingTitles?.length ? { understandingTitles } : {}),
-    ...(understandingRefs.size ? { understandingRefs } : {}),
+    ...(understandingRefs?.size ? { understandingRefs } : {}),
   };
 }
 
@@ -623,10 +618,7 @@ function canvasSearchDetails(output: unknown) {
   });
 }
 
-function canvasPresentBlock(
-  block: AgentToolBlock,
-  assistantRunning = false,
-): CanvasViewTurnBlock | undefined {
+function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefined {
   if (block.toolName !== "canvas_present") return undefined;
   const id = `${block.toolCallId}:canvas-view`;
   if (block.state === "failed") {
@@ -640,7 +632,7 @@ function canvasPresentBlock(
       understandingIds: [],
     };
   }
-  if (block.state !== "completed" || assistantRunning) {
+  if (block.state !== "completed") {
     return {
       kind: "canvas-view",
       id,

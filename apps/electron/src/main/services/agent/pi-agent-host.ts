@@ -1139,6 +1139,7 @@ export class PiAgentHost {
     >();
     // 流式半截参数只发一次原始 preview（前端展示骨架 loading），不逐 chunk 水合。
     const canvasStreamPreviewSent = new Set<string>();
+    const presentStreamStarted = new Set<string>();
     const emit = (event: AgentSessionEvent) => this.appendAndPublish(manager, event);
     const emitLive = (event: AgentLiveEvent) => this.emitLive(event);
     const createApprovalRequested = (
@@ -1465,6 +1466,23 @@ export class PiAgentHost {
               toolCall.toolName,
               toolCall.args,
               toolCall.complete,
+            );
+            return;
+          }
+          if (toolCall?.toolName === "canvas_present") {
+            if (presentStreamStarted.has(toolCall.toolCallId)) return;
+            presentStreamStarted.add(toolCall.toolCallId);
+            assistantActivity = true;
+            emitLive(
+              this.createEvent({
+                type: "tool.started",
+                sessionId: command.sessionId,
+                runId,
+                messageId: assistantMessageId,
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                input: toolCall.args,
+              }),
             );
             return;
           }

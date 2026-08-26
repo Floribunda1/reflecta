@@ -126,14 +126,43 @@ async function flushEntityQuery() {
 }
 
 describe("MessageList entity refs", () => {
-  test("keeps completed canvas_present on its skeleton without hydration while streaming", async () => {
-    const messages: AgentReducedMessage[] = [
+  test("shows the canvas skeleton while its tool streams, then presents before later thinking ends", async () => {
+    const runningMessages: AgentReducedMessage[] = [
       {
         id: "assistant_canvas",
         role: "assistant",
         text: "继续输出",
         runId: "run_canvas",
         createdAt: "2026-06-26T00:00:00.000Z",
+        blocks: [
+          {
+            kind: "tool",
+            toolCallId: "tool_canvas",
+            toolName: "canvas_present",
+            input: {},
+            state: "running",
+            createdAt: "2026-06-26T00:00:00.000Z",
+          },
+        ],
+      },
+    ];
+    ipcMocks.getUnderstandingById.mockResolvedValue({ id: "u_1", title: "反馈循环", body: "" });
+    renderMessageList({
+      messages: runningMessages,
+      entityCatalog: [],
+      activeRunId: "run_canvas",
+      isBusy: true,
+    });
+    await flushEntityQuery();
+
+    expect(container?.querySelector('[data-testid="agent-canvas-placeholder"]')).not.toBeNull();
+    expect(container?.querySelector('[data-testid="canvas-view-skeleton"]')).not.toBeNull();
+    expect(container?.querySelector('[data-testid="agent-canvas-view"]')).toBeNull();
+    expect(ipcMocks.getUnderstandingById).not.toHaveBeenCalled();
+
+    const completedMessages: AgentReducedMessage[] = [
+      {
+        ...runningMessages[0]!,
         blocks: [
           {
             kind: "tool",
@@ -153,30 +182,45 @@ describe("MessageList entity refs", () => {
             createdAt: "2026-06-26T00:00:00.000Z",
           },
           {
-            kind: "text",
-            text: "继续输出",
+            kind: "reasoning",
+            text: "继续思考",
             createdAt: "2026-06-26T00:00:01.000Z",
           },
         ],
       },
     ];
-    ipcMocks.getUnderstandingById.mockResolvedValue({ id: "u_1", title: "反馈循环", body: "" });
-    renderMessageList({
-      messages,
+    rerenderMessageList({
+      messages: completedMessages,
       entityCatalog: [],
       activeRunId: "run_canvas",
       isBusy: true,
     });
     await flushEntityQuery();
-
-    expect(container?.querySelector('[data-testid="agent-canvas-placeholder"]')).not.toBeNull();
-    expect(container?.querySelector('[data-testid="agent-canvas-view"]')).toBeNull();
-    expect(ipcMocks.getUnderstandingById).not.toHaveBeenCalled();
-
-    rerenderMessageList({ messages, entityCatalog: [] });
-    await flushEntityQuery();
     expect(container?.querySelector('[data-testid="agent-canvas-placeholder"]')).toBeNull();
-    expect(container?.querySelector('[data-testid="agent-canvas-view"]')).not.toBeNull();
+    const canvasView = container?.querySelector('[data-testid="agent-canvas-view"]');
+    expect(canvasView).not.toBeNull();
+    expect(ipcMocks.getUnderstandingById).toHaveBeenCalledTimes(1);
+
+    rerenderMessageList({
+      messages: [
+        {
+          ...completedMessages[0]!,
+          blocks: [
+            completedMessages[0]!.blocks![0]!,
+            {
+              kind: "reasoning",
+              text: "继续思考更多内容",
+              createdAt: "2026-06-26T00:00:01.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+      activeRunId: "run_canvas",
+      isBusy: true,
+    });
+    await flushEntityQuery();
+    expect(container?.querySelector('[data-testid="agent-canvas-view"]')).toBe(canvasView);
     expect(ipcMocks.getUnderstandingById).toHaveBeenCalledTimes(1);
   });
 

@@ -30,6 +30,7 @@ import {
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { AgentCanvasView } from "./agent-canvas-view";
 import { AgentProposalCard } from "../proposal/agent-proposal-card";
+import { ReadOnlyCanvasSkeleton } from "../../canvas/readonly-canvas-card";
 import type { AgentProposalDecision } from "../proposal/types";
 import {
   ChatSearchProvider,
@@ -421,9 +422,9 @@ function AgentMessageContent({
           <div
             key={block.id}
             data-testid="agent-canvas-placeholder"
-            className="flex h-40 max-w-full animate-pulse items-center justify-center rounded-lg border border-border bg-muted text-sm text-muted-foreground"
+            className="h-64 max-w-full overflow-hidden rounded-md border border-border"
           >
-            正在生成画布视图…
+            <ReadOnlyCanvasSkeleton />
           </div>,
         );
       } else {

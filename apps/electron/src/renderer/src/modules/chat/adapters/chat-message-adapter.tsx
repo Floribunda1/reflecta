@@ -53,6 +53,12 @@ export type ApproveToolInput = ApproveToolInputBase &
 
 type MessageAdapterOptions = AgentMessageViewOptions;
 
+const EMPTY_ENTITY_REFERENCES: ChatEntityReference[] = [];
+
+function queryData<T>(results: readonly { data: T }[]) {
+  return results.map((result) => result.data);
+}
+
 type ConnectedChatMessageRowProps = {
   message: AgentReducedMessage;
   entityCatalog: AgentEntityCatalogEntry[];
@@ -206,13 +212,12 @@ function proposalEntityReferences(blocks: readonly AgentReducedAssistantBlock[])
       add("context", input.contextId);
     }
   }
-  return [...references.values()];
+  return references.size ? [...references.values()] : EMPTY_ENTITY_REFERENCES;
 }
 
 function useMessagePresentation(
   blocks: readonly AgentReducedAssistantBlock[],
   entityCatalog: readonly AgentEntityCatalogEntry[],
-  assistantRunning: boolean,
 ) {
   const needsDomainPaths = blocks.some(
     (block) =>
@@ -240,15 +245,14 @@ function useMessagePresentation(
       enabled: !catalogLabels.has(referenceKey(reference)),
     })),
   });
-  const canvasIds = useMemo(
-    () => (assistantRunning ? [] : canvasUnderstandingIds(blocks)),
-    [assistantRunning, blocks],
-  );
-  const canvasQueries = useQueries({
+  const canvasIdsKey = canvasUnderstandingIds(blocks).join("\0");
+  const canvasIds = useMemo(() => (canvasIdsKey ? canvasIdsKey.split("\0") : []), [canvasIdsKey]);
+  const canvasDetails = useQueries({
     queries: canvasIds.map((id) => ({
       queryKey: captureQueryKeys.understandingDetail(id),
       queryFn: () => runPromise(rpc.understandingGetById(id)),
     })),
+    combine: queryData,
   });
   const queryTitles = queries.map((query) => query.data?.title?.trim() ?? "").join("\0");
   return useMemo<AgentViewPresentation>(() => {
@@ -260,7 +264,7 @@ function useMessagePresentation(
     });
     const understandingRefs = new Map(
       canvasIds.map((id, index) => {
-        const detail = canvasQueries[index]?.data as
+        const detail = canvasDetails[index] as
           | { id: string; title: string | null; body: string }
           | null
           | undefined;
@@ -280,7 +284,7 @@ function useMessagePresentation(
       domainPath: (id) => getDomainPath(id, domains, " / "),
       understandingRefs,
     };
-  }, [canvasIds, canvasQueries, catalogLabels, domains, queryTitles, references]);
+  }, [canvasDetails, canvasIds, catalogLabels, domains, queryTitles, references]);
 }
 
 export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
@@ -299,7 +303,7 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
   onInspectContextRef,
 }: ConnectedChatMessageRowProps) {
   const rawBlocks = message.blocks ?? [];
-  const presentation = useMessagePresentation(rawBlocks, entityCatalog, assistantRunning);
+  const presentation = useMessagePresentation(rawBlocks, entityCatalog);
   const view = useMemo(
     () =>
       toChatMessageView(message, {
