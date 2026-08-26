@@ -235,6 +235,12 @@ export const AgentCommand = S.Union([
     modelSelection: S.optional(AgentModelSelection),
     reasoningLevel: S.optional(AgentReasoningLevel),
   }),
+  S.Struct({
+    type: S.Literal("run.retry"),
+    sessionId: S.String,
+    modelSelection: S.optional(AgentModelSelection),
+    reasoningLevel: S.optional(AgentReasoningLevel),
+  }),
   S.Struct({ type: S.Literal("run.cancel"), sessionId: S.String }),
   S.Struct({
     type: S.Literal("context.compact"),

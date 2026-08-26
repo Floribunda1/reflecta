@@ -7,10 +7,12 @@ import { parseMigrationVersion, compareVersions } from "@reflecta/server";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, getEffectLoggingContext, initializeLogging, ipcLog } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
+import { forwardDiagnosticEvents } from "./remote-diagnostics";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
 import { startAutomaticUpdateChecks } from "./updater";
+import { readConfig, writeConfig } from "./config";
 import { guardIpcHandlers, type HandlerLike } from "./rpc-guard";
 import { appIpc } from "../ipc";
 // 各域 IPC handler 模块：每域一个文件（对齐 ipc/contract/ 结构），错误构造器就近声明。
@@ -42,13 +44,29 @@ if (explicitUserDataDir) {
 }
 initializeLogging();
 
+// Telemetry seam: opt-in only, off by default. Setting this runtime arg
+// forwards warn/error diagnostic events to the endpoint (redacted at the
+// boundary). The product decision to collect telemetry stays in the future.
+const telemetryUrl = getRuntimeArg("reflecta-telemetry-url");
+if (telemetryUrl) {
+  forwardDiagnosticEvents(telemetryUrl, { level: "warn" });
+}
+
 const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?: string) => {
+  const savedWindowState = readConfig().windowState;
+  const hasValidSavedSize =
+    savedWindowState &&
+    Number.isInteger(savedWindowState.width) &&
+    Number.isInteger(savedWindowState.height) &&
+    savedWindowState.width >= 400 &&
+    savedWindowState.height >= 300;
+
   // Create the browser window.
   option = merge(
     {},
     {
-      width: 900,
-      height: 670,
+      width: hasValidSavedSize ? savedWindowState.width : 900,
+      height: hasValidSavedSize ? savedWindowState.height : 670,
       show: false,
       autoHideMenuBar: true,
       backgroundColor: "#00000000",
@@ -71,8 +89,19 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
   const mainWindow = new BrowserWindow(option);
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow.maximize();
+    if (savedWindowState?.isMaximized !== false) mainWindow.maximize();
     mainWindow.show();
+  });
+
+  mainWindow.on("close", () => {
+    const { width, height } = mainWindow.getNormalBounds();
+    writeConfig({
+      windowState: {
+        width,
+        height,
+        isMaximized: mainWindow.isMaximized(),
+      },
+    });
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

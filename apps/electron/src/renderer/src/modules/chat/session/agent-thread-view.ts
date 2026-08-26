@@ -52,7 +52,7 @@ function completedEntityRefs(messages: readonly AgentReducedMessage[]) {
 }
 
 async function sendRetainedAgentCommand(
-  command: Extract<AgentCommand, { type: "message.send" | "context.compact" }>,
+  command: Extract<AgentCommand, { type: "message.send" | "context.compact" | "run.retry" }>,
 ) {
   const release = agentSessionReplica.retainUntilSettled(command.sessionId);
   try {
@@ -334,16 +334,10 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
       },
       retry: async () => {
         if (composerBusy) return;
-        const userMessage = visibleMessages.findLast((message) => message.role === "user");
-        if (!userMessage) return;
+        if (!visibleMessages.some((message) => message.role === "user")) return;
         await sendRetainedAgentCommand({
-          type: "message.send",
+          type: "run.retry",
           sessionId,
-          text: userMessage.text,
-          messageId: userMessage.id,
-          contextRefs: userMessage.contextRefs,
-          files: userMessage.files,
-          composerContent: userMessage.composerContent,
         });
       },
       regenerate: async (messageId) => {

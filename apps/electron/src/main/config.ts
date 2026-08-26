@@ -40,6 +40,12 @@ import { readStoredCredential } from "@earendil-works/pi-coding-agent";
 import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
 import { getRuntimeArg } from "./runtime-args";
 
+export interface WindowState {
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
 export interface ResolvedAiModelConfig {
   provider: AiProviderConfig;
   definition: AiProviderDefinition;
@@ -52,6 +58,7 @@ export interface AppConfig {
   contentStorageRoot?: string;
   ai?: AiConfig;
   retrieval?: RetrievalConfig;
+  windowState?: WindowState;
 }
 
 export function getReflectaProfile(): ReflectaProfile {

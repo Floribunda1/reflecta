@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 - 2026-08-15
+
+- Rebuilt error observability: repeated errors are counted by a stable fingerprint into `error.aggregate` events instead of flooding the log with identical lines, native crashes are collected locally via Crashpad, and a redacted telemetry seam is available behind an explicit opt-in flag.
+- Feed-driven render errors (e.g. "Maximum update depth exceeded") now carry the session frame context (kind / sessionId / revision), and render-phase errors route through React's root error handlers — production-only crashes become diagnosable instead of a minified one-frame stack.
+- System crashes no longer surface as error toasts: `window.onerror` / `unhandledrejection` stay in the diagnostic log only, while toasts remain reserved for business-operation failures.
+- Added prefixable scoped loggers (`withPrefix`) for module / instance context, plus an observability reference guide under `docs/references/technical/observability.md`.
+
 ## 1.5.0 - 2026-08-15
 
 - Added an agent chat workspace: message composer, conversation threads, agent dock and contextual chat panels for starting and revising agent conversations.

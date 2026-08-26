@@ -1,6 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-
-const DIAGNOSTIC_RENDERER_ERROR_CHANNEL = "diagnostic:renderer-error";
+import { reportRendererError } from "./utils/renderer-error";
 
 type RendererErrorBoundaryProps = {
   children: ReactNode;
@@ -11,18 +10,9 @@ type RendererErrorBoundaryState = {
 };
 
 function reportRendererBoundaryError(error: Error, errorInfo: ErrorInfo): void {
-  try {
-    window.ipcRenderer?.send(DIAGNOSTIC_RENDERER_ERROR_CHANNEL, {
-      source: "react.error-boundary",
-      message: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-      href: window.location.href,
-      userAgent: navigator.userAgent,
-    });
-  } catch {
-    // Error reporting must not throw while React is already recovering.
-  }
+  reportRendererError("react.error-boundary", error, {
+    componentStack: errorInfo.componentStack,
+  });
 }
 
 export class RendererErrorBoundary extends Component<
