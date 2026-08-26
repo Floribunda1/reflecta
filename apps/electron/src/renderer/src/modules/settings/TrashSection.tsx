@@ -9,12 +9,13 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@reflecta/ui/components/item";
-import { Files, Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
+import { FileText, LayoutGrid, Loader2, Quote, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { TrashedCanvasDTO, TrashedContextDTO, TrashedUnderstandingDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
 import { renderError } from "@renderer/lib/errors";
 import { captureQueryKeys } from "../capture/queries";
 import { canvasQueryKeys } from "../canvas/queries";
@@ -227,132 +228,146 @@ export function TrashSection() {
             </EmptyContent>
           </Empty>
         ) : (
-          <div className="flex flex-col gap-5">
-            {understandings.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <Lightbulb size={13} />
-                  <span>理解 ({understandings.length})</span>
-                </div>
-                {understandings.map((understanding) => (
-                  <Item key={understanding.id} variant="outline" size="xs" className="gap-3">
-                    <ItemContent>
-                      <ItemTitle>
-                        {understanding.title || truncate(understanding.body) || (
-                          <span className="italic text-muted-foreground">（无内容）</span>
-                        )}
-                      </ItemTitle>
-                      <ItemDescription>
-                        删除于 {formatDate(understanding.deletedAt)}
-                      </ItemDescription>
-                    </ItemContent>
-                    <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label="恢复"
-                        onClick={() => void handleRestoreUnderstanding(understanding.id)}
-                      >
-                        <RotateCcw size={15} />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="destructive"
-                        aria-label="永久删除"
-                        onClick={() => handleDeleteUnderstandingForever(understanding.id)}
-                      >
-                        <X size={15} />
-                      </Button>
-                    </ItemActions>
-                  </Item>
-                ))}
-              </div>
-            )}
+          <Tabs defaultValue="understanding" className="gap-4">
+            <TabsList variant="line" className="w-full justify-start">
+              <TabsTrigger value="understanding">
+                <FileText /> 理解 ({understandings.length})
+              </TabsTrigger>
+              <TabsTrigger value="context">
+                <Quote /> 上下文 ({contexts.length})
+              </TabsTrigger>
+              <TabsTrigger value="canvas">
+                <LayoutGrid /> 画布 ({canvases.length})
+              </TabsTrigger>
+            </TabsList>
 
-            {contexts.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="text-xs font-medium text-foreground">
-                  上下文 ({contexts.length})
+            <TabsContent value="understanding">
+              {understandings.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {understandings.map((understanding) => (
+                    <Item key={understanding.id} variant="outline" size="xs" className="gap-3">
+                      <ItemContent>
+                        <ItemTitle>
+                          {understanding.title || truncate(understanding.body) || (
+                            <span className="italic text-muted-foreground">（无内容）</span>
+                          )}
+                        </ItemTitle>
+                        <ItemDescription>
+                          删除于 {formatDate(understanding.deletedAt)}
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="恢复"
+                          onClick={() => void handleRestoreUnderstanding(understanding.id)}
+                        >
+                          <RotateCcw size={15} />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="destructive"
+                          aria-label="永久删除"
+                          onClick={() => handleDeleteUnderstandingForever(understanding.id)}
+                        >
+                          <X size={15} />
+                        </Button>
+                      </ItemActions>
+                    </Item>
+                  ))}
                 </div>
-                {contexts.map((context) => (
-                  <Item key={context.id} variant="outline" size="xs" className="gap-3">
-                    <ItemContent>
-                      <ItemTitle>
-                        {context.title
-                          ? `${context.title} - ${truncate(context.content, 40)}`
-                          : truncate(context.content)}
-                      </ItemTitle>
-                      <ItemDescription>
-                        来自「{context.understandingTitle || "无标题理解"}」 · 删除于{" "}
-                        {formatDate(context.deletedAt)}
-                      </ItemDescription>
-                    </ItemContent>
-                    <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label="恢复"
-                        onClick={() => void handleRestoreContext(context.id)}
-                      >
-                        <RotateCcw size={15} />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="destructive"
-                        aria-label="永久删除"
-                        onClick={() => handleDeleteContextForever(context.id)}
-                      >
-                        <X size={15} />
-                      </Button>
-                    </ItemActions>
-                  </Item>
-                ))}
-              </div>
-            )}
+              )}
+              {understandings.length === 0 && <EmptyTypeMessage label="理解" />}
+            </TabsContent>
 
-            {canvases.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <Files size={13} />
-                  <span>画布 ({canvases.length})</span>
+            <TabsContent value="context">
+              {contexts.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {contexts.map((context) => (
+                    <Item key={context.id} variant="outline" size="xs" className="gap-3">
+                      <ItemContent>
+                        <ItemTitle>
+                          {context.title
+                            ? `${context.title} - ${truncate(context.content, 40)}`
+                            : truncate(context.content)}
+                        </ItemTitle>
+                        <ItemDescription>
+                          来自「{context.understandingTitle || "无标题理解"}」 · 删除于{" "}
+                          {formatDate(context.deletedAt)}
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="恢复"
+                          onClick={() => void handleRestoreContext(context.id)}
+                        >
+                          <RotateCcw size={15} />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="destructive"
+                          aria-label="永久删除"
+                          onClick={() => handleDeleteContextForever(context.id)}
+                        >
+                          <X size={15} />
+                        </Button>
+                      </ItemActions>
+                    </Item>
+                  ))}
                 </div>
-                {canvases.map((canvas) => (
-                  <Item key={canvas.id} variant="outline" size="xs" className="gap-3">
-                    <ItemContent>
-                      <ItemTitle>{canvas.title}</ItemTitle>
-                      <ItemDescription>删除于 {formatDate(canvas.deletedAt)}</ItemDescription>
-                    </ItemContent>
-                    <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label="恢复"
-                        onClick={() => void handleRestoreCanvas(canvas.id)}
-                      >
-                        <RotateCcw size={15} />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="destructive"
-                        aria-label="永久删除"
-                        onClick={() => handleDeleteCanvasForever(canvas.id)}
-                      >
-                        <X size={15} />
-                      </Button>
-                    </ItemActions>
-                  </Item>
-                ))}
-              </div>
-            )}
-          </div>
+              )}
+              {contexts.length === 0 && <EmptyTypeMessage label="上下文" />}
+            </TabsContent>
+
+            <TabsContent value="canvas">
+              {canvases.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {canvases.map((canvas) => (
+                    <Item key={canvas.id} variant="outline" size="xs" className="gap-3">
+                      <ItemContent>
+                        <ItemTitle>{canvas.title}</ItemTitle>
+                        <ItemDescription>删除于 {formatDate(canvas.deletedAt)}</ItemDescription>
+                      </ItemContent>
+                      <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="恢复"
+                          onClick={() => void handleRestoreCanvas(canvas.id)}
+                        >
+                          <RotateCcw size={15} />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="destructive"
+                          aria-label="永久删除"
+                          onClick={() => handleDeleteCanvasForever(canvas.id)}
+                        >
+                          <X size={15} />
+                        </Button>
+                      </ItemActions>
+                    </Item>
+                  ))}
+                </div>
+              )}
+              {canvases.length === 0 && <EmptyTypeMessage label="画布" />}
+            </TabsContent>
+          </Tabs>
         )}
       </section>
     </div>
   );
+}
+
+function EmptyTypeMessage({ label }: { label: string }) {
+  return <p className="py-8 text-center text-sm text-muted-foreground">暂无{label}</p>;
 }

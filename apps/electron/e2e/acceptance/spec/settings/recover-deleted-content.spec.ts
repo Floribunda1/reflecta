@@ -23,6 +23,10 @@ async function openTrash(page: Page) {
   await expect(page.getByRole("heading", { name: "回收站" })).toBeVisible();
 }
 
+async function openTrashType(page: Page, label: "理解" | "上下文" | "画布") {
+  await page.getByRole("tab", { name: new RegExp(`^${label} \\(\\d+\\)$`) }).click();
+}
+
 function trashDialog(page: Page) {
   return page.getByRole("dialog").filter({ hasText: "被删除的 Understanding" });
 }
@@ -71,6 +75,7 @@ test("@TRASH-002 用户恢复已删除的 Context", async () => {
     await closeDetailPanel(page);
 
     await openTrash(page);
+    await openTrashType(page, "上下文");
     const item = trashItem(page, "待恢复上下文");
     await item.hover();
     await item.getByRole("button", { name: "恢复" }).click();
@@ -89,7 +94,7 @@ test("@TRASH-003 用户永久删除回收站中的单项内容", async () => {
 
   try {
     await openTrash(page);
-    const count = trashDialog(page).getByText(/^理解 \(\d+\)$/);
+    const count = page.getByRole("tab", { name: /^理解 \(\d+\)$/ });
     const before = Number((await count.textContent())?.match(/\d+/)?.[0]);
     const item = trashItem(page, "Soft Deleted Understanding A");
     await item.hover();
@@ -111,18 +116,10 @@ test("@TRASH-004 用户清空回收站", async () => {
   try {
     await openTrash(page);
     const understandingCount = Number(
-      (
-        await trashDialog(page)
-          .getByText(/^理解 \(\d+\)$/)
-          .textContent()
-      )?.match(/\d+/)?.[0],
+      (await page.getByRole("tab", { name: /^理解 \(\d+\)$/ }).textContent())?.match(/\d+/)?.[0],
     );
     const contextCount = Number(
-      (
-        await trashDialog(page)
-          .getByText(/^上下文 \(\d+\)$/)
-          .textContent()
-      )?.match(/\d+/)?.[0],
+      (await page.getByRole("tab", { name: /^上下文 \(\d+\)$/ }).textContent())?.match(/\d+/)?.[0],
     );
     const total = understandingCount + contextCount;
 
@@ -152,6 +149,7 @@ test("@TRASH-005 用户恢复已删除的画布", async () => {
   try {
     await createAndDeleteCanvas(page, "待恢复画布");
     await openTrash(page);
+    await openTrashType(page, "画布");
     const item = trashItem(page, "待恢复画布");
     await item.hover();
     await item.getByRole("button", { name: "恢复" }).click();
@@ -174,7 +172,8 @@ test("@TRASH-006 用户永久删除回收站中的画布", async () => {
     await createAndDeleteCanvas(page, "待永久删除画布甲");
     await createAndDeleteCanvas(page, "待永久删除画布乙");
     await openTrash(page);
-    const count = trashDialog(page).getByText(/^画布 \(\d+\)$/);
+    await openTrashType(page, "画布");
+    const count = page.getByRole("tab", { name: /^画布 \(\d+\)$/ });
     const before = Number((await count.textContent())?.match(/\d+/)?.[0]);
     const item = trashItem(page, "待永久删除画布乙");
     await item.hover();
@@ -196,12 +195,8 @@ test("@TRASH-007 清空回收站时画布计入待永久删除数量", async () 
   try {
     await createAndDeleteCanvas(page, "待清空画布");
     await openTrash(page);
-    const understandingText = await trashDialog(page)
-      .getByText(/^理解 \(\d+\)$/)
-      .textContent();
-    const contextText = await trashDialog(page)
-      .getByText(/^上下文 \(\d+\)$/)
-      .textContent();
+    const understandingText = await page.getByRole("tab", { name: /^理解 \(\d+\)$/ }).textContent();
+    const contextText = await page.getByRole("tab", { name: /^上下文 \(\d+\)$/ }).textContent();
     const understandingCount = Number(understandingText?.match(/\d+/)?.[0]) || 0;
     const contextCount = Number(contextText?.match(/\d+/)?.[0]) || 0;
     const total = understandingCount + contextCount + 1; // +1 = 回收站中的画布
