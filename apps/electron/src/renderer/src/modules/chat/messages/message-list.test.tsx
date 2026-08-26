@@ -88,10 +88,14 @@ function rerenderMessageList({
   messages,
   entityCatalog,
   findQuery,
+  activeRunId = null,
+  isBusy = false,
 }: {
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
   findQuery?: string;
+  activeRunId?: string | null;
+  isBusy?: boolean;
 }) {
   act(() => {
     root?.render(
@@ -99,8 +103,8 @@ function rerenderMessageList({
         <MessageList
           messages={messages}
           entityCatalog={entityCatalog}
-          activeRunId={null}
-          isBusy={false}
+          activeRunId={activeRunId}
+          isBusy={isBusy}
           stoppedMessageId={null}
           onRetry={vi.fn()}
           onEdit={vi.fn()}
@@ -122,6 +126,60 @@ async function flushEntityQuery() {
 }
 
 describe("MessageList entity refs", () => {
+  test("keeps completed canvas_present on its skeleton without hydration while streaming", async () => {
+    const messages: AgentReducedMessage[] = [
+      {
+        id: "assistant_canvas",
+        role: "assistant",
+        text: "继续输出",
+        runId: "run_canvas",
+        createdAt: "2026-06-26T00:00:00.000Z",
+        blocks: [
+          {
+            kind: "tool",
+            toolCallId: "tool_canvas",
+            toolName: "canvas_present",
+            input: {},
+            output: {
+              kind: "canvas-view",
+              version: 1,
+              title: "分析画布",
+              document: {
+                elements: [{ id: "node_1", kind: "understanding", understandingId: "u_1" }],
+                edges: [],
+              },
+            },
+            state: "completed",
+            createdAt: "2026-06-26T00:00:00.000Z",
+          },
+          {
+            kind: "text",
+            text: "继续输出",
+            createdAt: "2026-06-26T00:00:01.000Z",
+          },
+        ],
+      },
+    ];
+    ipcMocks.getUnderstandingById.mockResolvedValue({ id: "u_1", title: "反馈循环", body: "" });
+    renderMessageList({
+      messages,
+      entityCatalog: [],
+      activeRunId: "run_canvas",
+      isBusy: true,
+    });
+    await flushEntityQuery();
+
+    expect(container?.querySelector('[data-testid="agent-canvas-placeholder"]')).not.toBeNull();
+    expect(container?.querySelector('[data-testid="agent-canvas-view"]')).toBeNull();
+    expect(ipcMocks.getUnderstandingById).not.toHaveBeenCalled();
+
+    rerenderMessageList({ messages, entityCatalog: [] });
+    await flushEntityQuery();
+    expect(container?.querySelector('[data-testid="agent-canvas-placeholder"]')).toBeNull();
+    expect(container?.querySelector('[data-testid="agent-canvas-view"]')).not.toBeNull();
+    expect(ipcMocks.getUnderstandingById).toHaveBeenCalledTimes(1);
+  });
+
   test("keeps a new run's pending state off the previous assistant message", () => {
     renderMessageList({
       messages: [

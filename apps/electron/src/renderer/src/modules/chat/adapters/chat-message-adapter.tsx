@@ -212,6 +212,7 @@ function proposalEntityReferences(blocks: readonly AgentReducedAssistantBlock[])
 function useMessagePresentation(
   blocks: readonly AgentReducedAssistantBlock[],
   entityCatalog: readonly AgentEntityCatalogEntry[],
+  assistantRunning: boolean,
 ) {
   const needsDomainPaths = blocks.some(
     (block) =>
@@ -239,7 +240,10 @@ function useMessagePresentation(
       enabled: !catalogLabels.has(referenceKey(reference)),
     })),
   });
-  const canvasIds = useMemo(() => canvasUnderstandingIds(blocks), [blocks]);
+  const canvasIds = useMemo(
+    () => (assistantRunning ? [] : canvasUnderstandingIds(blocks)),
+    [assistantRunning, blocks],
+  );
   const canvasQueries = useQueries({
     queries: canvasIds.map((id) => ({
       queryKey: captureQueryKeys.understandingDetail(id),
@@ -295,7 +299,7 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
   onInspectContextRef,
 }: ConnectedChatMessageRowProps) {
   const rawBlocks = message.blocks ?? [];
-  const presentation = useMessagePresentation(rawBlocks, entityCatalog);
+  const presentation = useMessagePresentation(rawBlocks, entityCatalog, assistantRunning);
   const view = useMemo(
     () =>
       toChatMessageView(message, {

@@ -217,6 +217,21 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks).toMatchObject([{ kind: "canvas-view", status: "streaming" }]);
   });
 
+  test("completed canvas_present stays a placeholder while the assistant turn is running", () => {
+    const turn = buildAgentTurnView(
+      [
+        tool(
+          "canvas_present",
+          "tool-canvas",
+          { kind: "canvas-view", version: 1, title: "x", document: { elements: [], edges: [] } },
+          "completed",
+        ),
+      ],
+      true,
+    );
+    expect(turn.blocks).toMatchObject([{ kind: "canvas-view", status: "streaming" }]);
+  });
+
   test("canvas_present with unknown version, invalid document or failure becomes a failed block", () => {
     const unknownVersion = buildAgentTurnView([
       tool("canvas_present", "t1", { kind: "canvas-view", version: 99, document: {} }, "completed"),

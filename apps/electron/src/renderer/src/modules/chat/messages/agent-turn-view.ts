@@ -280,7 +280,7 @@ export function buildAgentTurnView(
       continue;
     }
     if (block.toolName === "canvas_present") {
-      const canvasView = canvasPresentBlock(block);
+      const canvasView = canvasPresentBlock(block, assistantRunning);
       if (canvasView) internalBlocks.push(canvasView);
       continue;
     }
@@ -623,7 +623,10 @@ function canvasSearchDetails(output: unknown) {
   });
 }
 
-function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefined {
+function canvasPresentBlock(
+  block: AgentToolBlock,
+  assistantRunning = false,
+): CanvasViewTurnBlock | undefined {
   if (block.toolName !== "canvas_present") return undefined;
   const id = `${block.toolCallId}:canvas-view`;
   if (block.state === "failed") {
@@ -637,7 +640,7 @@ function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefi
       understandingIds: [],
     };
   }
-  if (block.state !== "completed") {
+  if (block.state !== "completed" || assistantRunning) {
     return {
       kind: "canvas-view",
       id,
