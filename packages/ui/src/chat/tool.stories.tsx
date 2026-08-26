@@ -80,6 +80,10 @@ function proposalView(block: ApprovalBlock) {
   return toAgentProposalView(view.proposal, block, presentation);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 type ApprovalFixture = {
   block: ApprovalBlock;
   output: unknown;
@@ -390,7 +394,6 @@ const approvalTools: readonly ApprovalFixture[] = [
       title: "极地温室的分区灌溉策略",
       changes: canvasCreateChanges,
       layout: "auto",
-      document: canvasDraftDocument,
     }),
     output: {
       approvalStatus: "approved",
@@ -409,7 +412,6 @@ const approvalTools: readonly ApprovalFixture[] = [
         title: "分区灌溉策略画布",
         document: canvasBeforeUpdateDocument,
       },
-      document: canvasDraftDocument,
     }),
     output: {
       approvalStatus: "approved",
@@ -641,6 +643,39 @@ function CanvasStreamingProposalCard() {
 
 function InteractiveProposalCard({ fixture }: { fixture: ApprovalFixture }) {
   const [block, setBlock] = useState(fixture.block);
+
+  // canvas_create / canvas_update：草稿几何由真实 normalizeCanvasChanges 水合
+  // （create 从空 base、update 以 before 持久画布为 base），与 Canvas 提案草稿水合同管道。
+  useEffect(() => {
+    const toolName = fixture.block.toolName;
+    if (toolName !== "canvas_create" && toolName !== "canvas_update") return;
+    const payload = fixture.block.payload as Record<string, unknown>;
+    const changes = Array.isArray(payload.changes) ? payload.changes : [];
+    if (changes.length === 0) return;
+    const before = isRecord(payload.before) ? payload.before : {};
+    const base = isRecord(before.document) ? before.document : undefined;
+    let mounted = true;
+    const promise = Effect.runPromise(
+      normalizeCanvasChanges({
+        layout: "auto",
+        changes,
+        ...(base ? { base: base as CanvasDocument } : {}),
+      }),
+    ).then((result) => {
+      if (!mounted) return;
+      setBlock((current) => ({
+        ...current,
+        payload: {
+          ...(isRecord(current.payload) ? current.payload : {}),
+          document: result.document,
+        },
+      }));
+    });
+    return () => {
+      mounted = false;
+      promise.catch(() => undefined);
+    };
+  }, [fixture.block]);
 
   useEffect(() => {
     if (!block.preview && block.displayState !== "running") return;
