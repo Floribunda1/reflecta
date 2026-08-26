@@ -28,8 +28,8 @@ test("@AG-RESULT-001 用户在复杂回复中检查工作记录和最终结果",
       userMessage("result-complex-user", "请给出复杂回复"),
       assistantMessage("result-complex-assistant", [
         reasoningPart("THINKING SUMMARY"),
-        toolPart("search", "result-search", {
-          hits: [{ type: "understanding", understanding: { id: "understanding-1" } }],
+        toolPart("retrieve_knowledge", "result-search", {
+          candidates: [{ id: "understanding-1", title: "复杂回复写作", snippet: "先列提纲再展开" }],
         }),
         proposalPart({
           toolCallId: "result-proposal",
@@ -51,7 +51,7 @@ test("@AG-RESULT-001 用户在复杂回复中检查工作记录和最终结果",
     const reasoning = page.getByTestId("agent-reasoning");
     await expect(reasoning).toBeVisible();
     await expect(reasoning).not.toContainText("THINKING SUMMARY");
-    await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
+    await expect(page.getByText("检索到 1 条 Understanding / 0 条 Context 证据")).toBeVisible();
     await expect(page.getByTestId("agent-proposal-card")).toContainText("CANDIDATE_TITLE_PENDING");
     await expect(page.getByTestId("agent-proposal-card")).toContainText("待确认");
     await expect(page.getByText("FINAL_REPLY_BODY")).toBeVisible();
@@ -135,14 +135,14 @@ test("@AG-RESULT-003 用户检查 Agent 活动的过程说明和检索结果", a
           "THINKING SUMMARY\n\nTHINKING DETAIL：先核对检索范围，再比较候选结果，最后确认哪些内容值得展示给用户。",
         ),
         toolPart(
-          "search",
+          "retrieve_knowledge",
           "result-search",
           {
-            hits: [
+            candidates: [
               {
-                type: "understanding",
-                understanding: { id: "u1", title: "Feedback Loop" },
-                matchedText: "反馈回路能降低试错代价",
+                id: "u1",
+                title: "Feedback Loop",
+                snippet: "反馈回路能降低试错代价",
               },
             ],
           },
@@ -164,7 +164,7 @@ test("@AG-RESULT-003 用户检查 Agent 活动的过程说明和检索结果", a
     await expect(reasoning).toBeVisible();
     await expect(reasoning).not.toContainText("THINKING DETAIL");
     const toolActivity = page.getByTestId("agent-tool-activity");
-    await expect(toolActivity).toContainText("搜索「代价」");
+    await expect(toolActivity).toContainText("检索「代价」");
     await expect(toolActivity).toContainText("1 条 Understanding / 0 条 Context");
 
     await reasoning.click();
@@ -616,7 +616,7 @@ test("@AG-PROPOSAL-010 用户确认候选画布后看到执行结果并进入产
   try {
     await openThread(page, "画布提案");
     const card = page.getByTestId("agent-proposal-card");
-    await expect(card).toContainText("候选画布");
+    await expect(card).toContainText("创建画布");
     await expect(card).toContainText("执行完成");
     // 已落地的画布进入对话顶部产出入口
     await expect(page.getByTestId("artifact-panel-toggle")).toHaveAttribute(
