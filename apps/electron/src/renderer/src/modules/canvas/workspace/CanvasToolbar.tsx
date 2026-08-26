@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "@reflecta/ui/components/toast";
 import { format, formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { Download, MoreHorizontal } from "lucide-react";
+import { Download, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import {
   DropdownMenu,
@@ -80,6 +80,7 @@ export function CanvasToolbar({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem data-testid="canvas-chat-ai" onClick={onChat}>
+                <MessageCircle size={14} />
                 和 AI 聊聊
               </DropdownMenuItem>
               <DropdownMenuItem data-testid="canvas-export-png" onClick={onExportPng}>
