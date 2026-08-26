@@ -39,7 +39,6 @@ function CaptureAgentDock() {
       testId="capture-agent-dock"
       scope={agentDock.scope}
       threadId={agentDock.threadId}
-      contextNonce={agentDock.contextNonce}
       onBindThread={bindAgentDockThread}
       onClose={closeAgentDock}
     />

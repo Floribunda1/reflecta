@@ -225,7 +225,7 @@ describe("capture store", () => {
     expect(store.getState().agentDockThreadId).toBeNull();
   });
 
-  test("openAgentDock opens the dock, advances the context nonce, and resets different scopes", () => {
+  test("openAgentDock opens the dock and resets different scopes", () => {
     const store = createCaptureStore();
 
     store.getState().openAgentDock({ type: "understanding", id: "u1", title: "First" });
@@ -239,7 +239,6 @@ describe("capture store", () => {
       title: "Domain",
     });
     expect(store.getState().agentDockThreadId).toBeNull();
-    expect(store.getState().agentDockContextNonce).toBe(2);
   });
 
   test("openAgentDock keeps the bound thread when reopening the same scope", () => {

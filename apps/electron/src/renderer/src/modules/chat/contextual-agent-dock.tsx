@@ -20,7 +20,6 @@ type ContextualAgentDockProps = {
   testId: string;
   scope: AgentContextRef | null;
   threadId: string | null;
-  contextNonce: number;
   onBindThread: (threadId: string) => void;
   onClose: () => void;
   className?: string;
@@ -29,10 +28,6 @@ type ContextualAgentDockProps = {
 function scopeTitle(scope: AgentContextRef | null) {
   if (!scope) return "当前上下文";
   return scope.title?.trim() || (scope.type === "domain" ? "当前领域" : "当前理解");
-}
-
-function scopeContextRefs(scope: AgentContextRef | null): AgentContextRef[] {
-  return scope ? [scope] : [];
 }
 
 function contextThreadTitle(title: string) {
@@ -57,7 +52,6 @@ export function ContextualAgentDock({
   testId,
   scope,
   threadId,
-  contextNonce,
   onBindThread,
   onClose,
   className,
@@ -67,9 +61,6 @@ export function ContextualAgentDock({
   const { mutate: createThread, isPending: createThreadPending } = useCreateThreadMutation();
   const threadsQuery = useThreadsQuery();
   const threads = threadsQuery.data ?? [];
-  const contextKey = scope
-    ? `${scope.type}:${scope.id}:${threadId ?? "draft"}:${contextNonce}`
-    : undefined;
   const title = scopeTitle(scope);
   const historyItems = buildContextualAgentHistoryItems(threads, threadId);
   const historyLoading = threadsQuery.isFetching;
@@ -167,12 +158,7 @@ export function ContextualAgentDock({
 
       <div className="min-h-0 flex-1">
         {threadId ? (
-          <AgentThreadPanel
-            key={threadId}
-            threadId={threadId}
-            initialContextKey={contextKey}
-            initialContextRefs={scopeContextRefs(scope)}
-          />
+          <AgentThreadPanel key={threadId} threadId={threadId} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             加载 Agent...

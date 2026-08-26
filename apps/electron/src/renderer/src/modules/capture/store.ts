@@ -53,7 +53,6 @@ export type CaptureTransient = {
   agentDockOpen: boolean;
   agentDockScope: CaptureAgentScope | null;
   agentDockThreadId: string | null;
-  agentDockContextNonce: number;
 };
 
 export type CaptureActions = {
@@ -104,7 +103,6 @@ const initialAgentDock = {
   open: false,
   scope: null as CaptureAgentScope | null,
   threadId: null as string | null,
-  contextNonce: 0,
 };
 
 // --- schema（持久化：只持久化 prefs 的 5 字段，对齐旧 `partialize`） ---
@@ -410,7 +408,6 @@ function makeCaptureActions(run: RunWith): CaptureActions {
             open: true,
             scope,
             threadId: sameAgentScope(dock.scope, scope) ? dock.threadId : null,
-            contextNonce: dock.contextNonce + 1,
           });
         }),
       ),
@@ -437,7 +434,6 @@ export const initialCaptureState: CapturePrefs & CaptureTransient = {
   agentDockOpen: false,
   agentDockScope: null,
   agentDockThreadId: null,
-  agentDockContextNonce: 0,
 };
 
 export type CaptureStoreApi = { getState: () => CaptureStore };
@@ -470,7 +466,6 @@ export function createCaptureStore(
         open: initialState.agentDockOpen,
         scope: initialState.agentDockScope,
         threadId: initialState.agentDockThreadId,
-        contextNonce: initialState.agentDockContextNonce,
       });
     }),
   );
@@ -490,7 +485,6 @@ export function createCaptureStore(
       agentDockOpen: dock.open,
       agentDockScope: dock.scope,
       agentDockThreadId: dock.threadId,
-      agentDockContextNonce: dock.contextNonce,
       ...actions,
     };
   };

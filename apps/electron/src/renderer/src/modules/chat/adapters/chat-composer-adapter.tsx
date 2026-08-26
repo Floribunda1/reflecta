@@ -62,8 +62,6 @@ type AgentChatComposerProps = {
   canStop: boolean;
   editingMessage?: EditingMessage;
   focusRequest: number;
-  initialContextKey?: string;
-  initialContextRefs?: AgentContextRef[];
   modelOptions: AiModelOption[];
   activeModel: AgentModelSelection | null;
   activeReasoningLevel: AgentReasoningLevel;
@@ -187,8 +185,6 @@ function useAttachmentAdapter() {
   };
 }
 
-const EMPTY_CONTEXT_REFS: AgentContextRef[] = [];
-
 export function AgentChatComposer({
   variant,
   threadId,
@@ -197,8 +193,6 @@ export function AgentChatComposer({
   canStop,
   editingMessage,
   focusRequest,
-  initialContextKey,
-  initialContextRefs = EMPTY_CONTEXT_REFS,
   modelOptions,
   activeModel,
   activeReasoningLevel,
@@ -229,10 +223,6 @@ export function AgentChatComposer({
   const modelById = useMemo(
     () => new Map(modelOptions.map((option) => [modelId(option), option])),
     [modelOptions],
-  );
-  const initialEntities = useMemo(
-    () => initialContextRefs.map(toEntity),
-    [initialContextKey, initialContextRefs],
   );
   const initialValue = useMemo<ChatComposerValue | undefined>(() => {
     if (!editingMessage) return undefined;
@@ -325,7 +315,6 @@ export function AgentChatComposer({
       status={isCompacting ? "compacting" : isBusy ? "running" : "idle"}
       canStop={canStop}
       focusRequest={focusRequest}
-      initialEntities={initialEntities}
       modelOptions={uiModels}
       selectedModelId={activeModel ? modelId(activeModel) : undefined}
       selectedReasoningId={activeReasoningLevel}

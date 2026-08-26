@@ -2,12 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
-import type {
-  AgentContextRef,
-  AgentModelSelection,
-  AgentReasoningLevel,
-  AgentReducedMessage,
-} from "@shared/agent";
+import type { AgentModelSelection, AgentReasoningLevel, AgentReducedMessage } from "@shared/agent";
 import { ChatJumpNav } from "@reflecta/ui/chat";
 import { Button } from "@reflecta/ui/components/button";
 import {
@@ -47,8 +42,6 @@ type AgentThreadPanelProps = {
   threadId: string;
   title?: string;
   scrollRequest?: number;
-  initialContextKey?: string;
-  initialContextRefs?: AgentContextRef[];
   titleGenerating?: boolean;
   onRename?: (title: string) => void;
   onGenerateTitle?: () => void;
@@ -62,8 +55,6 @@ export function AgentThreadPanel({
   threadId,
   title,
   scrollRequest = 0,
-  initialContextKey,
-  initialContextRefs,
   titleGenerating,
   onRename,
   onGenerateTitle,
@@ -272,8 +263,6 @@ export function AgentThreadPanel({
         isCompacting={threadView.isCompacting}
         canStop={threadView.canStop}
         focusRequest={threadView.focusRequest}
-        initialContextKey={initialContextKey}
-        initialContextRefs={initialContextRefs}
         modelOptions={modelOptions}
         activeModel={activeModel}
         activeReasoningLevel={activeReasoningLevel}
