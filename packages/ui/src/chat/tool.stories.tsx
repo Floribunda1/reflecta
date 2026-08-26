@@ -1,3 +1,6 @@
+import { Effect } from "effect";
+import { normalizeCanvasChanges } from "@reflecta/shared";
+import type { CanvasDocument } from "../canvas";
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { AgentReducedAssistantBlock } from "../../../../apps/electron/src/preload/typings/agent";
@@ -588,15 +591,30 @@ function AutoStreamingTool() {
 
 function CanvasStreamingProposalCard() {
   const complete = useAutoFrame(2) === 1;
+  // 与 Agent 生成文档 case 同管道：changes 现场走 normalizeCanvasChanges（ELK）生成几何，
+  // 不手写静态草稿——流式完成后统一水合一次，水合完成前保持骨架。
+  const [document, setDocument] = useState<CanvasDocument | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    const promise = Effect.runPromise(
+      normalizeCanvasChanges({ layout: "auto", changes: canvasCreateChanges }),
+    ).then((result) => {
+      if (mounted) setDocument(result.document);
+    });
+    return () => {
+      mounted = false;
+      promise.catch(() => undefined);
+    };
+  }, []);
   const block = approval(
     "canvas_create",
     "候选画布",
-    complete
+    complete && document
       ? {
           title: "极地温室的分区灌溉策略",
           changes: canvasCreateChanges,
           layout: "auto",
-          document: canvasDraftDocument,
+          document,
         }
       : {
           title: "极地温室的分区灌溉策略",
@@ -609,7 +627,12 @@ function CanvasStreamingProposalCard() {
   return (
     <div className="grid min-w-0 gap-1">
       <code className="px-3 text-xs text-muted-foreground">
-        canvas_create · {complete ? "参数完整，草稿已水合" : "参数流式中（骨架 loading）"}
+        canvas_create ·{" "}
+        {complete
+          ? document
+            ? "参数完整，草稿已水合"
+            : "参数完整，水合中…"
+          : "参数流式中（骨架 loading）"}
       </code>
       <AgentProposalCard proposal={proposalView(block)} />
     </div>
