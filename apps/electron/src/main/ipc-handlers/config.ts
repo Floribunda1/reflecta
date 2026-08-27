@@ -43,6 +43,7 @@ export const config: HandlerModule = {
     "config.listAiModelOptions": () => Effect.sync(() => configOps.listAiModelOptions()),
     "config.listAiProviderDefinitions": () =>
       Effect.sync(() => configOps.listAiProviderDefinitions()),
+    "config.refreshAiModels": () => liftPromise(error, () => configOps.refreshAiModels()),
     "config.getActiveAgentModel": () => Effect.sync(() => configOps.getActiveAgentModel()),
     "config.getActiveAgentReasoningLevel": () => Effect.sync(() => getActiveAgentReasoningLevel()),
     "config.setActiveAgentModel": ({ selection }) =>

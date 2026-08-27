@@ -69,6 +69,14 @@ function buildSharedModelRuntime(): Promise<ModelRuntime> {
     // Only the newest build may become the shared runtime, so a stale prewarm
     // can never overwrite a refresh triggered by newer settings.
     if (generation === runtimeGeneration) sharedModelRuntime = runtime;
+    // The create-time catalog refresh in ModelRuntime.create() runs BEFORE the
+    // configured API keys are applied, so API-key providers (opencode-go,
+    // deepseek, openai, ...) never fetch their pi.dev overlay at startup — only
+    // OAuth codex does. Now that keys are set, re-fetch in the background
+    // (non-blocking, respects the 4h freshness window) so their overlays land.
+    // Errors are ignored: the runtime already works, and the Settings refresh
+    // button can force a fresh fetch on demand.
+    void refreshConfiguredCatalog(runtime, false).catch(() => undefined);
     return runtime;
   });
 }
@@ -98,6 +106,38 @@ export function refreshSharedModelRuntime(): Promise<ModelRuntime> {
     // Keep serving the previous runtime; getSharedModelRuntime() retries lazily.
   });
   return next;
+}
+
+const CATALOG_REFRESH_TIMEOUT_MS = 10_000;
+
+/**
+ * Force a pi.dev catalog network refresh on the shared runtime so API-key
+ * providers (opencode-go, deepseek, openai, ...) pick up the latest models.
+ * Requires the configured API keys to already be applied on the runtime (they
+ * are, after buildSharedModelRuntime), because pi skips the network phase for a
+ * provider with no resolvable credential.
+ */
+async function refreshConfiguredCatalog(runtime: ModelRuntime, force: boolean): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CATALOG_REFRESH_TIMEOUT_MS);
+  try {
+    await runtime.refresh({ allowNetwork: true, force, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Manually refresh the model catalog (Settings -> AI refresh button): rebuild
+ * the shared runtime so the current API keys are applied, then force a network
+ * pull from pi.dev (bypassing the 4h freshness window) so newly published
+ * models show up immediately.
+ */
+export function refreshModelCatalog(): Promise<ModelRuntime> {
+  return refreshSharedModelRuntime().then(async (runtime) => {
+    await refreshConfiguredCatalog(runtime, true);
+    return runtime;
+  });
 }
 
 export function createCodexBrowserAuthInteraction(

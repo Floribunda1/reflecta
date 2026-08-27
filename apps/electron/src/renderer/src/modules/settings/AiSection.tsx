@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCircle, ExternalLink, LoaderCircle, Search, Trash2 } from "lucide-react";
+import {
+  Check,
+  CheckCircle,
+  ExternalLink,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { toast } from "@reflecta/ui/components/toast";
 import { Button } from "@reflecta/ui/components/button";
 import { Checkbox } from "@reflecta/ui/components/checkbox";
@@ -56,6 +64,8 @@ function AiProviderDetail({
   onApiKeyChange,
   onModelQueryChange,
   onToggleModel,
+  onRefreshModels,
+  refreshingModels,
 }: {
   selectedProvider: AiProviderDefinition;
   providerConfig: AiProviderConfig | undefined;
@@ -72,6 +82,8 @@ function AiProviderDetail({
   onApiKeyChange: (apiKey: string) => void;
   onModelQueryChange: (query: string) => void;
   onToggleModel: (modelId: string, enabled: boolean) => void;
+  onRefreshModels: () => void;
+  refreshingModels: boolean;
 }) {
   return (
     <>
@@ -136,7 +148,26 @@ function AiProviderDetail({
       <div className="flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex shrink-0 items-center justify-between gap-3">
           <span className="text-sm font-medium text-foreground">用于 Chat 的模型</span>
-          <span className="text-xs text-muted-foreground">已选择 {enabledModelIds.length} 个</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              已选择 {enabledModelIds.length} 个
+            </span>
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              aria-label="刷新模型列表"
+              title="从 pi.dev 刷新最新模型"
+              disabled={refreshingModels}
+              onClick={onRefreshModels}
+            >
+              {refreshingModels ? (
+                <LoaderCircle size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+            </Button>
+          </div>
         </div>
         <InputGroup className="shrink-0">
           <InputGroupAddon align="inline-start">
@@ -191,6 +222,7 @@ export function AiSection() {
   const [loading, setLoading] = useState(false);
   const [codexConnected, setCodexConnected] = useState(false);
   const [codexBusy, setCodexBusy] = useState(false);
+  const [refreshingModels, setRefreshingModels] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -328,6 +360,20 @@ export function AiSection() {
     }));
   };
 
+  const handleRefreshModels = async () => {
+    setRefreshingModels(true);
+    try {
+      const nextProviders = await runPromise(rpc.configRefreshModels());
+      setProviders(nextProviders as unknown as typeof providers);
+      await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
+      toast.add({ title: "模型列表已刷新", type: "success" });
+    } catch (error) {
+      toast.add({ title: "刷新模型列表失败", description: renderError(error), type: "error" });
+    } finally {
+      setRefreshingModels(false);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     setSaved(false);
@@ -421,6 +467,8 @@ export function AiSection() {
               onApiKeyChange={(apiKey) => upsertProvider(selectedProvider.id, { apiKey })}
               onModelQueryChange={setModelQuery}
               onToggleModel={toggleModel}
+              onRefreshModels={() => void handleRefreshModels()}
+              refreshingModels={refreshingModels}
             />
           ) : null}
         </div>

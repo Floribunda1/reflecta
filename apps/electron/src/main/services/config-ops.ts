@@ -31,6 +31,7 @@ import {
 import {
   createCodexBrowserAuthInteraction,
   getSharedModelRuntime,
+  refreshModelCatalog,
   refreshSharedModelRuntime,
 } from "./agent/pi-model-runtime";
 
@@ -133,6 +134,11 @@ export async function rebuildRetrievalIndex(): Promise<RetrievalIndexStatus> {
 
 export function listAiModelOptions(): AiModelOption[] {
   return getAiModelOptions();
+}
+
+export async function refreshAiModels(): Promise<AiProviderDefinition[]> {
+  await refreshModelCatalog();
+  return getAiProviderDefinitions();
 }
 
 export function listAiProviderDefinitions(): AiProviderDefinition[] {

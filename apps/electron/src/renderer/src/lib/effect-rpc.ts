@@ -100,6 +100,7 @@ export const rpc = {
   configRebuildIndex: () => client["config.rebuildRetrievalIndex"](),
   configListModelOptions: () => client["config.listAiModelOptions"](),
   configListProviderDefs: () => client["config.listAiProviderDefinitions"](),
+  configRefreshModels: () => client["config.refreshAiModels"](),
   configGetActiveModel: () => client["config.getActiveAgentModel"](),
   configGetReasoningLevel: () => client["config.getActiveAgentReasoningLevel"](),
   configSetActiveModel: (selection: import("../../../ipc").AiModelSelection) =>

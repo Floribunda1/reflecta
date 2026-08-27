@@ -109,6 +109,13 @@ export const ConfigListProviderDefs = rpc(
   S.Array(AiProviderDefinition),
   ConfigError,
 );
+
+export const ConfigRefreshModels = rpc(
+  "config.refreshAiModels",
+  S.Struct({}),
+  S.Array(AiProviderDefinition),
+  ConfigError,
+);
 export const ConfigGetActiveModel = rpc(
   "config.getActiveAgentModel",
   S.Struct({}),
