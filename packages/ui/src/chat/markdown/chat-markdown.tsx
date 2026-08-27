@@ -1,5 +1,6 @@
 import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
+import type { MermaidConfig } from "mermaid";
 import { useTheme } from "next-themes";
 import { createContext, useContext, useMemo, type ComponentProps, type ReactNode } from "react";
 import { CircleOff, XCircle } from "lucide-react";
@@ -28,7 +29,8 @@ const mermaidPlugin: DiagramPlugin = {
   language: "mermaid",
   getMermaid: (config) => ({
     initialize: () => undefined,
-    render: (id, source) => renderMermaid(id, source, config),
+    // streamdown 2.6 config types lag mermaid's stricter theme union; runtime values are unchanged.
+    render: (id, source) => renderMermaid(id, source, config as MermaidConfig),
   }),
 };
 
