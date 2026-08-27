@@ -331,6 +331,7 @@ describe("createPiResourceLoader", () => {
     const canvasSkill = fs.readFileSync(canvasSkillPath!, "utf8");
     expect(canvasSkill).toContain("结构本体是边，不是分组");
     expect(canvasSkill).toContain("Bad 1：把「组织」做成主题分桶");
+    expect(canvasSkill).toContain("不要向用户展示 local ref");
     expect(canvasSkill).not.toContain("Reflecta Understanding");
 
     expect(loader.getPrompts().prompts).toEqual([]);
