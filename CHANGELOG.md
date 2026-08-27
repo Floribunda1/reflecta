@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.3 - 2026-08-27
+
+- Kept canvas `ref` handles internal to tool calls: the agent now refers to Understanding nodes as `[[u:id]]` and to Text / Group by their on-canvas content, and never exposes local refs, edge refs, database ids or id abbreviations in user-facing replies.
+
 ## 2.0.2 - 2026-08-27
 
 - Added on-demand provider model catalog refresh: the pi.dev model catalog is re-fetched in the background after API keys are applied (respecting a 4h freshness window), with a manual refresh button in the Settings AI provider detail (spinner + toast).
