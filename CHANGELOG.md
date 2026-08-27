@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.2 - 2026-08-27
+
+- Added on-demand provider model catalog refresh: the pi.dev model catalog is re-fetched in the background after API keys are applied (respecting a 4h freshness window), with a manual refresh button in the Settings AI provider detail (spinner + toast).
+- Sized understanding cards to real content (260x220 → 340x480, median body ~275 chars needs ~474px) and opened up layout/label spacing: ELK layer gap 100 → 180, edge label max width 100 → 140, so long edge labels no longer hide the edge line.
+- Restored window dragging over the chat canvas fullscreen overlay: the opaque overlay covered the header drag region, so an equal-height `app-drag-region` strip is added at the overlay top.
+- Truncated artifact panel titles with an ellipsis instead of blowing out the popover into a horizontal scrollbar.
+- Bumped all workspaces to latest dependencies: electron 43 → 44, motion 12 → 13, apache-arrow 18 → 21, lancedb 0.33 → 0.37, pi-web-access 0.18 → 0.25, pi-ai / pi-coding-agent 0.84.0 → 0.84.3, plus patch-level bumps (tiptap, milkdown, mermaid, recharts, streamdown, oxlint, oxfmt, vite, vitest). Effect stays pinned to 4.0.0-rc.112 (v4 RC line).
+
 ## 2.0.1 - 2026-08-27
 
 - Fixed a startup hang after upgrading: migrations no longer force a full vector index rebuild on the main process before the window is created. Rebuilds now run in the background and only trigger when a migration actually rewrites the retrieval projection (v1.1.0 renames, v1.3.5 body rewrite), so future upgrades that only touch unrelated tables (e.g. canvas) start immediately.
