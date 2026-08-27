@@ -255,7 +255,12 @@ export function ReadOnlyCanvasCard({
   ) : null;
   if (fullscreen) {
     return createPortal(
-      <div className="fixed inset-0 z-50 overflow-hidden bg-background">{content}</div>,
+      <div className="fixed inset-0 z-50 overflow-hidden bg-background">
+        {/* 全屏覆盖了窗口顶部的拖拽 header（app-drag-region）：补一条等高的拖拽条，
+            保留从顶部空白区拖动窗口（双击最大化同样生效）。 */}
+        <div className="app-drag-region absolute inset-x-0 top-0 z-10 h-12" aria-hidden="true" />
+        {content}
+      </div>,
       globalThis.document.body,
     );
   }
