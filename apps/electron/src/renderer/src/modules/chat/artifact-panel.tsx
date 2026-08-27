@@ -63,15 +63,15 @@ export function ArtifactPanel({
           data-testid="artifact-panel-list"
           align="end"
           sideOffset={6}
-          className="max-h-64 w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-1.5"
+          className="max-h-64 w-[min(24rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto p-1.5"
         >
-          <ul className="m-0 grid list-none gap-0.5 p-0">
+          <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
             {artifacts.map((artifact) => {
               const Icon = artifact.type === "canvas" ? PanelsTopLeft : entityIcon(artifact.type);
               const typeLabel = view.groups.find((group) => group.type === artifact.type)?.label;
               if (!Icon) return null;
               return (
-                <li key={`${artifact.type}:${artifact.id}`}>
+                <li key={`${artifact.type}:${artifact.id}`} className="min-w-0">
                   <button
                     type="button"
                     data-testid={`artifact-item-${artifact.id}`}
