@@ -64,6 +64,11 @@ const TEXT_BREATHING = 8;
 /** markdown 块级行（标题/列表/引用/代码/表格）额外加高（确定性块模型，CSS 变则同步）。 */
 const TEXT_BLOCK_EXTRA = 10;
 
+/** understanding 卡：prod 实测正文均值313/中位275/p75=413 字；宽340行数≈23。
+ * 480 高让中位卡基本读完整（更长卡走卡内滚动），比旧 260×220 大幅改善。 */
+const UNDERSTANDING_CARD_WIDTH = 340;
+const UNDERSTANDING_CARD_HEIGHT = 480;
+
 /** 全角字符（中文/全宽标点等）按 1 个字宽，其余按 0.5。 */
 const FULL_WIDTH_RE =
   /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6\u3000-\u303f]/;
@@ -139,10 +144,15 @@ const elementFrom = (
     parentId,
     x: 0,
     y: 0,
-    width: element.kind === "understanding" ? 260 : element.kind === "canvas_ref" ? 240 : 220,
+    width:
+      element.kind === "understanding"
+        ? UNDERSTANDING_CARD_WIDTH
+        : element.kind === "canvas_ref"
+          ? 240
+          : 220,
     height:
       element.kind === "understanding"
-        ? 220
+        ? UNDERSTANDING_CARD_HEIGHT
         : element.kind === "canvas_ref"
           ? 160
           : element.kind === "text"
@@ -191,7 +201,7 @@ const layoutDocument = Effect.fn("layoutDocument")(function* (
           ? {
               layoutOptions: {
                 "elk.spacing.nodeNode": "60",
-                "elk.layered.spacing.nodeNodeBetweenLayers": "100",
+                "elk.layered.spacing.nodeNodeBetweenLayers": "180",
               },
             }
           : {}),
@@ -220,7 +230,7 @@ const layoutDocument = Effect.fn("layoutDocument")(function* (
           "elk.direction": direction === "vertical" ? "DOWN" : "RIGHT",
           "elk.hierarchyHandling": "INCLUDE_CHILDREN",
           "elk.spacing.nodeNode": "60",
-          "elk.layered.spacing.nodeNodeBetweenLayers": "100",
+          "elk.layered.spacing.nodeNodeBetweenLayers": "180",
         },
       }),
     catch: (cause) =>

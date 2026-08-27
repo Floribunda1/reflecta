@@ -62,7 +62,7 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
  * 注意 height 必须显式给：X6 的 breakText 用 floor(height/lineHeight) 算最大行数，
  * 不给时量化到的 bbox 高是 0 → 0 行 → 整个标签被清空（文字消失）。
  */
-const EDGE_LABEL_MAX_WIDTH = 100; // 与布局层间距（100）对齐：常见短标签单行，长标签折行后仍进得进缝
+const EDGE_LABEL_MAX_WIDTH = 140; // 与布局层间距（180）配合：常见短标签单行，长标签折行后仍进得进缝，且 pill 窄于层距 → 两侧露线
 // ponytail: 上限 62 行（≈558 个全角字符）远超连线标签现实长度（编辑框单行 160px）；
 // 若未来支持超长多行编辑，把高度改成按文本估算的行数×行高。
 function edgeLabelItems(label: string | null, color: string) {
