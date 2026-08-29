@@ -48,4 +48,16 @@ describe("canvas_present", () => {
     });
     expect(result.details.document).toMatchObject({ elements: expect.any(Array) });
   });
+
+  test("invalid structure fails with a short user-facing error", async () => {
+    await expect(
+      canvasPresent.execute("tc3", {
+        title: "坏结构",
+        changes: [
+          { op: "add_element", ref: "a", element: { kind: "text", text: "A" } },
+          { op: "add_edge", ref: "e", sourceRef: "a", targetRef: "missing" },
+        ],
+      }),
+    ).rejects.toThrow("画布视图生成失败");
+  });
 });

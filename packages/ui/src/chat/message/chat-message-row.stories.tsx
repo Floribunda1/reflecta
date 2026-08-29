@@ -129,7 +129,7 @@ const deliverableFailedRow: ChatMessageRowView = {
         title: "",
         document: { elements: [], edges: [] },
         status: "failed",
-        error: "画布视图生成失败：模型输出不完整。",
+        error: "Unknown edge ref: standing",
       },
     ],
   },
@@ -270,7 +270,7 @@ function MessageShowcase() {
       </StoryCase>
       <StoryCase
         title="交付块占位与失败"
-        description="image / canvas-view 生成中由块自身承载占位（不再有工具行），失败时内联错误文案。"
+        description="image / canvas-view 生成中由块自身承载占位（不再有工具行）；画布失败只显示一句短提示，不展开原始错误。"
       >
         <div className="grid gap-6">
           <ChatMessageRow row={deliverableStreamingRow} />

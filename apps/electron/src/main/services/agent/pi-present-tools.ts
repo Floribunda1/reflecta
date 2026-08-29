@@ -54,20 +54,25 @@ export function createPiPresentTools() {
           layout?: "auto" | "horizontal" | "vertical";
           changes: Parameters<typeof normalizeCanvasChanges>[0]["changes"];
         };
-        const normalized = await Effect.runPromise(
-          normalizeCanvasChanges({ changes: record.changes, layout: record.layout ?? "auto" }),
-        );
-        const document = normalized.document as CanvasDocument;
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify(document, null, 2) }],
-          details: {
-            kind: "canvas-view",
-            version: 1,
-            title: record.title,
-            ...(record.caption ? { caption: record.caption } : {}),
-            document,
-          },
-        };
+        try {
+          const normalized = await Effect.runPromise(
+            normalizeCanvasChanges({ changes: record.changes, layout: record.layout ?? "auto" }),
+          );
+          const document = normalized.document as CanvasDocument;
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(document, null, 2) }],
+            details: {
+              kind: "canvas-view",
+              version: 1,
+              title: record.title,
+              ...(record.caption ? { caption: record.caption } : {}),
+              document,
+            },
+          };
+        } catch {
+          // 结构校验失败时不要把 changes JSON / 超长 ref 抛给对话：用户只需要一句失败。
+          throw new Error("画布视图生成失败");
+        }
       },
     }),
   ];

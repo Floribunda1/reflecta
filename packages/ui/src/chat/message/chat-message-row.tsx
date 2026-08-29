@@ -411,9 +411,10 @@ function AgentMessageContent({
         renderedBlocks.push(
           <div
             key={block.id}
+            data-testid="agent-canvas-view-error"
             className="max-w-full rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
           >
-            {block.error || "画布视图生成失败"}
+            画布视图生成失败
           </div>,
         );
       } else {

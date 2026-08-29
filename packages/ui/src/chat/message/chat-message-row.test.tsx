@@ -214,6 +214,31 @@ describe("ChatMessageRow", () => {
     expect(next.querySelector('[data-testid="canvas-view-skeleton"]')).not.toBeNull();
   });
 
+  test("canvas-view failure shows a short message instead of the raw dump", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-canvas-failed",
+        status: "done",
+        blocks: [
+          {
+            kind: "canvas-view",
+            id: "tool-canvas:canvas-view",
+            title: "",
+            document: { elements: [], edges: [] },
+            status: "failed",
+            error:
+              'Unknown edge ref: standing", "understandingId": "2RhptYHCUzRK8N6VyRep"}, {"op": "add_element"',
+          },
+        ],
+      },
+    });
+    const box = next.querySelector('[data-testid="agent-canvas-view-error"]');
+    expect(box?.textContent?.trim()).toBe("画布视图生成失败");
+    expect(box?.textContent).not.toContain("understandingId");
+    expect(box?.textContent).not.toContain("add_element");
+  });
+
   test("emits message actions without performing workflow side effects", () => {
     const onAction = vi.fn();
     const row: ChatMessageRowView = {
