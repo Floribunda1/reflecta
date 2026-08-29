@@ -96,15 +96,14 @@ describe("applyWheelToInnerScroll", () => {
     expect(scroller.scrollTop).toBe(34);
   });
 
-  test("已经滚到尽头：不再消费，让画布平移", () => {
-    const { body, scroller } = mountCard({
+  test("已经滚到尽头：仍然消费，不让画布平移", () => {
+    const { body } = mountCard({
       selected: true,
       scrollTop: 320,
       clientHeight: 80,
       scrollHeight: 400,
     });
-    expect(applyWheelToInnerScroll({ target: body }, 0, 40)).toBe(false);
-    expect(scroller.scrollTop).toBe(320);
+    expect(applyWheelToInnerScroll({ target: body }, 0, 40)).toBe(true);
   });
 
   test("Cmd/Ctrl+滚轮留给画布缩放，不滚卡片", () => {
