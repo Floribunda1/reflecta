@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.5 - 2026-08-29
+
+- Chat tool failures now render as a shared full-width alert (title `调用{tool}失败` + one-line ellipsized reason) instead of a black-box error dump; the reason expands on click and the chevron lives in the alert's top-right action slot. Image generation uses the same surface. Canvas view failures in particular show one line of user-facing copy, and the tool now throws that short error so stored history and the model never receive the raw changes JSON.
+- Restructured the agent system prompt into a layered **Socratic Coach** model: a working model (Understanding/Canvas are records of the user's current mental state, not claims about the world), the role of AI (bring in information outside the user's bubble, without confirming or replacing his judgment), adaptation to user intent (faithful reproduction when the user wants to view/reprint, active coaching when he is thinking), a definition of success, and explicit failure modes (no inventing conclusions or relationships to make notes look complete, no reflex contrarianism). The canvas skill notes that AI-guessed roots/hierarchies/relations are candidates that must not be hidden inside a seemingly definitive diagram; the understanding skill stops treating "already recorded" as a reason to skip interventions that could genuinely advance understanding.
+
 ## 2.0.4 - 2026-08-29
 
 - Retuned the agent toward a **cognitive coaching** stance: canvas edges and understanding cards are records of the user's current mental model, not authoritative claims — the agent first enters the user's logic and intervenes to move understanding forward (questions, comparisons, counterexamples, candidate models) instead of confirming or substituting the user's judgment. Clarified the epistemic role of AI in the product docs to match.
