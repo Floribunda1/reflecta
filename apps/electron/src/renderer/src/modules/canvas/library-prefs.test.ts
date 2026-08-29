@@ -2,15 +2,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { Atom } from "effect/unstable/reactivity";
 import { runAtom } from "@renderer/lib/atoms";
-import {
-  DEFAULT_CANVAS_RIGHT_PANEL_SIZE,
-  initialLibraryFilters,
-  libraryFiltersAtom,
-  normalizeCanvasRightPanelSize,
-  patchLibraryFilters,
-  persistCanvasRightPanelSize,
-  canvasRightPanelSizeAtom,
-} from "./library-prefs";
+import { initialLibraryFilters, libraryFiltersAtom, patchLibraryFilters } from "./library-prefs";
 
 describe("library filters", () => {
   beforeEach(() => {
@@ -42,29 +34,5 @@ describe("library filters", () => {
     expect(saved.searchQuery).toBe("联调");
     expect(saved.includeDescendants).toBe(false);
     expect(saved.sortBy).toBe("createdAt");
-  });
-});
-
-describe("normalizeCanvasRightPanelSize", () => {
-  test("夹在 24%–80%，非法值回落到默认", () => {
-    expect(normalizeCanvasRightPanelSize("40%")).toBe("40%");
-    expect(normalizeCanvasRightPanelSize("10%")).toBe("24%");
-    expect(normalizeCanvasRightPanelSize("99%")).toBe("80%");
-    expect(normalizeCanvasRightPanelSize("not-a-size")).toBe(DEFAULT_CANVAS_RIGHT_PANEL_SIZE);
-  });
-});
-
-describe("persistCanvasRightPanelSize", () => {
-  beforeEach(() => {
-    globalThis.localStorage?.clear();
-    runAtom(Atom.set(canvasRightPanelSizeAtom, DEFAULT_CANVAS_RIGHT_PANEL_SIZE));
-  });
-
-  test("记住展开宽度，再次写入相同值不换引用", () => {
-    persistCanvasRightPanelSize(41.6);
-    const stored = runAtom(Atom.get(canvasRightPanelSizeAtom));
-    expect(stored).toBe("42%");
-    persistCanvasRightPanelSize(42);
-    expect(runAtom(Atom.get(canvasRightPanelSizeAtom))).toBe(stored);
   });
 });
