@@ -214,7 +214,7 @@ describe("ChatMessageRow", () => {
     expect(next.querySelector('[data-testid="canvas-view-skeleton"]')).not.toBeNull();
   });
 
-  test("canvas-view failure shows a short message instead of the raw dump", () => {
+  test("canvas-view failure shows the tool name and truncated reason", () => {
     const next = render({
       message: {
         kind: "assistant",
@@ -234,9 +234,9 @@ describe("ChatMessageRow", () => {
       },
     });
     const box = next.querySelector('[data-testid="agent-canvas-view-error"]');
-    expect(box?.textContent?.trim()).toBe("画布视图生成失败");
-    expect(box?.textContent).not.toContain("understandingId");
-    expect(box?.textContent).not.toContain("add_element");
+    expect(box?.textContent).toContain("调用展示画布视图失败");
+    expect(box?.textContent).toContain("Unknown edge ref: standing");
+    expect(box?.querySelector("span")?.className).toContain("truncate");
   });
 
   test("emits message actions without performing workflow side effects", () => {

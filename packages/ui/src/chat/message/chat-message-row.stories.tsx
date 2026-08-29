@@ -270,7 +270,7 @@ function MessageShowcase() {
       </StoryCase>
       <StoryCase
         title="交付块占位与失败"
-        description="image / canvas-view 生成中由块自身承载占位（不再有工具行）；画布失败只显示一句短提示，不展开原始错误。"
+        description="image / canvas-view 生成中由块自身承载占位（不再有工具行）；失败用整行「调用工具失败 + 原因省略」。"
       >
         <div className="grid gap-6">
           <ChatMessageRow row={deliverableStreamingRow} />

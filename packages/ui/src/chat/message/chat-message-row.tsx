@@ -1,6 +1,7 @@
 import mediumZoom, { type Zoom } from "medium-zoom";
 import { type ComponentProps, type ReactNode, useEffect, useRef } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
+import { PI_TOOL_LABELS } from "@reflecta/shared";
 import { Button } from "../../components/button";
 import {
   Attachment,
@@ -27,6 +28,7 @@ import {
   AgentPendingBlock,
   AgentStoppedStatus,
 } from "../execution/agent-execution-block";
+import { AgentToolFailure } from "../execution/agent-tool-failure";
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { AgentCanvasView } from "./agent-canvas-view";
 import { AgentProposalCard } from "../proposal/agent-proposal-card";
@@ -374,12 +376,12 @@ function AgentMessageContent({
     if (block.kind === "image") {
       if (block.status === "failed") {
         renderedBlocks.push(
-          <div
+          <AgentToolFailure
             key={block.id}
-            className="max-w-full rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-          >
-            {block.error || "图片生成失败"}
-          </div>,
+            toolLabel={PI_TOOL_LABELS.image_generate}
+            reason={block.error}
+            testId="agent-image-error"
+          />,
         );
       } else if (block.status === "streaming") {
         renderedBlocks.push(
@@ -409,13 +411,12 @@ function AgentMessageContent({
     if (block.kind === "canvas-view") {
       if (block.status === "failed") {
         renderedBlocks.push(
-          <div
+          <AgentToolFailure
             key={block.id}
-            data-testid="agent-canvas-view-error"
-            className="max-w-full rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-          >
-            画布视图生成失败
-          </div>,
+            toolLabel={PI_TOOL_LABELS.canvas_present}
+            reason={block.error}
+            testId="agent-canvas-view-error"
+          />,
         );
       } else {
         renderedBlocks.push(

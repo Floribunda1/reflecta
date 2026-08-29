@@ -69,9 +69,11 @@ export function createPiPresentTools() {
               document,
             },
           };
-        } catch {
-          // 结构校验失败时不要把 changes JSON / 超长 ref 抛给对话：用户只需要一句失败。
-          throw new Error("画布视图生成失败");
+        } catch (error) {
+          // 结构校验失败时把超长 dump 收成一行，交给前端做省略展示。
+          const raw = error instanceof Error ? error.message : String(error);
+          const oneLine = raw.replace(/\s+/g, " ").trim() || "未知错误";
+          throw new Error(oneLine.length > 200 ? `${oneLine.slice(0, 200)}…` : oneLine);
         }
       },
     }),

@@ -49,7 +49,7 @@ describe("canvas_present", () => {
     expect(result.details.document).toMatchObject({ elements: expect.any(Array) });
   });
 
-  test("invalid structure fails with a short user-facing error", async () => {
+  test("invalid structure fails with a one-line reason, not a changes dump", async () => {
     await expect(
       canvasPresent.execute("tc3", {
         title: "坏结构",
@@ -58,6 +58,6 @@ describe("canvas_present", () => {
           { op: "add_edge", ref: "e", sourceRef: "a", targetRef: "missing" },
         ],
       }),
-    ).rejects.toThrow("画布视图生成失败");
+    ).rejects.toThrow(/Unknown edge ref: missing/);
   });
 });

@@ -7,6 +7,7 @@ import {
   AgentFailureStatus,
   AgentStoppedStatus,
 } from "./agent-execution-block";
+import { AgentToolFailure } from "./agent-tool-failure";
 import { AgentWorkingIndicator } from "./agent-working-indicator";
 import type {
   AgentContextCompactionView,
@@ -214,6 +215,11 @@ export function Overview() {
             error="知识库写入冲突：目标 Understanding 已被其他会话修改。"
             onRetry={() => undefined}
           />
+          <AgentToolFailure
+            toolLabel="展示画布视图"
+            reason='Unknown edge ref: standing", "understandingId": "2RhptYHCUzRK8N6VyRep"}, {"op": "add_element"'
+          />
+          <AgentToolFailure toolLabel="生成图片" reason="图片生成服务超时，请重试。" />
         </div>
       </StoryCase>
 

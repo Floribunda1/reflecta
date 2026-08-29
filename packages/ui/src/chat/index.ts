@@ -29,6 +29,7 @@ export {
   AgentStoppedStatus,
   type AgentExecutionBlockProps,
 } from "./execution/agent-execution-block";
+export { AgentToolFailure, type AgentToolFailureProps } from "./execution/agent-tool-failure";
 export type {
   AgentActivityBlockView,
   AgentContextCompactionView,
