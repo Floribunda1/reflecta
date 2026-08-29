@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.4 - 2026-08-29
+
+- Retuned the agent toward a **cognitive coaching** stance: canvas edges and understanding cards are records of the user's current mental model, not authoritative claims — the agent first enters the user's logic and intervenes to move understanding forward (questions, comparisons, counterexamples, candidate models) instead of confirming or substituting the user's judgment. Clarified the epistemic role of AI in the product docs to match.
+- Canvas library panel: search / domain / sort filters now survive collapse (keepAlive), the right panel remembers its width across expand/collapse, and hovering an understanding item opens a markdown preview on the left. Dropped the width-writeback that re-rendered the panel and blocked dragging.
+- Canvas scrolling: when the cursor is over a selected card that still has overflow in the wheel direction, the wheel scrolls the card body instead of panning the canvas — and stays consumed at scroll bounds. Empty canvas, unselected cards and Cmd/Ctrl+wheel keep existing pan/zoom behavior.
+- Chat: pinned the context inspector header (title + close/focus controls) while the markdown body scrolls.
+
 ## 2.0.3 - 2026-08-27
 
 - Kept canvas `ref` handles internal to tool calls: the agent now refers to Understanding nodes as `[[u:id]]` and to Text / Group by their on-canvas content, and never exposes local refs, edge refs, database ids or id abbreviations in user-facing replies.
