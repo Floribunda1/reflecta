@@ -88,8 +88,8 @@ export function ContextPreviewDrawerContent({
 
   if (inspectorMode) {
     return (
-      <article className="mx-auto h-full overflow-y-auto px-6 py-3">
-        <header className="space-y-4">
+      <article className="mx-auto flex h-full min-h-0 flex-col overflow-hidden">
+        <header className="shrink-0 space-y-4 px-6 pt-3">
           <div
             className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}
           >
@@ -132,7 +132,7 @@ export function ContextPreviewDrawerContent({
           <h1 className="text-2xl font-semibold">{context.title?.trim() || meta.label}</h1>
         </header>
 
-        <section className="mt-5">
+        <section className="mt-5 min-h-0 flex-1 overflow-y-auto px-6 pb-3">
           {context.content ? (
             <MarkdownPreview value={context.content} />
           ) : (
