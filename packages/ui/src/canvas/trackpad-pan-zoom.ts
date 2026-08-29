@@ -5,6 +5,7 @@ import { WheelGestures, type WheelEventState } from "wheel-gestures";
  * Figma 惯例的触控板/滚轮交互：
  *   双指滚动 / 滚轮     → 平移
  *   捏合 / Cmd(⌘)+滚动  → 缩放（光标处为锚点）
+ *   光标在已选中卡片内且卡片还能沿该方向滚 → 滚卡片 overflow，不平移画布
  * 内部用 wheel-gestures 归一化 deltaMode（像素/行/页），并接管 wheel 事件，
  * 关掉 X6 内置 mousewheel（它把一切 wheel 当缩放，正是触控板卡顿/异常的来源）。
  *
@@ -23,6 +24,50 @@ export function zoomFactorFor(deltaY: number): number {
 /** 平移增量：视口随 delta 方向移动（滚动下 → 视口下移 → 内容上移 → translate 减小）。 */
 export function panDelta(dx: number, dy: number): { tx: number; ty: number } {
   return { tx: -dx || 0, ty: -dy || 0 };
+}
+
+const SELECTED_CARD = "[data-canvas-selected='true']";
+const INNER_SCROLL = ".nowheel";
+
+/** 已选中卡片内、还能沿 (dx, dy) 方向滚的 overflow 容器；找不到则画布应接管滚轮。 */
+function selectedCardScrollTarget(
+  target: EventTarget | null,
+  dx: number,
+  dy: number,
+): HTMLElement | null {
+  if (!(target instanceof Element)) return null;
+  const card = target.closest(SELECTED_CARD);
+  if (!(card instanceof HTMLElement)) return null;
+  const scroller = card.querySelector<HTMLElement>(INNER_SCROLL);
+  if (!scroller) return null;
+  return canScrollAlongDelta(scroller, dx, dy) ? scroller : null;
+}
+
+/** 把滚轮交给已选中卡片的 overflow 区。消费了则返回 true，调用方不应再平移画布。 */
+export function applyWheelToInnerScroll(
+  event: { target?: EventTarget | null; ctrlKey?: boolean; metaKey?: boolean },
+  dx: number,
+  dy: number,
+): boolean {
+  if (event.ctrlKey || event.metaKey) return false;
+  const scroller = selectedCardScrollTarget(event.target ?? null, dx, dy);
+  if (!scroller) return false;
+  scroller.scrollTop += dy;
+  scroller.scrollLeft += dx;
+  return true;
+}
+
+function canScrollAlongDelta(el: HTMLElement, dx: number, dy: number): boolean {
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+  if (absY >= absX) {
+    if (dy > 0) return el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    if (dy < 0) return el.scrollTop > 0;
+    return false;
+  }
+  if (dx > 0) return el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+  if (dx < 0) return el.scrollLeft > 0;
+  return false;
 }
 
 type TrackpadPanZoomLike = {
@@ -48,6 +93,7 @@ export function trackpadPanZoomPlugin(): TrackpadPanZoomLike {
       unobserve = wg.observe(graph.container);
       off = wg.on("wheel", (s) => {
         const [dx, dy] = s.axisDelta; // wheel-gestures 已归一化 deltaMode
+        if (applyWheelToInnerScroll(s.event, dx, dy)) return;
         if (s.event.ctrlKey || s.event.metaKey) {
           zoomAt(graph, s, dy);
         } else {

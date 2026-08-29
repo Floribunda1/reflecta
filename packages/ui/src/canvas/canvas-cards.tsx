@@ -189,6 +189,7 @@ export function CanvasUnderstandingCard({
       data-testid="canvas-understanding-card"
       data-node-id={id}
       data-understanding-id={understandingId}
+      data-canvas-selected={selected ? "true" : undefined}
       className={cn(CARD, nodeStateClass(selected, color))}
       style={nodeColorStyle(color)}
       onDoubleClick={readonly ? undefined : onOpenDetail}
@@ -287,6 +288,7 @@ export function CanvasTextCard({
       data-testid="canvas-text-card"
       data-node-id={id}
       data-editing={String(editing)}
+      data-canvas-selected={selected || editing ? "true" : undefined}
       className={cn(CARD, nodeStateClass(selected || editing, color))}
       style={nodeColorStyle(color)}
       onDoubleClick={readonly ? undefined : startEditing}
