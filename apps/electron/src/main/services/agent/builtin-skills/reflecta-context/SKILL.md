@@ -7,6 +7,8 @@ description: 负责 Reflecta 中 Context 的识别、起草和修改。当用户
 
 Context 是围绕某个 Understanding 的具象上下文，说明它如何形成、支撑、应用、挑战或修正。
 
+Context 是理解的上下文，不自动等于证明。一次经历、一本书或一段 AI 对话可以促成、支撑或挑战 Understanding，但不能仅因被记录为 Context，就证明该 Understanding 普遍正确。
+
 ## Context 写什么
 
 - Context 承载某个 Understanding 的具体来源和场景。
