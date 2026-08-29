@@ -36,6 +36,7 @@ describe("AgentToolFailure", () => {
     expect(box?.textContent).toContain("调用展示画布视图失败");
     expect(box?.textContent).toContain("Unknown edge ref: standing");
     expect(box?.querySelector("span")?.className).toContain("truncate");
+    expect(box?.querySelector('[data-slot="agent-tool-failure-chevron"]')).not.toBeNull();
   });
 
   test("expands the reason on click", () => {
@@ -44,10 +45,16 @@ describe("AgentToolFailure", () => {
         <AgentToolFailure toolLabel="展示画布视图" reason={"Unknown edge ref: standing"} />,
       ),
     );
-    const button = container.querySelector("button");
+    const button = container.querySelector<HTMLButtonElement>('button[aria-label="展开失败原因"]');
+    expect(button).not.toBeNull();
     expect(button?.getAttribute("aria-expanded")).toBe("false");
     act(() => button?.click());
-    expect(button?.getAttribute("aria-expanded")).toBe("true");
-    expect(button?.querySelector("span")?.className).toContain("whitespace-pre-wrap");
+    expect(container.querySelector('button[aria-label="收起失败原因"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="alert-description"] span')?.className).toContain(
+      "whitespace-pre-wrap",
+    );
+    expect(
+      container.querySelector('[data-slot="agent-tool-failure-chevron"]')?.className,
+    ).toContain("rotate-180");
   });
 });
