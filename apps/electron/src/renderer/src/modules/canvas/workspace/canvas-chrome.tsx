@@ -24,6 +24,11 @@ import {
   dispatchCanvasAction,
   getCanvasSessionState,
 } from "../store";
+import {
+  canvasRightPanelSizeAtom,
+  normalizeCanvasRightPanelSize,
+  persistCanvasRightPanelSize,
+} from "../library-prefs";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { buildCanvasSearchIndex } from "./canvas-workspace-model";
@@ -139,6 +144,7 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
 }) {
   const rightPanel = useAtomValue(canvasPanelAtom);
   const agentDock = useAtomValue(agentDockAtom);
+  const rightPanelSize = useAtomValue(canvasRightPanelSizeAtom);
   if (!rightPanel && !agentDock.open) return null;
   return (
     <>
@@ -151,8 +157,12 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
         id="canvas-right"
         minSize="24%"
         maxSize="80%"
-        defaultSize={60}
+        defaultSize={normalizeCanvasRightPanelSize(rightPanelSize)}
         className="min-h-0 min-w-0"
+        onResize={(size, _id, previous) => {
+          if (!previous) return;
+          persistCanvasRightPanelSize(size.asPercentage);
+        }}
       >
         {agentDock.open ? (
           <ContextualAgentDock

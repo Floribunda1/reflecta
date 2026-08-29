@@ -1,11 +1,8 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import {
-  CanvasLibraryPanel as CanvasLibraryPanelView,
-  type CanvasLibrarySortBy,
-  type CanvasLibraryTab,
-} from "@reflecta/ui/canvas";
+import { useAtomValue } from "@effect/atom-react";
+import { CanvasLibraryPanel as CanvasLibraryPanelView } from "@reflecta/ui/canvas";
 import {
   useCaptureDomains,
   useCaptureUnderstandingList,
@@ -13,6 +10,8 @@ import {
 } from "../../capture/queries";
 import { useCanvasList } from "../queries";
 import { sortUnderstandingSummaries } from "../../capture/dashboard/sort";
+import { SimpleMarkdownPreview } from "../../capture/resolved-markdown";
+import { libraryFiltersAtom, patchLibraryFilters } from "../library-prefs";
 
 /**
  * 库面板 Adapter（M5）：领域过滤 / 搜索 / 排序走 Capture query；展示由 UI 面板承担。
@@ -38,11 +37,8 @@ export function CanvasLibraryPanel({
 }) {
   const { domains, loading: domainsLoading } = useCaptureDomains();
   const { data: canvases, isLoading: canvasesLoading } = useCanvasList();
-  const [tab, setTab] = useState<CanvasLibraryTab>("understandings");
-  const [selectedDomainId, setSelectedDomainId] = useState("all");
-  const [includeDescendants, setIncludeDescendants] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<CanvasLibrarySortBy>("updatedAt");
+  const { tab, selectedDomainId, includeDescendants, searchQuery, sortBy } =
+    useAtomValue(libraryFiltersAtom);
 
   const deferredSearch = useDeferredValue(searchQuery);
   const filterKey: UnderstandingListFilterKey = {
@@ -60,6 +56,7 @@ export function CanvasLibraryPanel({
       sorted.map((understanding) => ({
         id: understanding.id,
         title: understanding.title ?? "未命名理解",
+        body: understanding.body,
         meta: `更新于 ${formatDistanceToNow(new Date(understanding.updatedAt), {
           addSuffix: true,
           locale: zhCN,
@@ -88,11 +85,12 @@ export function CanvasLibraryPanel({
       selectedDomainId={selectedDomainId}
       includeDescendants={includeDescendants}
       sortBy={sortBy}
-      onTabChange={setTab}
-      onSearchQueryChange={setSearchQuery}
-      onSelectedDomainIdChange={setSelectedDomainId}
-      onIncludeDescendantsChange={setIncludeDescendants}
-      onSortByChange={setSortBy}
+      renderMarkdown={SimpleMarkdownPreview}
+      onTabChange={(next) => patchLibraryFilters({ tab: next })}
+      onSearchQueryChange={(query) => patchLibraryFilters({ searchQuery: query })}
+      onSelectedDomainIdChange={(domainId) => patchLibraryFilters({ selectedDomainId: domainId })}
+      onIncludeDescendantsChange={(include) => patchLibraryFilters({ includeDescendants: include })}
+      onSortByChange={(next) => patchLibraryFilters({ sortBy: next })}
       onClose={onClose}
       onStartDragUnderstanding={onStartDragUnderstanding}
       onPickUnderstanding={onPickUnderstanding}

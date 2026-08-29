@@ -633,12 +633,21 @@ export const typicalLibraryDomains: DomainTreeNodeView[] = [
 ];
 
 export const typicalLibraryItems: CanvasLibraryItemView[] = [
-  { id: "u-irrigation", title: "低温环境下的分区灌溉策略" },
-  { id: "u-night-shift", title: "夜班联调记录" },
-  { id: "u-sensors", title: "传感器漂移复核" },
-  { id: "u-unnamed", title: "未命名理解" },
+  {
+    id: "u-irrigation",
+    title: "低温环境下的分区灌溉策略",
+    body: "主管压力异常时先核对分区阀，再决定是否打开应急通道。\n\n- 夜班窗口\n- 下一观察窗",
+  },
+  {
+    id: "u-night-shift",
+    title: "夜班联调记录",
+    body: "回水温度连续 3 个窗口低于阈值。",
+  },
+  { id: "u-sensors", title: "传感器漂移复核", body: "" },
+  { id: "u-unnamed", title: "未命名理解", body: "还没写下正文。" },
   {
     id: "u-long",
     title: "这是一个非常长的理解标题，用来观察库列表面定宽度下的单行截断",
+    body: "用来观察悬停预览里的长正文是否可以滚动。\n\n".repeat(8),
   },
 ];

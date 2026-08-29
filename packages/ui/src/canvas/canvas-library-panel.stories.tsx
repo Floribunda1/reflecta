@@ -81,11 +81,11 @@ function CanvasLibraryShowcase() {
   return (
     <StoryShowcase
       title="Canvas Library"
-      description="验收理解库的搜索、领域缩进、排序、加载/空状态、长标题截断和列表滚动。过滤在页面内可直接操作。"
+      description="验收理解库的搜索、领域缩进、排序、加载/空状态、长标题截断、列表滚动，以及条目悬停时在左侧弹出的 Markdown 预览。过滤在页面内可直接操作。"
     >
       <StoryCase
         title="典型列表"
-        description="顶部 Tab 切换理解 / 画布；搜索即时过滤标题；领域选择展示层级缩进；条目可点选。"
+        description="顶部 Tab 切换理解 / 画布；搜索即时过滤标题；领域选择展示层级缩进；条目可点选。悬停理解条目，左侧弹出正文预览。"
       >
         <LibraryDemo />
       </StoryCase>

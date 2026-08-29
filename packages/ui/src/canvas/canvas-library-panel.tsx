@@ -2,8 +2,11 @@ import { ArrowUpDown, FileText, GitBranch, LayoutGrid, Search, X } from "lucide-
 import { useRef } from "react";
 import { Button } from "../components/button";
 import { Empty, EmptyDescription } from "../components/empty";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "../components/hover-card";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../components/input-group";
 import { ScrollArea } from "../components/scroll-area";
+import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
+import type { MarkdownRenderer } from "../chat/entity";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +24,8 @@ export type CanvasLibraryItemView = {
   id: string;
   title: string;
   meta?: string;
+  /** 理解正文：有值时悬停在条目左侧弹出 Markdown 预览 */
+  body?: string;
 };
 
 export type CanvasLibrarySortBy = "updatedAt" | "createdAt";
@@ -57,24 +62,29 @@ export type CanvasLibraryPanelProps = {
     event: React.MouseEvent | React.PointerEvent,
   ) => void;
   onPickCanvas: (id: string, title: string) => void;
+  renderMarkdown?: MarkdownRenderer;
 };
 
 function LibraryRow({
   id,
   title,
   meta,
+  body,
   icon,
   testId,
   itemAttrs,
+  renderMarkdown,
   onStartDrag,
   onPick,
 }: {
   id: string;
   title: string;
   meta?: string;
+  body?: string;
   icon: React.ReactNode;
   testId: string;
   itemAttrs: Record<string, string>;
+  renderMarkdown?: MarkdownRenderer;
   onStartDrag: (id: string, title: string, event: React.MouseEvent | React.PointerEvent) => void;
   onPick: (id: string, title: string) => void;
 }) {
@@ -84,15 +94,15 @@ function LibraryRow({
     event: React.MouseEvent;
   } | null>(null);
   const dragStartedRef = useRef(false);
-  return (
+  const RenderMarkdown = renderMarkdown ?? SimpleMarkdownPreview;
+  const row = (
     <button
-      key={id}
       type="button"
       data-testid={testId}
       {...itemAttrs}
-      title={title}
+      title={body == null ? title : undefined}
       aria-label={`添加「${title}」到画布`}
-      className="flex min-h-9 cursor-grab items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
+      className="flex min-h-9 w-full cursor-grab items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
       onMouseDown={(event) => {
         // 延迟启动拖拽：位移超阈值才开始 dnd.start，纯点击不触发（click 事件不被 X6
         // 的 preventDefault 吞掉，onClick 正常走 onPick）。真拖拽时 mouseup 落在画布上。
@@ -124,6 +134,30 @@ function LibraryRow({
       </span>
     </button>
   );
+
+  if (body == null) return row;
+
+  return (
+    <HoverCard>
+      <HoverCardTrigger render={row} />
+      <HoverCardContent
+        side="left"
+        align="start"
+        sideOffset={8}
+        className="w-80 max-h-80 overflow-y-auto p-3"
+        data-testid="canvas-library-item-preview"
+      >
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-popover-foreground">{title}</div>
+          {body.trim() ? (
+            <RenderMarkdown value={body} />
+          ) : (
+            <p className="text-sm text-muted-foreground">空正文。</p>
+          )}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 /**
@@ -152,6 +186,7 @@ export function CanvasLibraryPanel({
   onPickUnderstanding,
   onStartDragCanvas,
   onPickCanvas,
+  renderMarkdown,
 }: CanvasLibraryPanelProps) {
   return (
     <aside
@@ -288,12 +323,14 @@ export function CanvasLibraryPanel({
                     id={understanding.id}
                     title={understanding.title}
                     meta={understanding.meta}
+                    body={understanding.body}
                     icon={<FileText size={13} />}
                     testId="canvas-library-item"
                     itemAttrs={{
                       "data-understanding-id": understanding.id,
                       "data-understanding-title": understanding.title,
                     }}
+                    renderMarkdown={renderMarkdown}
                     onStartDrag={onStartDragUnderstanding}
                     onPick={onPickUnderstanding}
                   />
