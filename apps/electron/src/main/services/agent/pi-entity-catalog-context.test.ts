@@ -77,6 +77,19 @@ describe("projectEntityCatalogMessages", () => {
     expect(textFrom(projectEntityCatalogMessages(messages, [])[0]!)).toBe(content);
   });
 
+  test("strips canvas runtime catalog records so they can be replaced", () => {
+    const canvasCatalog = `
+
+<reflecta_entities source="reflecta-runtime" version="1">
+{"type":"canvas","id":"cv_1","citation":"[[cv:cv_1]]","title":"迭代循环"}
+</reflecta_entities>`;
+    const messages: ContextEvent["messages"] = [
+      { role: "user", content: `first${canvasCatalog}`, timestamp: 1 },
+    ];
+
+    expect(textFrom(projectEntityCatalogMessages(messages, [])[0]!)).toBe("first");
+  });
+
   test("appends the latest catalog after a tool result", () => {
     const messages: ContextEvent["messages"] = [
       {

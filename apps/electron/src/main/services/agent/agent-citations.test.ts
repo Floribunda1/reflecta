@@ -27,6 +27,25 @@ describe("formatEntityRecordsForPrompt", () => {
     );
   });
 
+  test("formats canvas with the cv citation prefix, not domain d", () => {
+    const prompt = formatEntityRecordsForPrompt([
+      {
+        key: "canvas:oJ9AeVdPLqtJPNs17QdHF",
+        entity: {
+          type: "canvas",
+          id: "oJ9AeVdPLqtJPNs17QdHF",
+          title: "迭代循环：三段式、目标三分、BML Loop",
+        },
+        origin: { kind: "user_context", messageId: "msg_1" },
+      },
+    ]);
+
+    expect(prompt).toContain(
+      '{"type":"canvas","id":"oJ9AeVdPLqtJPNs17QdHF","citation":"[[cv:oJ9AeVdPLqtJPNs17QdHF]]","title":"迭代循环：三段式、目标三分、BML Loop"}',
+    );
+    expect(prompt).not.toContain("[[d:oJ9AeVdPLqtJPNs17QdHF]]");
+  });
+
   test("deduplicates an entity by type and id", () => {
     expect(
       formatEntityRecordsForPrompt([...entries, entries[0]!]).match(/\[\[u:u_1\]\]/g),

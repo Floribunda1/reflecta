@@ -1,3 +1,4 @@
+import { formatEntityReference } from "@reflecta/shared";
 import type { AgentContextRef, AgentEntityCatalogEntry } from "@shared/agent";
 
 export const RUNTIME_ENTITY_CATALOG_OPEN_TAG =
@@ -6,12 +7,6 @@ const RUNTIME_ENTITY_CATALOG_CLOSE_TAG = "</reflecta_entities>";
 
 function entityKey(entity: AgentContextRef) {
   return `${entity.type}:${entity.id}`;
-}
-
-function citationPrefix(type: AgentContextRef["type"]) {
-  if (type === "understanding") return "u";
-  if (type === "context") return "c";
-  return "d";
 }
 
 export function formatEntityRecordsForPrompt(entries: AgentEntityCatalogEntry[]): string {
@@ -25,7 +20,7 @@ export function formatEntityRecordsForPrompt(entries: AgentEntityCatalogEntry[])
       JSON.stringify({
         type: entity.type,
         id: entity.id,
-        citation: `[[${citationPrefix(entity.type)}:${entity.id}]]`,
+        citation: formatEntityReference({ type: entity.type, id: entity.id }),
         title: entity.title?.trim() || null,
       }),
     ];

@@ -479,7 +479,7 @@ function piToolOutput(toolName: string, result: unknown): unknown {
 
 function piToolError(result: unknown): string {
   if (isRecord(result)) {
-    if (typeof result.error === "string") return result.error;
+    if (typeof result.error === "string" && result.error.trim()) return result.error;
     if (Array.isArray(result.content)) {
       const text = result.content
         .map((item) => (isRecord(item) && typeof item.text === "string" ? item.text : ""))
@@ -488,7 +488,8 @@ function piToolError(result: unknown): string {
       if (text) return text;
     }
   }
-  return typeof result === "string" ? result : JSON.stringify(result);
+  if (typeof result === "string" && result.trim()) return result;
+  return "Tool execution failed";
 }
 
 function piWebAccessResultError(toolName: string, result: unknown): string | undefined {

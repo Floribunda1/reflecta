@@ -1,4 +1,9 @@
 import type { ContextEvent, InlineExtension } from "@earendil-works/pi-coding-agent";
+import {
+  formatEntityReference,
+  prefixByEntityType,
+  type EntityReferenceType,
+} from "@reflecta/shared";
 import type { AgentEntityCatalogEntry } from "@shared/agent";
 import { formatEntityRecordsForPrompt } from "./agent-citations";
 
@@ -12,18 +17,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function citationFor(type: string, id: string) {
-  const prefix = type === "understanding" ? "u" : type === "context" ? "c" : "d";
-  return `[[${prefix}:${id}]]`;
+function isEntityReferenceType(type: unknown): type is EntityReferenceType {
+  return typeof type === "string" && type in prefixByEntityType;
 }
 
 function isRuntimeEntityRecord(value: unknown): boolean {
   if (!isRecord(value)) return false;
   if (Object.keys(value).sort().join(",") !== "citation,id,title,type") return false;
   const { type, id, citation, title } = value;
-  if (type !== "understanding" && type !== "context" && type !== "domain") return false;
+  if (!isEntityReferenceType(type)) return false;
   if (typeof id !== "string" || !ENTITY_ID_PATTERN.test(id)) return false;
-  if (citation !== citationFor(type, id)) return false;
+  if (citation !== formatEntityReference({ type, id })) return false;
   return title === null || typeof title === "string";
 }
 

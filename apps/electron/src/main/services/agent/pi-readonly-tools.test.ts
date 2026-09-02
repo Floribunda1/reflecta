@@ -196,6 +196,25 @@ describe("createPiReadOnlyTools", () => {
     ]);
   });
 
+  test("understanding_get maps empty TaggedError not-found into a readable error", async () => {
+    const tagged = Object.assign(new Error(""), {
+      _tag: "UnderstandingNotFoundError",
+      id: "Yx2PVG_vN8mc_nqstViCN",
+    });
+    services.getUnderstanding.mockRejectedValue(tagged);
+    const tool = createPiReadOnlyTools().find((item) => item.name === "understanding_get");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<unknown>;
+
+    await expect(execute("tool_1", { understandingId: "Yx2PVG_vN8mc_nqstViCN" })).rejects.toThrow(
+      "Understanding not found: Yx2PVG_vN8mc_nqstViCN",
+    );
+  });
+
   test("understanding_get collects root entities without decorating model-facing content", async () => {
     services.getUnderstanding.mockResolvedValue({
       id: "u_1",

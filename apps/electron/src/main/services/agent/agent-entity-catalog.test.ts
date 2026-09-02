@@ -96,6 +96,31 @@ describe("AgentEntityCatalog", () => {
     expect(JSON.stringify(output)).not.toContain("[[");
   });
 
+  test("collects canvas entities from canvas_read without treating them as domains", () => {
+    const catalog = new AgentEntityCatalog();
+
+    catalog.collectToolOutput("canvas_read", "tool_1", {
+      canvas: { id: "cv_1", title: "迭代循环" },
+      elements: [{ id: "el_1", understandingId: "u_1" }],
+    });
+
+    expect(catalog.snapshot()).toEqual(
+      expect.arrayContaining([
+        {
+          key: "canvas:cv_1",
+          entity: { type: "canvas", id: "cv_1", title: "迭代循环" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "canvas_read" },
+        },
+        {
+          key: "understanding:u_1",
+          entity: { type: "understanding", id: "u_1" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "canvas_read" },
+        },
+      ]),
+    );
+    expect(catalog.snapshot().some((entry) => entry.key === "domain:cv_1")).toBe(false);
+  });
+
   test("collects flat retrieval candidates and suggested reads", () => {
     const catalog = new AgentEntityCatalog();
 

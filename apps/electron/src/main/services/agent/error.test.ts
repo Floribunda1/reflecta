@@ -1,7 +1,29 @@
 import { describe, expect, test } from "vitest";
-import { formatAgentError } from "./error";
+import { formatAgentError, formatTaggedDomainError } from "./error";
 
 describe("formatAgentError", () => {
+  test("maps empty-message Schema.TaggedError NotFound to an id-bearing message", () => {
+    const error = Object.assign(new Error(""), {
+      _tag: "UnderstandingNotFoundError",
+      id: "Yx2PVG_vN8mc_nqstViCN",
+    });
+    expect(error.message).toBe("");
+    expect(formatTaggedDomainError(error)).toBe("Understanding not found: Yx2PVG_vN8mc_nqstViCN");
+    expect(formatAgentError(error)).toBe("Understanding not found: Yx2PVG_vN8mc_nqstViCN");
+  });
+
+  test("maps domain and context not-found tags by their id fields", () => {
+    expect(formatAgentError({ _tag: "DomainNotFoundError", id: "domain_1" })).toBe(
+      "Domain not found: domain_1",
+    );
+    expect(
+      formatAgentError({
+        _tag: "ContextUnderstandingNotFoundError",
+        understandingId: "u_1",
+      }),
+    ).toBe("ContextUnderstanding not found: u_1");
+  });
+
   test("keeps missing config messages actionable", () => {
     expect(formatAgentError(new Error("请先在设置中配置 AI Provider"))).toBe(
       "请先在设置中配置 AI Provider",

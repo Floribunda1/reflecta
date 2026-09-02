@@ -14,6 +14,7 @@ import {
   understandingCliService,
 } from "../core";
 import { HARD_ATTACHMENT_READ_MAX_CHARS, readAttachmentForTool } from "./attachment-read";
+import { formatAgentError } from "./error";
 
 export { PI_READ_ONLY_TOOL_NAMES };
 
@@ -106,7 +107,7 @@ function withToolDiagnosticLog(tool: ToolDefinition): ToolDefinition {
           ...diagnosticErrorAttrs(error),
         }),
       });
-      throw error;
+      throw new Error(formatAgentError(error));
     }
   }) as typeof execute;
   return { ...tool, execute: wrapped };

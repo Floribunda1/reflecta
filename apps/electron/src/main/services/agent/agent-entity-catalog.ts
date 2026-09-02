@@ -4,11 +4,12 @@ type AgentEntityCatalogOrigin = AgentEntityCatalogEntry["origin"];
 type AgentEntityType = AgentContextRef["type"];
 type MutableRecord = Record<string, unknown>;
 
-const ENTITY_KEYS = new Set(["understanding", "context", "domain"]);
+const ENTITY_KEYS = new Set(["understanding", "context", "domain", "canvas"]);
 const ENTITY_ARRAY_KEYS = new Map<string, AgentEntityType>([
   ["understandings", "understanding"],
   ["contexts", "context"],
   ["domains", "domain"],
+  ["canvases", "canvas"],
   ["nodes", "understanding"],
 ]);
 const TOOL_ROOT_PARENT_KEYS = new Map<string, string>([
@@ -18,6 +19,8 @@ const TOOL_ROOT_PARENT_KEYS = new Map<string, string>([
   ["understanding_get", "understanding"],
   ["context_list", "contexts"],
   ["context_get", "context"],
+  ["canvas_list", "canvases"],
+  ["canvas_read", "canvas"],
 ]);
 const ENTITY_ID_FIELDS = new Map<string, AgentEntityType>([
   ["understandingId", "understanding"],
@@ -26,6 +29,7 @@ const ENTITY_ID_FIELDS = new Map<string, AgentEntityType>([
   ["contextId", "context"],
   ["domainId", "domain"],
   ["parentId", "domain"],
+  ["canvasId", "canvas"],
   ["seed", "understanding"],
   ["from", "understanding"],
   ["to", "understanding"],
