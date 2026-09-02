@@ -854,7 +854,7 @@ function shouldOpenByDefault(proposal: AgentProposalView) {
   return proposal.lifecycle !== "completed" && proposal.lifecycle !== "rejected";
 }
 
-/** 默认单行且与确认按钮同高；⌘/Ctrl+Enter 才插入换行，避免一上来就是一块空 textarea。 */
+/** 默认单行、与确认按钮同高，拒绝按钮垂直居中。⌘/Ctrl+Enter 才插入换行。 */
 function RejectionReasonField({
   value,
   onValueChange,
@@ -876,7 +876,7 @@ function RejectionReasonField({
   }, [value]);
 
   return (
-    <InputGroup className="w-112 max-w-full min-h-8 items-end">
+    <InputGroup className="w-112 max-w-full min-h-8">
       <InputGroupTextarea
         ref={textareaRef}
         data-testid="agent-proposal-rejection-reason"
