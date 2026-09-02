@@ -854,7 +854,7 @@ function shouldOpenByDefault(proposal: AgentProposalView) {
   return proposal.lifecycle !== "completed" && proposal.lifecycle !== "rejected";
 }
 
-/** 默认单行外观；⌘/Ctrl+Enter 才插入换行，避免一上来就是一块空 textarea。 */
+/** 默认单行且与确认按钮同高；⌘/Ctrl+Enter 才插入换行，避免一上来就是一块空 textarea。 */
 function RejectionReasonField({
   value,
   onValueChange,
@@ -876,7 +876,7 @@ function RejectionReasonField({
   }, [value]);
 
   return (
-    <InputGroup className="w-112 max-w-full items-end">
+    <InputGroup className="w-112 max-w-full min-h-8 items-end">
       <InputGroupTextarea
         ref={textareaRef}
         data-testid="agent-proposal-rejection-reason"
@@ -884,7 +884,7 @@ function RejectionReasonField({
         value={value}
         placeholder="拒绝原因…"
         aria-label="拒绝原因"
-        className="min-h-8 max-h-32 overflow-y-auto py-1"
+        className="min-h-0 max-h-32 overflow-y-auto py-1"
         onChange={(event) => onValueChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.key !== "Enter") return;
@@ -900,7 +900,7 @@ function RejectionReasonField({
           if (!event.shiftKey) event.preventDefault();
         }}
       />
-      <InputGroupAddon align="inline-end">
+      <InputGroupAddon align="inline-end" className="py-0">
         <InputGroupButton data-testid="agent-proposal-reject-button" size="xs" onClick={onReject}>
           拒绝
         </InputGroupButton>
