@@ -38,6 +38,11 @@ function render(view: AgentProposalView, onDecision = vi.fn()) {
   return { container, onDecision };
 }
 
+function typeRejectionReason(input: HTMLTextAreaElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 describe("AgentProposalCard", () => {
   test("shows decisions only for the final pending snapshot", () => {
     const rendered = render(proposal("preview"));
@@ -67,7 +72,7 @@ describe("AgentProposalCard", () => {
     const reject = rendered.container.querySelector<HTMLButtonElement>(
       '[data-testid="agent-proposal-reject-button"]',
     );
-    const input = rendered.container.querySelector<HTMLInputElement>(
+    const input = rendered.container.querySelector<HTMLTextAreaElement>(
       '[data-testid="agent-proposal-rejection-reason"]',
     );
     expect(input).not.toBeNull();
@@ -80,7 +85,7 @@ describe("AgentProposalCard", () => {
 
     act(() => {
       if (!input) return;
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
         input,
         "这个结论缺少适用边界",
       );
@@ -92,6 +97,48 @@ describe("AgentProposalCard", () => {
       proposalId: "approval-1",
       decision: "reject",
       reason: "这个结论缺少适用边界",
+    });
+  });
+
+  test("keeps rejection input single-line until cmd+enter inserts a newline", () => {
+    const rendered = render(proposal("pending"));
+    const input = rendered.container.querySelector<HTMLTextAreaElement>(
+      '[data-testid="agent-proposal-rejection-reason"]',
+    );
+    const reject = rendered.container.querySelector<HTMLButtonElement>(
+      '[data-testid="agent-proposal-reject-button"]',
+    );
+    expect(input).not.toBeNull();
+    if (!input) return;
+
+    act(() => typeRejectionReason(input, "第一行不够"));
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(input.value).toBe("第一行不够");
+
+    act(() => {
+      input.setSelectionRange(2, 2);
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(input.value).toBe("第一\n行不够");
+    expect(input.selectionStart).toBe(3);
+    expect(input.selectionEnd).toBe(3);
+
+    act(() => reject?.click());
+    expect(rendered.onDecision).toHaveBeenCalledWith({
+      proposalId: "approval-1",
+      decision: "reject",
+      reason: "第一\n行不够",
     });
   });
 

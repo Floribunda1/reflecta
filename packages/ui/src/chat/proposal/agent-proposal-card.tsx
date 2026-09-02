@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { PI_TOOL_LABELS, type PiApprovalToolName } from "@reflecta/shared";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "../../components/button";
@@ -7,7 +7,7 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupInput,
+  InputGroupTextarea,
 } from "../../components/input-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
@@ -854,6 +854,61 @@ function shouldOpenByDefault(proposal: AgentProposalView) {
   return proposal.lifecycle !== "completed" && proposal.lifecycle !== "rejected";
 }
 
+/** 默认单行、与确认按钮同高，拒绝按钮垂直居中。⌘/Ctrl+Enter 才插入换行。 */
+function RejectionReasonField({
+  value,
+  onValueChange,
+  onReject,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  onReject: () => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const caretRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    const caret = caretRef.current;
+    if (!el || caret === null) return;
+    el.setSelectionRange(caret, caret);
+    caretRef.current = null;
+  }, [value]);
+
+  return (
+    <InputGroup className="w-112 max-w-full min-h-8">
+      <InputGroupTextarea
+        ref={textareaRef}
+        data-testid="agent-proposal-rejection-reason"
+        rows={1}
+        value={value}
+        placeholder="拒绝原因…"
+        aria-label="拒绝原因"
+        className="min-h-0 max-h-32 overflow-y-auto py-1"
+        onChange={(event) => onValueChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.key !== "Enter") return;
+          if (event.metaKey || event.ctrlKey) {
+            event.preventDefault();
+            const el = event.currentTarget;
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            caretRef.current = start + 1;
+            onValueChange(`${el.value.slice(0, start)}\n${el.value.slice(end)}`);
+            return;
+          }
+          if (!event.shiftKey) event.preventDefault();
+        }}
+      />
+      <InputGroupAddon align="inline-end" className="py-0">
+        <InputGroupButton data-testid="agent-proposal-reject-button" size="xs" onClick={onReject}>
+          拒绝
+        </InputGroupButton>
+      </InputGroupAddon>
+    </InputGroup>
+  );
+}
+
 export function AgentProposalCard({
   proposal,
   onDecision,
@@ -945,36 +1000,23 @@ export function AgentProposalCard({
             ) : null}
           </div>
           {showDecision ? (
-            <div className="flex flex-wrap items-center justify-end gap-2 px-3 pb-3 pt-1">
-              <InputGroup className="w-112 max-w-full">
-                <InputGroupInput
-                  data-testid="agent-proposal-rejection-reason"
-                  value={rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value : ""}
-                  placeholder="拒绝原因…"
-                  aria-label="拒绝原因"
-                  onChange={(event) =>
-                    setRejectionDraft({
-                      proposalId: proposal.id,
-                      value: event.target.value,
-                    })
-                  }
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    data-testid="agent-proposal-reject-button"
-                    size="xs"
-                    onClick={() =>
-                      onDecision?.({
-                        proposalId: proposal.id,
-                        decision: "reject",
-                        ...(rejectionReason ? { reason: rejectionReason } : {}),
-                      })
-                    }
-                  >
-                    拒绝
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
+            <div className="flex flex-wrap items-end justify-end gap-2 px-3 pb-3 pt-1">
+              <RejectionReasonField
+                value={rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value : ""}
+                onValueChange={(next) =>
+                  setRejectionDraft({
+                    proposalId: proposal.id,
+                    value: next,
+                  })
+                }
+                onReject={() =>
+                  onDecision?.({
+                    proposalId: proposal.id,
+                    decision: "reject",
+                    ...(rejectionReason ? { reason: rejectionReason } : {}),
+                  })
+                }
+              />
               <Button
                 data-testid="agent-proposal-confirm-button"
                 type="button"
