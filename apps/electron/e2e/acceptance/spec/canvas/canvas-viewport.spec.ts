@@ -18,6 +18,14 @@ test.beforeAll(async () => {
     ],
     viewport: null,
   });
+  seedCanvas({
+    id: "cvx-other",
+    title: "OTHER",
+    elements: [
+      { id: "o_a", kind: "text", props: { text: "Other" }, x: 300, y: 200, width: 120, height: 80 },
+    ],
+    viewport: { x: 321, y: 123, zoom: 0.75 },
+  });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -115,4 +123,28 @@ test("@CV-VIEW-006 已存视口重进后保持", async () => {
   await expect
     .poll(async () => (await h.graphViewport(page!))?.zoom, { timeout: 8000 })
     .toBeCloseTo(saved!.zoom, 2);
+});
+
+test("@CV-VIEW-007 切换画布后恢复各自视口", async () => {
+  await h.openCanvasRow(page!, "VIEW");
+  const box = await graphBox();
+  await page!.mouse.move(box.x + 400, box.y + 200);
+  await page!.mouse.down({ button: "middle" });
+  await page!.mouse.move(box.x + 520, box.y + 280, { steps: 8 });
+  await page!.mouse.up({ button: "middle" });
+  await page!.getByTestId("canvas-zoom-in").click();
+  await page!.waitForTimeout(1000);
+  const viewBeforeSwitch = await h.waitViewport(page!);
+
+  await h.openCanvasRow(page!, "OTHER");
+  const other = await h.waitViewport(page!);
+  expect(other?.x).toBeCloseTo(321, 1);
+  expect(other?.y).toBeCloseTo(123, 1);
+  expect(other?.zoom).toBeCloseTo(0.75, 2);
+
+  await h.openCanvasRow(page!, "VIEW");
+  const view = await h.waitViewport(page!);
+  expect(view?.x).toBeCloseTo(viewBeforeSwitch!.x, 1);
+  expect(view?.y).toBeCloseTo(viewBeforeSwitch!.y, 1);
+  expect(view?.zoom).toBeCloseTo(viewBeforeSwitch!.zoom, 2);
 });

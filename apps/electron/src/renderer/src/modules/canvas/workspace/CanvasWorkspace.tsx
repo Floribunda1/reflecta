@@ -28,6 +28,7 @@ import {
 import { MarkdownPreview } from "../../capture/resolved-markdown";
 import {
   canvasHydrateAtom,
+  selectedCanvasIdAtom,
   canvasUnderstandingPreviewsAtom,
   dispatchCanvasAction,
   provideCanvasEffects,
@@ -157,7 +158,9 @@ const CanvasGraphMount = memo(function CanvasGraphMount({
   graphRef: RefObject<CanvasGraphHandle | null>;
   shapeData: CanvasShapeData;
 }) {
+  const selectedCanvasId = useAtomValue(selectedCanvasIdAtom);
   const hydrate = useAtomValue(canvasHydrateAtom);
+  if (selectedCanvasId !== canvasId || !hydrate) return null;
   return (
     <CanvasGraph
       key={canvasId}
