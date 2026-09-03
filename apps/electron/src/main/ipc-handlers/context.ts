@@ -9,6 +9,7 @@ export const context: HandlerModule = {
   domain: "context",
   error,
   handlers: {
+    "context.listContexts": ({ options }) => contextService.listAllContexts(options),
     "context.listContextsByUnderstanding": ({ understandingId }) =>
       contextService.listContextsByUnderstanding(understandingId),
     "context.getContextById": ({ id }) => contextService.getContextById(id),

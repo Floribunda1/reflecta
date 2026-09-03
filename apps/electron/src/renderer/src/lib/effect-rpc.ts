@@ -36,6 +36,8 @@ export const rpc = {
     client["domain.reorderDomains"]({ items }),
   contextListByUnderstanding: (understandingId: string) =>
     client["context.listContextsByUnderstanding"]({ understandingId }),
+  contextList: (options?: { limit?: number; offset?: number }) =>
+    client["context.listContexts"]({ options }),
   contextGetById: (id: string) => client["context.getContextById"]({ id }),
   contextCreate: (input: import("../../../ipc").CreateContextInput) =>
     client["context.createContext"]({ input }),

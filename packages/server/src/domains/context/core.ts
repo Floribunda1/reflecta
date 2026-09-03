@@ -8,6 +8,7 @@ import type {
   CreateContextInput,
   ContextMedium,
   UpdateContextInput,
+  SearchOptions,
 } from "@reflecta/shared";
 import type { TrashedContextDTO } from "@reflecta/shared";
 import { createEntityId } from "@reflecta/shared";
@@ -44,6 +45,19 @@ export class ContextCore {
         .from(contexts)
         .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt)))
         .orderBy(desc(contexts.createdAt));
+      return rows as ContextDTO[];
+    });
+  }
+
+  listAllContexts(options?: SearchOptions): Effect.Effect<ContextDTO[]> {
+    return Effect.promise(async () => {
+      const rows = await this.db
+        .select()
+        .from(contexts)
+        .where(isNull(contexts.deletedAt))
+        .orderBy(desc(contexts.createdAt))
+        .limit(options?.limit ?? 20)
+        .offset(options?.offset ?? 0);
       return rows as ContextDTO[];
     });
   }

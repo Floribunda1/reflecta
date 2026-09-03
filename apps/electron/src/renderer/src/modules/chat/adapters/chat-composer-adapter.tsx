@@ -26,7 +26,7 @@ import {
 import { inferMediaType } from "@reflecta/ui/lib/file-meta";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import type { SearchContextResult, CanvasDTO } from "@reflecta/shared";
+import type { ContextDTO, SearchContextResult, CanvasDTO } from "@reflecta/shared";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
 import {
   contextUsageFromMessages,
@@ -258,7 +258,17 @@ export function AgentChatComposer({
         ? (runPromise(
             rpc.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
           ) as Promise<SearchContextResult[]>)
-        : Promise.resolve([]),
+        : (
+            runPromise(rpc.contextList({ limit: CONTEXT_LOOKUP_LIMIT })) as Promise<ContextDTO[]>
+          ).then((contexts) =>
+            contexts.map((context, rank) => ({
+              contextId: context.id,
+              understandingId: context.understandingId,
+              title: context.title,
+              snippet: context.content,
+              rank,
+            })),
+          ),
       runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/shared").Domain[]>,
       runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
     ]);

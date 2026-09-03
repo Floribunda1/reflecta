@@ -25,6 +25,7 @@ import {
 } from "./contract/domain";
 import {
   ContextListByUnderstanding,
+  ContextList,
   ContextGetById,
   ContextCreate,
   ContextUpdate,
@@ -166,6 +167,7 @@ export const contract = defineContract({
     DomainUpdate,
     DomainDelete,
     ContextListByUnderstanding,
+    ContextList,
     ContextGetById,
     ContextCreate,
     ContextUpdate,
