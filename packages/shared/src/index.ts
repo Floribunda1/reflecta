@@ -5,6 +5,7 @@ export * from "./canvas/changes";
 export * from "./canvas/schema";
 export * from "./agent/session";
 export * from "./agent/tools";
+export * from "./agent/conversation-markdown";
 export * from "./insights/recap";
 export * from "./config/schema";
 export * from "./app/profile";
