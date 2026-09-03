@@ -23,11 +23,11 @@
 
 三个已定 / 待确认决策：
 
-| #   | 决策                                                                                                                                                                                                                                     | 状态           |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| D1  | 实体类型命名 `conversation`（wire type），wiki-link 前缀 `s`（`[[s:id]]`，复用现有 sessionId）。术语：UI 文案「对话」，避免与运行时 session 概念混淆                                                                                     | 已定           |
-| D2  | `session_read` 读取形态 = 导出 Markdown 渲染管线；渲染函数从 renderer 迁到 main 侧共享，**导出与读取同形**                                                                                                                               | 已定           |
-| D3  | 读取内容里**保留**实体引用原文（`[[u:id]]` 不替换为标题），使 agent 可回链调用 `understanding_get`；导出保持现状（面向人读替换为标题）。截断策略：最近 N 条消息 + 总字符上限（常量，默认建议 ~20k chars），读取输出携带 `truncated` 标记 | **待用户确认** |
+| #   | 决策                                                                                                                                                                                                                                                                                     | 状态   |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| D1  | 实体类型命名 `conversation`（wire type），wiki-link 前缀 `s`（`[[s:id]]`，复用现有 sessionId）。术语：UI 文案「对话」，避免与运行时 session 概念混淆                                                                                                                                     | 已定   |
+| D2  | `session_read` 读取形态 = 导出 Markdown 渲染管线；渲染函数从 renderer 迁到 main 侧共享，**导出与读取同形**                                                                                                                                                                               | 已定   |
+| D3  | 读取内容里**保留**实体引用原文（`[[u:id]]` 不替换为标题），使 agent 可回链调用 `understanding_get`；**导出保持现状**（面向人读替换为标题，不能用 ID）。截断沿用 `attachment_read` 惯例：工具可选 `maxChars` 参数（agent 决定预算）+ 硬顶 + 结果带 `truncated` 标记；超限按消息序保留尾部 | 已确认 |
 
 ## 依赖图
 
@@ -65,8 +65,8 @@ Phase 1 (契约) ──> Phase 2 (共享渲染 + 截断) ──> Phase 3 (sessio
 
 - 新增 main 侧共享函数（如 `apps/electron/src/main/services/agent/conversation-markdown.ts`）：输入 `AgentMessageProjection[]`（或事件日志），输出 Markdown + 元数据 `{ messageCount, charCount, truncated, keptMessageCount }`。
 - 渲染规则与现状导出一致（`# title`、`## 用户/Agent`、trim、跳过空消息），但按 D3 保留 `[[u:id]]` 原文。
-- 截断：最近 N 条消息优先 + 总字符上限（常量，ponytail 注释标记升级路径：需要摘要时再加 LLM 摘要管道）。
-- renderer 导出路径改调共享函数（删除重复实现）。
+- 截断沿用 `attachment-read.ts` 惯例：可选 `maxChars` 参数（默认 + 硬顶常量），超限按消息序保留尾部，返回 `truncated` 标记（`ponytail:` 注明升级路径：预算策略需要更聪明时再说，参数制已够）。
+- renderer 导出路径改调共享函数（删除重复实现）；导出侧走「替换引用为标题」，读取侧按 D3 保留引用——共享函数以选项区分两种姿势。
 
 验收：
 
@@ -80,7 +80,7 @@ Phase 1 (契约) ──> Phase 2 (共享渲染 + 截断) ──> Phase 3 (sessio
 范围：agent 侧新增读取对话的能力。
 
 - `packages/shared/src/agent/tools.ts`：`PI_READ_ONLY_TOOL_NAMES` 加 `session_read`，`PI_TOOL_LABELS` 加「读取对话」。
-- `apps/electron/src/main/services/agent/pi-readonly-tools.ts`：注册 `session_read`（参数 `{ sessionId }`），经 `pi-session-log` 读会话事件并走 Phase 2 渲染，返回 `{ title, markdown, ...meta }`。会话不存在返回明确的 not-found 错误（沿用 tagged not-found 模式）。
+- `apps/electron/src/main/services/agent/pi-readonly-tools.ts`：注册 `session_read`（`{ sessionId, maxChars? }` 参数，仿 `attachment_read`），经 `pi-session-log` 读会话事件并走 Phase 2 渲染，返回 `{ title, markdown, messageCount, truncated }`。会话不存在返回明确的 not-found 错误（沿用 tagged not-found 模式）。
 
 验收：
 
@@ -161,5 +161,4 @@ session_read 详情视图（建议，落地时以 fixture 契约为准）：
 
 ## 开放点
 
-- D3 截断常量（N 条 / 字符上限）最终值，建议首版 `keptMessages ≈ 20` + `maxChars ≈ 20000`，待真实会话实测后调。
-- 「读取全部 vs 最近 N 条」的用户预期：若用户 @ 一个长对话是为了问"那次聊了啥"，最近 N 条可能不够；首版以截断标记 + 详情预览兜底，后续按反馈决定是否加「AI 摘要」通道（d2 已预留姿势）。
+- `maxChars` 默认值（建议首版对齐 `attachment_read` 量级，如 ~40k chars，硬顶 ~200k），待真实会话实测后调。
