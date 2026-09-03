@@ -879,6 +879,88 @@ function CanvasPresentDemo() {
   );
 }
 
+function useConversationMentionPlayback() {
+  const total = 4;
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setStep((current) => (current + 1) % (total + 1)),
+      step < 2 ? 1_800 : 1_200,
+    );
+    return () => window.clearTimeout(timer);
+  }, [step]);
+  return { step, total };
+}
+
+function ConversationMentionDemo() {
+  const { step } = useConversationMentionPlayback();
+  const streaming = step === 3;
+  const done = step === 4;
+  const blocks: AgentReducedAssistantBlock[] =
+    step === 0
+      ? []
+      : [
+          ...(step >= 1
+            ? [
+                {
+                  kind: "reasoning" as const,
+                  text: "先回顾那次复盘里对低温启动的判定，再对照这两天的遥测。",
+                  createdAt,
+                },
+              ]
+            : []),
+          ...(step >= 2
+            ? [
+                tool(
+                  "conversation-read",
+                  "session_read",
+                  { sessionId: "s-irrigation", maxChars: 40000 },
+                  step >= 3
+                    ? {
+                        title: "极地温室的分区灌溉复盘",
+                        messageCount: 6,
+                        keptMessageCount: 4,
+                        truncated: true,
+                        markdown:
+                          "# 极地温室的分区灌溉复盘\n\n## 用户\n\n上次说先稳定主管压力再开支路，这周 west-03 实测出问题了。\n\n## Agent\n\n按最近三天的日志，west-03 支路低温启动时压力不足，建议把「[[u:u-irrigation]]」补上旁通阀验证。\n\n## 用户\n\n那判定依据还适用吗？\n\n## Agent\n\n适用，但要改为观测两轮完整灌溉周期。",
+                      }
+                    : undefined,
+                  step >= 3 ? {} : { state: "running", output: undefined },
+                ),
+              ]
+            : []),
+        ];
+  const row = assistantRow("conversation-assistant", blocks, {
+    running: !done && !streaming,
+    timestampLabel: done ? "18:24" : undefined,
+    enabledActions: done ? ["copy", "fork", "regenerate"] : [],
+  });
+  const userRowView: ChatMessageRowView = {
+    message: {
+      kind: "user",
+      id: "conversation-user",
+      text: `刚才复盘里有条判断可能失效了\n上次的对话提到了灌溉策略，帮我确认这次是不是要改。`,
+      entities: [
+        {
+          id: "s-irrigation",
+          type: "conversation",
+          label: "极地温室的分区灌溉复盘",
+        },
+      ],
+    },
+    timestampLabel: "18:22",
+    enabledActions: ["copy", "edit"],
+  };
+  return (
+    <StorySurface className="max-w-6xl">
+      <div className="grid content-start gap-7 overflow-auto p-6">
+        <ChatMessageRow row={userRowView} />
+        <ChatMessageRow row={row} />
+      </div>
+    </StorySurface>
+  );
+}
+
 function AgentCompositionShowcase() {
   return (
     <StoryShowcase
@@ -905,6 +987,13 @@ function AgentCompositionShowcase() {
         contentClassName="p-0"
       >
         <CanvasPresentDemo />
+      </StoryCase>
+      <StoryCase
+        title="引用历史对话"
+        description="用户 @ 一次历史对话，Agent 经 session_read 读取回放（截断场景带提示），再基于其中的判断继续回答。"
+        contentClassName="p-0"
+      >
+        <ConversationMentionDemo />
       </StoryCase>
       <StoryCase
         title="压缩上下文"

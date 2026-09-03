@@ -53,7 +53,8 @@ function conversationCandidate(session: AgentSessionSummary): ContextCandidate {
     type: "conversation",
     id: session.id,
     title: session.title?.trim() || "Untitled Conversation",
-    subtitle: `updated ${session.updatedAt}`,
+    // ISO 日期串截到天；简洁可读，不引 date-fns 进纯函数模块。
+    subtitle: `更新于 ${session.updatedAt.slice(0, 10)}`,
   };
 }
 

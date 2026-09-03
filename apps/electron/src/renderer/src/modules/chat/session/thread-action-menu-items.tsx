@@ -18,6 +18,7 @@ function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
 function referenceTypeLabel(reference: ChatEntityReference) {
   if (reference.type === "understanding") return "Understanding";
   if (reference.type === "context") return "Context";
+  if (reference.type === "conversation") return "对话";
   return "Domain";
 }
 

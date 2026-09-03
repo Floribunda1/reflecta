@@ -18,6 +18,7 @@ function typeLabel(reference: ChatEntityReference) {
   if (reference.type === "understanding") return "Understanding";
   if (reference.type === "context") return "Context";
   if (reference.type === "canvas") return "Canvas";
+  if (reference.type === "conversation") return "对话";
   return "Domain";
 }
 
@@ -58,7 +59,8 @@ export function useChatEntityBindings(
         canOpen:
           reference.type === "understanding" ||
           reference.type === "context" ||
-          reference.type === "canvas",
+          reference.type === "canvas" ||
+          reference.type === "conversation",
       });
     }
   });
