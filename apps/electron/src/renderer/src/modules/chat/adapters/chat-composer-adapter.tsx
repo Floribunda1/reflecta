@@ -260,9 +260,7 @@ export function AgentChatComposer({
           ) as Promise<SearchContextResult[]>)
         : Promise.resolve([]),
       runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/shared").Domain[]>,
-      normalizedQuery
-        ? (runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>)
-        : Promise.resolve([]),
+      runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
     ]);
     if (signal.aborted) return [];
     return buildContextCandidates({
