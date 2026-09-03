@@ -179,12 +179,8 @@ test("@CV-EDGE-004 调整连线样式并保留", async () => {
   await page!.waitForTimeout(1200); // 等防抖(800ms)保存落库再重开
   const s1 = await h.edgeModel(page!);
   expect(s1[0].strokeToken).toBe("var(--chart-1)");
-  expect(s1[0].router).toBe("manhattan");
-  expect(s1[0].routerArgs).toEqual({
-    startDirections: ["right"],
-    endDirections: ["left"],
-    padding: 16,
-  });
+  expect(s1[0].router).toBe("reflecta-right-angle");
+  expect(s1[0].routerArgs).toEqual({ margin: 16 });
   expect(s1[0].connector).toBe("rounded");
   expect(s1[0].dasharray).toBe("5 5");
   expect(s1[0].strokeWidth).toBe(4);
@@ -192,7 +188,7 @@ test("@CV-EDGE-004 调整连线样式并保留", async () => {
   await h.openCanvasRow(page!, "EDGESTYLE");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.strokeToken).toBe("var(--chart-1)");
   const s2 = await h.edgeModel(page!);
-  expect(s2[0].router).toBe("manhattan");
+  expect(s2[0].router).toBe("reflecta-right-angle");
   expect(s2[0].routerArgs).toEqual(s1[0].routerArgs);
   expect(s2[0].connector).toBe("rounded");
   expect(s2[0].marker).toBe("circle");

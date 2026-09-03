@@ -178,12 +178,16 @@ describe("Canvas document validation", () => {
     );
   });
 
-  test("registered canvas connector is accepted", () => {
+  test("registered canvas routers and connector are accepted", () => {
     const elements = [element({ id: "a" }), element({ id: "b" })];
     const curve = edge({ id: "c", sourceElementId: "a", targetElementId: "b" });
     curve.connector = { name: "reflecta-curve" };
     curve.router = { name: "reflecta-curve" };
     expect(() => assertValidDocument(doc(elements, [curve]))).not.toThrow();
+
+    const orthogonal = edge({ id: "o", sourceElementId: "a", targetElementId: "b" });
+    orthogonal.router = { name: "reflecta-right-angle", args: { margin: 16 } };
+    expect(() => assertValidDocument(doc(elements, [orthogonal]))).not.toThrow();
   });
 
   test("native manhattan canvas router is accepted", () => {

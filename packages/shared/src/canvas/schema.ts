@@ -57,7 +57,16 @@ export const CanvasElementDTOSchema = S.Union([
 const CanvasEdgePortIdSchema = lit("top", "right", "bottom", "left");
 const CanvasEdgeTerminalSchema = S.Struct({ cell: S.String, port: CanvasEdgePortIdSchema });
 const CanvasEdgeRouterSchema = S.Struct({
-  name: lit("normal", "orth", "oneSide", "manhattan", "metro", "er", "reflecta-curve"),
+  name: lit(
+    "normal",
+    "orth",
+    "oneSide",
+    "manhattan",
+    "metro",
+    "er",
+    "reflecta-curve",
+    "reflecta-right-angle",
+  ),
   args: S.optional(S.Record(S.String, S.Unknown)),
 });
 const CanvasEdgeConnectorSchema = S.Struct({
