@@ -302,7 +302,7 @@ export function orthogonalEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"
   return {
     router: {
       name: "reflecta-right-angle",
-      args: { margin: 16 },
+      args: { margin: 24 },
     },
     connector: { name: "rounded", args: { radius: 8 } },
   };

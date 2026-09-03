@@ -50,8 +50,8 @@ describe("rightAngleRoutePoints", () => {
     const target = { anchor: { x: 300, y: 100 }, bbox: box(300, 40), port: "left" } as const;
     const route = expectOrthogonal(source, target);
 
-    expect(route[0]).toEqual({ x: 536, y: 560 });
-    expect(route.at(-1)).toEqual({ x: 284, y: 100 });
+    expect(route[0]).toEqual({ x: 544, y: 560 });
+    expect(route.at(-1)).toEqual({ x: 276, y: 100 });
   });
 
   test("routes aligned top ports outside the target instead of through it", () => {
@@ -59,9 +59,9 @@ describe("rightAngleRoutePoints", () => {
     const target = { anchor: { x: 410, y: 40 }, bbox: box(300, 40), port: "top" } as const;
     const route = expectOrthogonal(source, target);
 
-    expect(route[0]).toEqual({ x: 410, y: 484 });
-    expect(route.at(-1)).toEqual({ x: 410, y: 24 });
-    expect(route.some((point) => point.x <= 284 || point.x >= 536)).toBe(true);
+    expect(route[0]).toEqual({ x: 410, y: 476 });
+    expect(route.at(-1)).toEqual({ x: 410, y: 16 });
+    expect(route.some((point) => point.x <= 276 || point.x >= 544)).toBe(true);
   });
 
   test("has no distance-dependent search limit", () => {

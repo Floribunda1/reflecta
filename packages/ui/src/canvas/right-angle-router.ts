@@ -102,7 +102,7 @@ function samePortLoop(stub: Point, port: CanvasEdgePortId, margin: number): Poin
 export function rightAngleRoutePoints(
   source: RightAngleTerminal,
   target: RightAngleTerminal,
-  margin = 16,
+  margin = 24,
 ): Point[] {
   const sourceStub = outsidePoint(source, margin);
   const targetStub = outsidePoint(target, margin);

@@ -258,7 +258,7 @@ describe("graph-document toX6Cells", () => {
     expect(orth.connector?.name).toBe("rounded");
     expect(orth.router).toEqual({
       name: "reflecta-right-angle",
-      args: { margin: 16 },
+      args: { margin: 24 },
     });
   });
 

@@ -180,7 +180,7 @@ test("@CV-EDGE-004 调整连线样式并保留", async () => {
   const s1 = await h.edgeModel(page!);
   expect(s1[0].strokeToken).toBe("var(--chart-1)");
   expect(s1[0].router).toBe("reflecta-right-angle");
-  expect(s1[0].routerArgs).toEqual({ margin: 16 });
+  expect(s1[0].routerArgs).toEqual({ margin: 24 });
   expect(s1[0].connector).toBe("rounded");
   expect(s1[0].dasharray).toBe("5 5");
   expect(s1[0].strokeWidth).toBe(4);
