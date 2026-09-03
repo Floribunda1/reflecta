@@ -22,6 +22,7 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "canvas_read",
   "canvas_list",
   "canvas_search",
+  "session_read",
 ] as const;
 
 export const PI_APPROVAL_TOOL_NAMES = [
@@ -113,6 +114,7 @@ export const PI_TOOL_LABELS: Record<PiToolName, string> = {
   canvas_read: "读取画布",
   canvas_list: "列出画布",
   canvas_search: "搜索画布",
+  session_read: "读取对话",
   understanding_create: "创建理解",
   understanding_update: "修改理解",
   understanding_delete: "删除理解",

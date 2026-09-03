@@ -12,6 +12,8 @@ const services = vi.hoisted(() => ({
   getCanvasDetail: vi.fn(),
   listCanvases: vi.fn(),
   searchCanvases: vi.fn(),
+  listThreads: vi.fn(),
+  readSessionProjection: vi.fn(),
 }));
 
 vi.mock("./attachment-read", () => ({
@@ -39,6 +41,10 @@ vi.mock("../core", () => ({
   understandingCliService: {
     getUnderstanding: services.getUnderstanding,
   },
+  piAgentHost: {
+    listThreads: services.listThreads,
+    readSessionProjection: services.readSessionProjection,
+  },
 }));
 
 const expectedReadToolNames = [
@@ -53,6 +59,7 @@ const expectedReadToolNames = [
   "canvas_read",
   "canvas_list",
   "canvas_search",
+  "session_read",
 ] as const;
 
 describe("createPiReadOnlyTools", () => {
@@ -383,5 +390,69 @@ describe("createPiReadOnlyTools", () => {
     ) => Promise<{ details: unknown }>;
     await execute("tool-call-1", { titleSearchKeyword: "调度", limit: 10 });
     expect(services.listCanvases).toHaveBeenCalledWith({ titleSearchKeyword: "调度", limit: 10 });
+  });
+});
+
+describe("session_read", () => {
+  const tool = () => createPiReadOnlyTools().find((item) => item.name === "session_read")!;
+  const execute = (toolCallId: string, params: Record<string, unknown>) =>
+    (
+      tool().execute as unknown as (
+        toolCallId: string,
+        params: Record<string, unknown>,
+      ) => Promise<{ details: unknown; content: Array<{ text: string }> }>
+    )(toolCallId, params);
+
+  test("returns conversation markdown with kept entity references", async () => {
+    services.listThreads.mockResolvedValue([
+      { id: "s_1", title: "交易复盘", runtime: "pi", status: "active" },
+    ]);
+    services.readSessionProjection.mockResolvedValue({
+      messages: [
+        { role: "user", text: "看下 [[u:u_1]] 的情况" },
+        { role: "assistant", text: "复盘如下" },
+      ],
+    });
+    const output = await execute("tool_1", { sessionId: "s_1" });
+    const details = output.details as {
+      title: string;
+      markdown: string;
+      messageCount: number;
+      truncated: boolean;
+    };
+    expect(details.title).toBe("交易复盘");
+    expect(details.messageCount).toBe(2);
+    expect(details.truncated).toBe(false);
+    expect(details.markdown).toContain("[[u:u_1]]");
+    expect(output.content[0]?.text).toContain("交易复盘");
+  });
+
+  test("truncates to tail within maxChars", async () => {
+    services.listThreads.mockResolvedValue([
+      { id: "s_1", title: "长对话", runtime: "pi", status: "active" },
+    ]);
+    services.readSessionProjection.mockResolvedValue({
+      messages: [
+        { role: "user", text: "前情提要".repeat(50) },
+        { role: "user", text: "最新一条" },
+      ],
+    });
+    const output = await execute("tool_1", { sessionId: "s_1", maxChars: 100 });
+    const details = output.details as {
+      markdown: string;
+      truncated: boolean;
+      keptMessageCount: number;
+    };
+    expect(details.truncated).toBe(true);
+    expect(details.markdown).toContain("最新一条");
+    expect(details.markdown).not.toContain("前情提要");
+    expect(details.keptMessageCount).toBe(1);
+  });
+
+  test("throws conversation not found when missing from thread list", async () => {
+    services.listThreads.mockResolvedValue([]);
+    await expect(execute("tool_1", { sessionId: "missing" })).rejects.toThrow(
+      "Conversation not found: missing",
+    );
   });
 });

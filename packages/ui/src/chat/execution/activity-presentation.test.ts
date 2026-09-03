@@ -284,6 +284,7 @@ describe("agent activity presentation", () => {
 
   test.each<[readonly string[], AgentToolIconKind]>([
     [["canvas_list", "canvas_read", "canvas_search"], "canvas"],
+    [["session_read"], "conversation"],
     [["domain_list", "domain_inspect"], "domain"],
     [["understanding_list", "understanding_get"], "understanding"],
     [["context_list", "context_get"], "context"],

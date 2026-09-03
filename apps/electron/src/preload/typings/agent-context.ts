@@ -33,5 +33,6 @@ function contextTypeLabel(type: AgentContextRef["type"]) {
   if (type === "understanding") return "Understanding";
   if (type === "context") return "Context";
   if (type === "canvas") return "Canvas";
+  if (type === "conversation") return "Conversation";
   return "Domain";
 }

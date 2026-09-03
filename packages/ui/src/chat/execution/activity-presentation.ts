@@ -7,6 +7,7 @@ export type AgentToolIconKind =
   | "canvas"
   | "command"
   | "context"
+  | "conversation"
   | "domain"
   | "edit"
   | "file"
@@ -89,6 +90,7 @@ export const TOOL_BUCKET: Partial<Record<PiToolName, AgentToolBucket>> = {
   canvas_read: "knowledge",
   canvas_list: "knowledge",
   canvas_search: "knowledge",
+  session_read: "knowledge",
 };
 
 export function toolBucket(toolName?: string): AgentToolBucket {
@@ -330,6 +332,7 @@ export const TOOL_ICON_KIND: Partial<Record<PiToolName, AgentToolIconKind>> = {
   canvas_read: "canvas",
   canvas_list: "canvas",
   canvas_search: "canvas",
+  session_read: "conversation",
 };
 
 export function toolIconKind(activity: AgentToolActivityView): AgentToolIconKind {

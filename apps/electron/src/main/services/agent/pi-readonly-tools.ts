@@ -2,13 +2,20 @@ import { performance } from "node:perf_hooks";
 import { Effect } from "effect";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { PI_READ_ONLY_TOOL_NAMES, PI_TOOL_LABELS } from "@reflecta/shared";
+import {
+  clampConversationReadMaxChars,
+  conversationMessagesToMarkdown,
+  HARD_CONVERSATION_READ_MAX_CHARS,
+  PI_READ_ONLY_TOOL_NAMES,
+  PI_TOOL_LABELS,
+} from "@reflecta/shared";
 import type { AgentFileAttachment } from "@shared/agent";
 import { diagnosticErrorAttrs } from "../../diagnostic-log";
 import { writeDiagnosticEvent } from "../../logger";
 import {
-  domainCliService,
   contextCliService,
+  domainCliService,
+  piAgentHost,
   searchCliService,
   understandingCanvasCliService,
   understandingCliService,
@@ -392,6 +399,38 @@ export function createPiReadOnlyTools(
           ),
           entityOptions,
         ),
+    }),
+    defineTool({
+      name: "session_read",
+      label: PI_TOOL_LABELS.session_read,
+      description:
+        "Read one past Reflecta conversation (agent chat thread) by session id, rendered as Markdown with user/assistant messages. Keep references to knowledge entities ([[u:id]] etc.) so you can read them directly. When the conversation is long and truncated, only the most recent messages are included — say so when it matters and use the returned counts.",
+      promptSnippet: "session_read: read one past conversation by session id.",
+      parameters: Type.Object({
+        sessionId: Type.String({ minLength: 1 }),
+        maxChars: Type.Optional(
+          Type.Integer({
+            minimum: 1,
+            maximum: HARD_CONVERSATION_READ_MAX_CHARS,
+            description: "Maximum number of characters of conversation Markdown to return.",
+          }),
+        ),
+      }),
+      execute: async (_toolCallId, { sessionId, maxChars }) => {
+        const sessions = await piAgentHost.listThreads();
+        const summary = sessions.find((session) => session.id === sessionId);
+        if (!summary) {
+          throw new Error(`Conversation not found: ${sessionId}`);
+        }
+        const projection = await piAgentHost.readSessionProjection(sessionId);
+        const result = conversationMessagesToMarkdown({
+          title: summary.title,
+          messages: projection.messages,
+          mode: "keep-references",
+          maxChars: clampConversationReadMaxChars(maxChars),
+        });
+        return toolResult(result);
+      },
     }),
   ];
   return tools.map(withToolDiagnosticLog);
