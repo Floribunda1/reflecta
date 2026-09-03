@@ -4,11 +4,11 @@ import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import {
   ContextPreviewDrawerContent,
+  DeletedDetailPlaceholder,
   UnderstandingDetail,
 } from "@renderer/modules/capture/understanding-detail";
 import type { ContextDTO } from "@shared/context";
 import type { InspectableContextRef, InspectorPanelRef } from "./context-reference";
-import { Empty, EmptyDescription } from "@reflecta/ui/components/empty";
 
 export function ContextInspector({
   refToInspect,
@@ -60,9 +60,7 @@ export function ContextInspector({
           <div className="p-4 text-sm text-muted-foreground">加载中...</div>
         ) : null}
         {refToInspect.type === "context" && !contextQuery.isFetching && !contextQuery.data ? (
-          <Empty className="p-4">
-            <EmptyDescription>没有找到这条内容。</EmptyDescription>
-          </Empty>
+          <DeletedDetailPlaceholder entityLabel="上下文" onClose={onClose} />
         ) : null}
       </div>
     </aside>

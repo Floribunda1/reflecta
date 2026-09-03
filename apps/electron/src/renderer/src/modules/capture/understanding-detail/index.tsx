@@ -1,1 +1,5 @@
-export { ContextPreviewDrawerContent, UnderstandingDetail } from "./UnderstandingDetail";
+export {
+  ContextPreviewDrawerContent,
+  DeletedDetailPlaceholder,
+  UnderstandingDetail,
+} from "./UnderstandingDetail";

@@ -9,6 +9,13 @@ import {
   DomainTreeSelect,
 } from "@reflecta/ui/capture";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/components/field";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@reflecta/ui/components/empty";
 import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import { Input } from "@reflecta/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
@@ -47,6 +54,44 @@ type ContextDraftInput = {
   title: string;
   content: string;
 };
+
+export function DeletedDetailPlaceholder({
+  entityLabel,
+  onClose,
+}: {
+  entityLabel: string;
+  onClose?: () => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <header className="flex min-h-8 shrink-0 items-center px-4 pt-3 sm:px-6">
+        <h1 className="text-base font-semibold">{entityLabel}详情</h1>
+        {onClose ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="ml-auto"
+            aria-label="关闭详情"
+            title="关闭详情"
+            onClick={onClose}
+          >
+            <X />
+          </Button>
+        ) : null}
+      </header>
+      <Empty className="flex-1 rounded-none border-0">
+        <EmptyMedia variant="icon">
+          <X />
+        </EmptyMedia>
+        <EmptyContent>
+          <EmptyTitle>{entityLabel}已不可用</EmptyTitle>
+          <EmptyDescription>该{entityLabel}已被删除或不可用。</EmptyDescription>
+        </EmptyContent>
+      </Empty>
+    </div>
+  );
+}
 
 const CONTEXT_DRAWER_WIDTH_CLASS =
   "data-[side=right]:w-[min(760px,calc(100vw-2rem))] data-[side=right]:sm:max-w-none";
@@ -276,7 +321,7 @@ function UnderstandingDetailInner({
   onFocusModeChange,
 }: UnderstandingDetailProps & { focusMode: boolean }) {
   const detailRef = useRef<HTMLElement>(null);
-  const { understanding } = useUnderstandingDetail(understandingId);
+  const { understanding, loading } = useUnderstandingDetail(understandingId);
   const { domains, loading: domainsLoading } = useCaptureDomains();
   const { data: canvases = [] } = useCanvasListByUnderstanding(understandingId);
   const navigateToCanvas = useNavigateToCanvas();
@@ -317,9 +362,8 @@ function UnderstandingDetailInner({
     return () => window.removeEventListener("keydown", onWindowKeyDown);
   }, [focusMode]);
 
-  if (!understanding) {
-    return <div className="h-full" />;
-  }
+  if (loading) return <div className="h-full" />;
+  if (!understanding) return <DeletedDetailPlaceholder entityLabel="理解" onClose={onClose} />;
 
   const title = draft?.title ?? understanding.title ?? "";
   const body = draft?.body ?? understanding.body;
