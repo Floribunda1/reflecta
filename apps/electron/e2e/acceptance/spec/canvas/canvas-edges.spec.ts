@@ -47,6 +47,15 @@ test.beforeAll(async () => {
     ],
     edges: [],
   });
+  seedCanvas({
+    id: "cvx-edge-blank",
+    title: "EDGEBLANK",
+    elements: [
+      { id: "blank_a", kind: "text", props: { text: "A" }, x: 100, y: 100, width: 120, height: 80 },
+      { id: "blank_b", kind: "text", props: { text: "B" }, x: 420, y: 100, width: 120, height: 80 },
+    ],
+    edges: [],
+  });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -137,6 +146,18 @@ test("@CV-EDGE-008 用户选择的连接端口在重新进入后保持", async (
   await h.openCanvasRow(page!, "EDGEPORTS");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");
   expect((await h.edgeModel(page!))[0]?.targetPort).toBe("top");
+});
+
+test("@CV-EDGE-009 仅允许连接到连接桩", async () => {
+  await h.openCanvasRow(page!, "EDGEBLANK");
+  const from = (await h.portCenter(page!, "blank_a", "right"))!;
+  const graph = (await page!.getByTestId("canvas-graph").boundingBox())!;
+  await page!.mouse.move(from.x, from.y);
+  await page!.mouse.down();
+  await page!.mouse.move(graph.x + graph.width - 80, graph.y + graph.height - 80, { steps: 10 });
+  await page!.mouse.up();
+  await page!.waitForTimeout(300);
+  await expect.poll(async () => (await h.edgeModel(page!)).length).toBe(0);
 });
 
 test("@CV-EDGE-004 调整连线样式并保留", async () => {
