@@ -333,7 +333,7 @@ export const CanvasGraph = React.memo(
 
       let dnd: Dnd | undefined;
       if (!readonlyRef.current) {
-        graph.use(new Transform({ resizing: true }));
+        graph.use(new Transform({ resizing: { enabled: true, orthogonal: false } }));
         graph.use(
           new Selection({
             rubberband: true,
