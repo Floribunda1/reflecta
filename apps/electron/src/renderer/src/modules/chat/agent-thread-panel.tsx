@@ -504,6 +504,7 @@ function AgentThreadTitle({
 
   return (
     <Input
+      data-no-drag
       data-testid="agent-thread-title"
       value={value}
       title={displayTitle}

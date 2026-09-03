@@ -93,6 +93,7 @@ export function CanvasToolbar({
       }
     >
       <input
+        data-no-drag
         data-testid="canvas-workspace-title-input"
         value={draftTitle}
         onChange={(event) => setDraftTitle(event.target.value)}
