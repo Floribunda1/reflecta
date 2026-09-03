@@ -7,6 +7,16 @@ import type { AgentProposalView } from "./types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const canvasRender = vi.hoisted(() => vi.fn());
+
+vi.mock("../../canvas/readonly-canvas-card", () => ({
+  ReadOnlyCanvasCard: (props: unknown) => {
+    canvasRender(props);
+    return <div data-testid="readonly-canvas" />;
+  },
+  ReadOnlyCanvasSkeleton: () => <div data-testid="canvas-view-skeleton" />,
+}));
+
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 
@@ -15,6 +25,7 @@ afterEach(() => {
   container?.remove();
   root = undefined;
   container = undefined;
+  vi.clearAllMocks();
 });
 
 function proposal(lifecycle: AgentProposalView["lifecycle"]): AgentProposalView {
@@ -294,5 +305,21 @@ describe("AgentProposalCard", () => {
     };
     const rendered = render(view);
     expect(rendered.container.textContent).toContain("画布草稿为空");
+  });
+
+  test("does not rerender a canvas draft for equivalent streaming snapshots", () => {
+    const canvasProposal = (): AgentProposalView => ({
+      id: "approval-canvas-3",
+      kind: "canvas",
+      title: "候选画布",
+      lifecycle: "pending",
+      decisionEnabled: true,
+      content: { variant: "create", document: { elements: [], edges: [] } },
+    });
+
+    render(canvasProposal());
+    render(canvasProposal());
+
+    expect(canvasRender).toHaveBeenCalledTimes(1);
   });
 });
