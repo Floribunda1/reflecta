@@ -102,9 +102,11 @@ export function scanLandedArtifacts(messages: readonly AgentReducedMessage[]): L
   for (const message of messages) {
     for (const block of message.blocks ?? []) {
       if (block.kind === "tool" && block.state === "completed") {
+        if (block.toolName.endsWith("_delete")) continue;
         const artifact = landedArtifact(block, message.id);
         if (artifact) artifacts.push(artifact);
       } else if (block.kind === "approval" && block.executionState === "completed") {
+        if (block.toolName.endsWith("_delete")) continue;
         const artifact = landedArtifact(block, message.id);
         if (artifact) artifacts.push(artifact);
       }
