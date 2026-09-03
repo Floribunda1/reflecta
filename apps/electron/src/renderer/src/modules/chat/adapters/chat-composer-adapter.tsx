@@ -246,7 +246,7 @@ export function AgentChatComposer({
 
   const searchEntities = useCallback<ChatComposerEntitySearch>(async (query, type, signal) => {
     const normalizedQuery = query.trim();
-    const [understandings, contexts, domains, canvases] = await Promise.all([
+    const [understandings, contexts, domains, canvases, conversations] = await Promise.all([
       normalizedQuery
         ? (runPromise(
             rpc.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
@@ -271,6 +271,9 @@ export function AgentChatComposer({
           ),
       runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/shared").Domain[]>,
       runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
+      runPromise(rpc.chatListThreads()) as Promise<
+        import("@reflecta/shared").AgentSessionSummary[]
+      >,
     ]);
     if (signal.aborted) return [];
     return buildContextCandidates({
@@ -279,6 +282,7 @@ export function AgentChatComposer({
       contexts,
       domains,
       canvases,
+      conversations,
       selected: [],
       type,
     }).map((candidate) => ({

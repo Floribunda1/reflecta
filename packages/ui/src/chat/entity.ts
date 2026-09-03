@@ -1,4 +1,4 @@
-export type ChatEntityType = "understanding" | "context" | "domain" | "canvas";
+export type ChatEntityType = "understanding" | "context" | "domain" | "canvas" | "conversation";
 
 /** @ 面板类型筛选："all" = 全部类型混合列出（默认）；否则只列该类型。 */
 export type ChatEntityTypeFilter = ChatEntityType | "all";

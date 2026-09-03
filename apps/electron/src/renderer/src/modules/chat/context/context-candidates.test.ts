@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Domain } from "@shared/domain";
+import type { AgentSessionSummary } from "@shared/agent";
 import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { CanvasDTO } from "@reflecta/shared";
@@ -11,6 +12,8 @@ const context = (contextId: string, title: string, snippet: string): SearchConte
   ({ contextId, understandingId: "u-x", title, snippet, rank: 0 }) as SearchContextResult;
 const domain = (id: string, name: string): Domain => ({ id, name }) as Domain;
 const canvas = (id: string, title: string): CanvasDTO => ({ id, title }) as CanvasDTO;
+const conversation = (id: string, title: string): AgentSessionSummary =>
+  ({ id, title, updatedAt: "2026-09-01T00:00:00Z" }) as AgentSessionSummary;
 
 describe("buildContextCandidates", () => {
   test("type filter keeps only that type", () => {
@@ -20,11 +23,27 @@ describe("buildContextCandidates", () => {
       contexts: [context("c1", "AI 对话", "…")],
       domains: [domain("d1", "AI 领域")],
       canvases: [canvas("cv1", "AI 画布")],
+      conversations: [],
       selected: [],
       type: "domain",
     });
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ type: "domain", title: "AI 领域" });
+  });
+
+  test("conversation filter keeps only conversations filtered by title", () => {
+    const result = buildContextCandidates({
+      query: "复盘",
+      understandings: [],
+      contexts: [],
+      domains: [],
+      canvases: [],
+      conversations: [conversation("s1", "交易复盘"), conversation("s2", "产品设计")],
+      selected: [],
+      type: "conversation",
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: "conversation", id: "s1", title: "交易复盘" });
   });
 
   test("exact domain name floats above body matches in All list", () => {
@@ -34,6 +53,7 @@ describe("buildContextCandidates", () => {
       contexts: [context("c1", "某次对话", "提到了 AI 的片段")],
       domains: [domain("d1", "AI")],
       canvases: [canvas("cv1", "AI 调研")],
+      conversations: [],
       selected: [],
     });
     expect(result.map((r) => r.type)).toEqual(["domain", "canvas", "understanding", "context"]);
@@ -46,6 +66,7 @@ describe("buildContextCandidates", () => {
       contexts: [],
       domains: [domain("d1", "D")],
       canvases: [],
+      conversations: [],
       selected: [],
     });
     expect(result.map((r) => r.type)).toEqual(["understanding", "domain"]);

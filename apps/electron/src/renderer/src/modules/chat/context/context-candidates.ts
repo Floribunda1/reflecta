@@ -1,5 +1,5 @@
 import type { Domain } from "@shared/domain";
-import type { AgentContextRef } from "@shared/agent";
+import type { AgentContextRef, AgentSessionSummary } from "@shared/agent";
 import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { CanvasDTO } from "@reflecta/shared";
@@ -48,12 +48,22 @@ function domainCandidate(domain: Domain): ContextCandidate {
   };
 }
 
+function conversationCandidate(session: AgentSessionSummary): ContextCandidate {
+  return {
+    type: "conversation",
+    id: session.id,
+    title: session.title?.trim() || "Untitled Conversation",
+    subtitle: `updated ${session.updatedAt}`,
+  };
+}
+
 export function buildContextCandidates({
   query,
   understandings,
   contexts,
   domains,
   canvases,
+  conversations,
   selected,
   type = "all",
 }: {
@@ -62,6 +72,7 @@ export function buildContextCandidates({
   contexts: SearchContextResult[];
   domains: Domain[];
   canvases: CanvasDTO[];
+  conversations: AgentSessionSummary[];
   selected: AgentContextRef[];
   /** @ 面板类型筛选；"all" = 混合列表（按命中质量排序）。 */
   type?: ChatEntityTypeFilter;
@@ -90,13 +101,25 @@ export function buildContextCandidates({
         .slice(0, CONTEXT_LOOKUP_LIMIT)
         .map(domainCandidate),
     ),
+    conversation: withoutSelected(
+      conversations
+        .filter((s) => !normalizedQuery || s.title.toLowerCase().includes(normalizedQuery))
+        .slice(0, CONTEXT_LOOKUP_LIMIT)
+        .map(conversationCandidate),
+    ),
   };
 
   if (type !== "all") return byType[type];
 
   // 混合列表：按命中质量排序，让精确命中的 domain/canvas 浮到最前，
   // 避免被 understanding/context 的正文命中淹没（stable sort 保序）。
-  return [...byType.understanding, ...byType.context, ...byType.canvas, ...byType.domain].sort(
+  return [
+    ...byType.understanding,
+    ...byType.context,
+    ...byType.canvas,
+    ...byType.domain,
+    ...byType.conversation,
+  ].sort(
     (a, b) =>
       matchScore(a.title ?? "", a.subtitle, normalizedQuery) -
       matchScore(b.title ?? "", b.subtitle, normalizedQuery),

@@ -11,7 +11,13 @@ function parseHref(href: string | undefined, prefix: string): ChatEntityReferenc
     const slashIndex = path.indexOf("/");
     if (slashIndex < 1) return null;
     const type = path.slice(0, slashIndex) as ChatEntityType;
-    if (type !== "understanding" && type !== "context" && type !== "domain" && type !== "canvas")
+    if (
+      type !== "understanding" &&
+      type !== "context" &&
+      type !== "domain" &&
+      type !== "canvas" &&
+      type !== "conversation"
+    )
       return null;
     const id = decodeURIComponent(path.slice(slashIndex + 1));
     if (!id) return null;
