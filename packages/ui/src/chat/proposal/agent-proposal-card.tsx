@@ -1,4 +1,5 @@
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { memo, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { isEqual } from "lodash-es";
 import { PI_TOOL_LABELS, type PiApprovalToolName } from "@reflecta/shared";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "../../components/button";
@@ -733,18 +734,20 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
 // 只读画布经共享 ReadOnlyCanvasCard 渲染：内部 lazy 引入 CanvasReadOnlyView，把 X6
 // 排除出本模块的 eager 依赖图（proposal-card 的单测跑在 ESM 环境，X6 CJS lib 载入会炸；
 // 且只在 canvas 提案实际渲染时才需要 X6）。
-function CanvasProposalDraft({
-  proposal,
-  open,
-  renderMarkdown,
-  onWikiLinkOpen,
-}: {
+type CanvasProposalDraftProps = {
   proposal: CanvasProposalView;
   open: boolean;
   renderMarkdown?: MarkdownRenderer;
   /** 理解/上下文 wiki link 点击：chat 侧打开右侧 inspector（与正文点击一致）。 */
   onWikiLinkOpen?: (reference: ChatEntityReference) => void;
-}) {
+};
+
+const CanvasProposalDraft = memo(function CanvasProposalDraft({
+  proposal,
+  open,
+  renderMarkdown,
+  onWikiLinkOpen,
+}: CanvasProposalDraftProps) {
   const content = proposal.content;
   if (content.variant === "delete") {
     return (
@@ -776,7 +779,7 @@ function CanvasProposalDraft({
       className="h-96"
     />
   );
-}
+}, isEqual);
 
 function UnknownProposal({
   proposal,

@@ -56,6 +56,7 @@ const TYPE_TABS: { key: ChatEntityTypeFilter; label: string }[] = [
   { key: "context", label: "上下文" },
   { key: "domain", label: "领域" },
   { key: "canvas", label: "画布" },
+  { key: "conversation", label: "对话" },
 ];
 
 /** 空态标题：按当前 tab 区分，避免全部类型共用一句“没有可选上下文”。 */
@@ -65,6 +66,7 @@ const EMPTY_TITLES: Record<ChatEntityTypeFilter, string> = {
   context: "没有匹配的上下文",
   domain: "没有匹配的领域",
   canvas: "没有匹配的画布",
+  conversation: "没有匹配的对话",
 };
 
 export function ChatContextPicker({

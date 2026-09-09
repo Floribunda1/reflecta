@@ -499,6 +499,18 @@ export const completedTools: readonly ToolBlock[] = [
       reason: "引用命中",
     },
   ]),
+  tool(
+    "session_read",
+    { sessionId: "s-irrigation", maxChars: 40000 },
+    {
+      title: "极地温室的分区灌溉复盘",
+      messageCount: 6,
+      keptMessageCount: 6,
+      truncated: false,
+      markdown:
+        "# 极地温室的分区灌溉复盘\n\n## 用户\n\n上次提到先稳定主管压力再开支路，当时说「[[u:u_1]]」这条理解，这周实测出问题了。\n\n## Agent\n\n按最近三天的日志，west-03 支路在低温启动时压力不足。建议把「[[u:u_1]]」补充为：先验证旁通阀稳定，再进入支路序列。\n\n## 用户\n\n那周一那轮复盘里说的判定依据还适用吗？\n\n## Agent\n\n适用，但要把三十分钟窗口改为观测两轮完整灌溉周期。",
+    },
+  ),
 ];
 export const failedTool = tool(
   "bash",

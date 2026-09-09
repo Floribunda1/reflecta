@@ -42,14 +42,47 @@ const POSITIONS = [
   { label: "左上", source: [322, 250], target: [24, 40] },
 ] as const;
 
-function pathConfig(
-  path: Path,
-  sourcePort: CanvasEdgePortId,
-  targetPort: CanvasEdgePortId,
-): Pick<CanvasEdgeDTO, "router" | "connector"> {
+const ROUTING_CASES = [
+  {
+    label: "反向左右",
+    source: [322, 460],
+    target: [322, 40],
+    sourcePort: "right",
+    targetPort: "left",
+  },
+  {
+    label: "同侧向上",
+    source: [322, 460],
+    target: [322, 40],
+    sourcePort: "top",
+    targetPort: "top",
+  },
+  {
+    label: "混合上左",
+    source: [322, 460],
+    target: [322, 40],
+    sourcePort: "top",
+    targetPort: "left",
+  },
+  {
+    label: "远距离",
+    source: [24, 40],
+    target: [1220, 900],
+    sourcePort: "right",
+    targetPort: "left",
+  },
+] as const satisfies ReadonlyArray<{
+  label: string;
+  source: readonly [number, number];
+  target: readonly [number, number];
+  sourcePort: CanvasEdgePortId;
+  targetPort: CanvasEdgePortId;
+}>;
+
+function pathConfig(path: Path): Pick<CanvasEdgeDTO, "router" | "connector"> {
   if (path === "curve") return curveEdgePath();
   if (path === "straight") return { router: null, connector: { name: "normal" } };
-  return orthogonalEdgePath(sourcePort, targetPort);
+  return orthogonalEdgePath();
 }
 
 const pathDemoSource = edgeRoutingDocument.elements[0];
@@ -83,7 +116,7 @@ const PATH_DEMO_DOCUMENT: CanvasDocument = {
 function EdgeRoutingLab() {
   const graphRef = useRef<CanvasGraphHandle>(null);
   const [path, setPath] = useState<Path>("curve");
-  const [position, setPosition] = useState(3);
+  const [position, setPosition] = useState<number | null>(3);
   const [currentEdge, setCurrentEdge] = useState(PATH_DEMO_DOCUMENT.edges[0]!);
 
   const edgeCell = () => {
@@ -97,7 +130,7 @@ function EdgeRoutingLab() {
     const edge = edgeToEdge(cell);
     graphRef.current?.updateEdge({
       ...edge,
-      ...pathConfig(nextPath, edge.source.port, edge.target.port),
+      ...pathConfig(nextPath),
     });
     setPath(nextPath);
     setCurrentEdge(edgeToEdge(cell));
@@ -126,16 +159,35 @@ function EdgeRoutingLab() {
     const nextEdge = edgeToEdge(cell);
     graphRef.current?.updateEdge({
       ...nextEdge,
-      ...(path === "orthogonal"
-        ? orthogonalEdgePath(nextEdge.source.port, nextEdge.target.port)
-        : {}),
+      ...(path === "orthogonal" ? orthogonalEdgePath() : {}),
     });
     setCurrentEdge(edgeToEdge(cell));
+  };
+  const selectCase = (index: number) => {
+    const graph = graphRef.current?.graph;
+    const preset = ROUTING_CASES[index];
+    const cell = edgeCell();
+    if (!graph || !preset || !cell) return;
+    const source = graph.getCellById(pathDemoSource.id);
+    const target = graph.getCellById(pathDemoTarget.id);
+    if (source?.isNode()) source.position(preset.source[0], preset.source[1]);
+    if (target?.isNode()) target.position(preset.target[0], preset.target[1]);
+    cell.setSource({ cell: currentEdge.source.cell, port: preset.sourcePort });
+    cell.setTarget({ cell: currentEdge.target.cell, port: preset.targetPort });
+    const nextEdge = edgeToEdge(cell);
+    graphRef.current?.updateEdge({
+      ...nextEdge,
+      ...orthogonalEdgePath(),
+    });
+    setPath("orthogonal");
+    setPosition(null);
+    setCurrentEdge(edgeToEdge(cell));
+    fit();
   };
   return (
     <StoryShowcase
       title="Edge Routing Lab"
-      description="连接桩由用户明确指定；切换卡片相对位置不会改变 source / target port。"
+      description="正交路径只清理自身两端卡片，不避让画布中的其他卡片；距离不会触发降级。"
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-3">
@@ -162,6 +214,20 @@ function EdgeRoutingLab() {
                 size="sm"
                 variant={position === index ? "secondary" : "ghost"}
                 onClick={() => moveNodes(index)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1">
+            <span className="px-2 text-sm text-muted-foreground">关键场景</span>
+            {ROUTING_CASES.map((item, index) => (
+              <Button
+                key={item.label}
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => selectCase(index)}
               >
                 {item.label}
               </Button>
@@ -211,7 +277,9 @@ function EdgeRoutingLab() {
               2,
             )}
           </pre>
-          <p className="text-xs text-muted-foreground">移动卡片只重算路径，不改写连接桩。</p>
+          <p className="text-xs text-muted-foreground">
+            八个方位 × 十六种端口组合可交互检查；关键场景覆盖回绕、同侧、混合和远距离。
+          </p>
         </div>
       </div>
     </StoryShowcase>

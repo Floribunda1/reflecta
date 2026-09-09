@@ -317,8 +317,9 @@ export const CanvasGraph = React.memo(
           snap: { radius: 50 },
           connector: DEFAULT_CANVAS_EDGE_CONNECTOR,
           allowLoop: true,
-          allowNode: true,
+          allowNode: false,
           allowEdge: false,
+          allowBlank: false,
           allowPort: true,
           allowMulti: true,
           createEdge: () => toX6Edge(newEdgeDto(canvasId)),
@@ -332,7 +333,7 @@ export const CanvasGraph = React.memo(
 
       let dnd: Dnd | undefined;
       if (!readonlyRef.current) {
-        graph.use(new Transform({ resizing: true }));
+        graph.use(new Transform({ resizing: { enabled: true, orthogonal: false } }));
         graph.use(
           new Selection({
             rubberband: true,

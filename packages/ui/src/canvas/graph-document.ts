@@ -18,6 +18,7 @@ import type {
 } from "@reflecta/shared";
 import { absolutePositionOf } from "./graph-operations";
 import { CANVAS_PORTS } from "./ports";
+import { rightAngleRoutePoints } from "./right-angle-router";
 
 /**
  * CanvasDocument ↔ X6 序列化（纯函数、强 FP）。
@@ -297,18 +298,11 @@ export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
   };
 }
 
-export function orthogonalEdgePath(
-  sourcePort: CanvasEdgePortId,
-  targetPort: CanvasEdgePortId,
-): Pick<CanvasEdgeDTO, "router" | "connector"> {
+export function orthogonalEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
   return {
     router: {
-      name: "manhattan",
-      args: {
-        startDirections: [sourcePort],
-        endDirections: [targetPort],
-        padding: 16,
-      },
+      name: "reflecta-right-angle",
+      args: { margin: 24 },
     },
     connector: { name: "rounded", args: { radius: 8 } },
   };
@@ -447,6 +441,34 @@ export function ensureCanvasConnectors(): void {
         this.targetAnchor,
         resolvedSourcePort,
         targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
+      );
+    },
+    true,
+  );
+  X6Graph.registerRouter(
+    "reflecta-right-angle",
+    function (_vertices, options: { margin?: number }) {
+      const sourcePort = this.cell.getSourcePortId() as CanvasEdgePortId | null;
+      const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
+      const sourceId = this.cell.getSourceCellId();
+      const targetId = this.cell.getTargetCellId();
+      const sourceCell = sourceId ? this.graph.getCellById(sourceId) : null;
+      const targetCell = targetId ? this.graph.getCellById(targetId) : null;
+      const sourceBBox = sourceCell?.isNode() ? sourceCell.getBBox() : this.sourceBBox;
+      const targetBBox = targetCell?.isNode() ? targetCell.getBBox() : this.targetBBox;
+      const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
+      return rightAngleRoutePoints(
+        {
+          anchor: this.sourceAnchor,
+          bbox: sourceBBox,
+          port: resolvedSourcePort,
+        },
+        {
+          anchor: this.targetAnchor,
+          bbox: targetBBox,
+          port: targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
+        },
+        options.margin,
       );
     },
     true,

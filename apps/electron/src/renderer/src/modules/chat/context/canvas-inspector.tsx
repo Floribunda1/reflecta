@@ -4,24 +4,16 @@ import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { CanvasDetailDTO } from "@reflecta/shared";
 import { ReadOnlyCanvasCard } from "@reflecta/ui/canvas";
+import { DeletedDetailPlaceholder } from "@renderer/modules/capture/understanding-detail";
 import { MarkdownPreview } from "../../capture/resolved-markdown";
-import { Empty, EmptyContent, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useMemo } from "react";
-import { Button } from "@reflecta/ui/components/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@reflecta/ui/components/dialog";
-import { PanelTop } from "lucide-react";
 
 /**
  * 画布只读查看（M8-6，F1 三用组件之一）：`[[cv:]]` 引用选中后渲染只读画布。
  * 复用 `CanvasReadOnlyView`（interacting: false），保证「所见即所存」；不跳路由。
  */
-export function CanvasInspector({
-  canvasId,
-  onOpenEditor,
-}: {
-  canvasId: string;
-  onOpenEditor?: (canvasId: string) => void;
-}) {
+export function CanvasInspector({ canvasId }: { canvasId: string }) {
   const detailQuery = useQuery(
     effectQuery.queryOptions({
       queryKey: ["agent.inspector.canvas", canvasId] as const,
@@ -44,25 +36,7 @@ export function CanvasInspector({
     return <div className="p-4 text-sm text-muted-foreground">加载画布...</div>;
   }
   if (!detailQuery.data) {
-    return (
-      <Empty className="p-4">
-        <EmptyContent>
-          <EmptyDescription>没有找到这张画布。</EmptyDescription>
-          {onOpenEditor ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              data-testid="canvas-inspector-open-editor"
-              onClick={() => onOpenEditor(canvasId)}
-            >
-              <PanelTop size={14} />
-              在画布编辑器中打开
-            </Button>
-          ) : null}
-        </EmptyContent>
-      </Empty>
-    );
+    return <DeletedDetailPlaceholder entityLabel="画布" />;
   }
 
   return (

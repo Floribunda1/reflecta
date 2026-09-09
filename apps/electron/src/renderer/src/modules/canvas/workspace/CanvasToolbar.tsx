@@ -93,6 +93,7 @@ export function CanvasToolbar({
       }
     >
       <input
+        data-no-drag
         data-testid="canvas-workspace-title-input"
         value={draftTitle}
         onChange={(event) => setDraftTitle(event.target.value)}
@@ -101,7 +102,7 @@ export function CanvasToolbar({
           if (event.key === "Enter") (event.target as HTMLInputElement).blur();
         }}
         aria-label="画布标题"
-        className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] border-0 bg-transparent px-0 text-sm font-medium shadow-none outline-none focus-visible:ring-0"
+        className="h-8 w-auto min-w-0 max-w-full field-sizing-content border-0 bg-transparent px-0 text-sm font-medium shadow-none outline-none focus-visible:ring-0"
       />
     </PageTopBar>
   );

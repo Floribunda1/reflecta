@@ -84,6 +84,11 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
     const entity = await runPromise(rpc.canvasGet(ref.id));
     return entity ? { title: entity.canvas.title?.trim() || null } : null;
   }
+  if (ref.type === "conversation") {
+    const threads = await runPromise(rpc.chatListThreads());
+    const entity = threads.find((thread) => thread.id === ref.id);
+    return entity ? { title: entity.title?.trim() || null } : null;
+  }
   const entity = await runPromise(rpc.domainGetDomainById(ref.id));
   return entity ? { title: entity.name?.trim() || null } : null;
 }

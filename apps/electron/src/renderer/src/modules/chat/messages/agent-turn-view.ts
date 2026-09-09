@@ -618,6 +618,36 @@ function canvasSearchDetails(output: unknown) {
   });
 }
 
+/** session_read：对话卡（标题 + 消息数）+ 截断提示 + Markdown 预览。 */
+function conversationReadDetails(output: unknown) {
+  const record = isRecord(output) ? output : {};
+  const title = stringValue(record.title);
+  const messageCount = numberValue(record.messageCount);
+  const keptMessageCount = numberValue(record.keptMessageCount);
+  const truncated = booleanLike(record.truncated);
+  const markdown = stringValue(record.markdown);
+  return detailView({
+    rows: [
+      detailRow(
+        "对话",
+        title || undefined,
+        messageCount === undefined
+          ? undefined
+          : truncated
+            ? `共 ${messageCount} 条 · 仅显示最近 ${keptMessageCount ?? 0} 条`
+            : `共 ${messageCount} 条消息`,
+        "text",
+        undefined,
+        "list-item",
+      ),
+      markdown
+        ? detailRow("", markdown, undefined, "markdown", undefined, undefined, 12)
+        : undefined,
+    ],
+    emptyText: title ? undefined : "对话不存在。",
+  });
+}
+
 function canvasPresentBlock(block: AgentToolBlock): CanvasViewTurnBlock | undefined {
   if (block.toolName !== "canvas_present") return undefined;
   const id = `${block.toolCallId}:canvas-view`;
@@ -1469,6 +1499,7 @@ export const TOOL_RESULT_DETAILS: Partial<Record<PiToolName, ToolResultDetails>>
   canvas_list: (output) => canvasListDetails(output),
   canvas_read: (output) => canvasDetailDetails(output),
   canvas_search: (output) => canvasSearchDetails(output),
+  session_read: (output) => conversationReadDetails(output),
 };
 
 export function toolResultDetails(
@@ -1531,6 +1562,10 @@ function writeFileDetails(input: Record<string, unknown>) {
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function booleanLike(value: unknown) {
+  return value === true;
 }
 
 function webAccessDetails(output: unknown) {
@@ -1867,6 +1902,7 @@ export const TOOL_RUNNING_SUMMARY: Partial<Record<PiToolName, ToolRunningSummary
   canvas_list: () => "正在列出画布",
   canvas_read: (input) => `正在读取画布${quotedValue(input.canvasId)}`,
   canvas_search: () => "正在搜索画布",
+  session_read: (input) => `正在读取对话${quotedValue(input.sessionId)}`,
 };
 
 export function toolRunningSummary(name: string, input: Record<string, unknown>): string {
@@ -2010,6 +2046,12 @@ export const TOOL_DONE_SUMMARY: Partial<Record<PiToolName, ToolDoneSummary>> = {
   canvas_read: (_input, output) =>
     `读取了画布「${entityTitle(objectOutput(output).canvas) || "画布"}」`,
   canvas_search: (input) => `搜索画布${queryLabel(input)}`,
+  session_read: (_input, output) => {
+    const record = objectOutput(output);
+    const title = stringValue(record.title);
+    const count = numberValue(record.messageCount);
+    return `读取了对话「${title || "对话"}」${count === undefined ? "" : ` · ${count} 条消息`}`;
+  },
 };
 
 export function toolDoneSummary(

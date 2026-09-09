@@ -14,7 +14,7 @@ export const AgentReasoningLevel = lit("off", "minimal", "low", "medium", "high"
 export type AgentReasoningLevel = S.Schema.Type<typeof AgentReasoningLevel>;
 
 export const AgentContextRef = S.Struct({
-  type: lit("understanding", "context", "domain", "canvas"),
+  type: lit("understanding", "context", "domain", "canvas", "conversation"),
   id: S.String,
   title: S.optional(S.String),
 });

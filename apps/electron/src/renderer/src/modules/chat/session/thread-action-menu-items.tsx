@@ -5,7 +5,7 @@ import {
   type ChatThreadAction,
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
-import { collectEntityReferences, replaceEntityReferences } from "@reflecta/shared";
+import { collectEntityReferences, conversationMessagesToMarkdown } from "@reflecta/shared";
 import { toast } from "@reflecta/ui/components/toast";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
@@ -18,6 +18,7 @@ function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
 function referenceTypeLabel(reference: ChatEntityReference) {
   if (reference.type === "understanding") return "Understanding";
   if (reference.type === "context") return "Context";
+  if (reference.type === "conversation") return "对话";
   return "Domain";
 }
 
@@ -44,19 +45,15 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
     ),
   );
 
-  const parts = [`# ${title.trim() || "Agent 对话"}`];
-  for (const message of messages) {
-    const text = replaceEntityReferences(
-      message.text.trim(),
-      (reference, source) => labels.get(referenceKey(reference)) ?? source,
-    );
-    if (!text) continue;
-    parts.push(`## ${message.role === "user" ? "用户" : "Agent"}\n\n${text}`);
-  }
-
+  const { markdown } = conversationMessagesToMarkdown({
+    title,
+    messages,
+    mode: "replace-references",
+    labels,
+  });
   const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
   try {
-    const filePath = await runPromise(rpc.chatExportMarkdown(filename, `${parts.join("\n\n")}\n`));
+    const filePath = await runPromise(rpc.chatExportMarkdown(filename, `${markdown}\n`));
     if (!filePath) return;
     toast.add({ title: "已导出 Markdown", description: filePath, type: "success" });
   } catch (error) {

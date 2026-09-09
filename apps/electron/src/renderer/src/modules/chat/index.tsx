@@ -124,6 +124,11 @@ function ChatPageContent() {
     uiActions.closeInspector();
   });
   const openInspector = useMemoizedFn((ref: InspectableContextRef) => {
+    // 对话引用不是一个可检视对象：切换到该对话线程。
+    if (ref.type === "conversation") {
+      selectThread(ref.id);
+      return;
+    }
     if (ref.type === "canvas") exitInspectorFocusMode();
     uiActions.openInspector(ref);
   });

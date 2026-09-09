@@ -16,7 +16,12 @@
  * 数据归一化为真链接，与 chat 内容（agent 产出文本，转义=字面量）策略不同。
  */
 
-export type EntityReferenceType = "understanding" | "context" | "domain" | "canvas";
+export type EntityReferenceType =
+  | "understanding"
+  | "context"
+  | "domain"
+  | "canvas"
+  | "conversation";
 
 export type EntityReference = {
   type: EntityReferenceType;
@@ -44,6 +49,7 @@ export const entityTypeByPrefix = {
   u: "understanding",
   c: "context",
   d: "domain",
+  s: "conversation",
 } as const satisfies Record<string, EntityReferenceType>;
 
 export const prefixByEntityType = {
@@ -51,11 +57,12 @@ export const prefixByEntityType = {
   context: "c",
   domain: "d",
   canvas: "cv",
+  conversation: "s",
 } as const satisfies Record<EntityReferenceType, string>;
 
-const ENTITY_REFERENCE_PATTERN = /\[\[((?:cv|u|c|d)):([A-Za-z0-9_-]+)\]\]/g;
-const ENTITY_REFERENCE_SOURCE_PATTERN = /^\[\[((?:cv|u|c|d)):([A-Za-z0-9_-]+)\]\]$/;
-const ESCAPED_ENTITY_REFERENCE_PATTERN = /\\\[\\\[((?:cv|u|c|d)):([A-Za-z0-9_-]+)\]\]/g;
+const ENTITY_REFERENCE_PATTERN = /\[\[((?:cv|u|c|d|s)):([A-Za-z0-9_-]+)\]\]/g;
+const ENTITY_REFERENCE_SOURCE_PATTERN = /^\[\[((?:cv|u|c|d|s)):([A-Za-z0-9_-]+)\]\]$/;
+const ESCAPED_ENTITY_REFERENCE_PATTERN = /\\\[\\\[((?:cv|u|c|d|s)):([A-Za-z0-9_-]+)\]\]/g;
 
 type Range = {
   start: number;

@@ -26,7 +26,7 @@ import {
 import { inferMediaType } from "@reflecta/ui/lib/file-meta";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import type { SearchContextResult, CanvasDTO } from "@reflecta/shared";
+import type { ContextDTO, SearchContextResult, CanvasDTO } from "@reflecta/shared";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
 import {
   contextUsageFromMessages,
@@ -246,7 +246,7 @@ export function AgentChatComposer({
 
   const searchEntities = useCallback<ChatComposerEntitySearch>(async (query, type, signal) => {
     const normalizedQuery = query.trim();
-    const [understandings, contexts, domains, canvases] = await Promise.all([
+    const [understandings, contexts, domains, canvases, conversations] = await Promise.all([
       normalizedQuery
         ? (runPromise(
             rpc.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
@@ -258,11 +258,22 @@ export function AgentChatComposer({
         ? (runPromise(
             rpc.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
           ) as Promise<SearchContextResult[]>)
-        : Promise.resolve([]),
+        : (
+            runPromise(rpc.contextList({ limit: CONTEXT_LOOKUP_LIMIT })) as Promise<ContextDTO[]>
+          ).then((contexts) =>
+            contexts.map((context, rank) => ({
+              contextId: context.id,
+              understandingId: context.understandingId,
+              title: context.title,
+              snippet: context.content,
+              rank,
+            })),
+          ),
       runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/shared").Domain[]>,
-      normalizedQuery
-        ? (runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>)
-        : Promise.resolve([]),
+      runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
+      runPromise(rpc.chatListThreads()) as Promise<
+        import("@reflecta/shared").AgentSessionSummary[]
+      >,
     ]);
     if (signal.aborted) return [];
     return buildContextCandidates({
@@ -271,6 +282,7 @@ export function AgentChatComposer({
       contexts,
       domains,
       canvases,
+      conversations,
       selected: [],
       type,
     }).map((candidate) => ({

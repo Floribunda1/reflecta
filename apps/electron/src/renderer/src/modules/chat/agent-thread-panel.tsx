@@ -504,6 +504,7 @@ function AgentThreadTitle({
 
   return (
     <Input
+      data-no-drag
       data-testid="agent-thread-title"
       value={value}
       title={displayTitle}
@@ -515,7 +516,7 @@ function AgentThreadTitle({
         if (event.key === "Escape") setDraft(null);
       }}
       // DESIGN: EditableText 语义——线程标题重命名，内联编辑聚焦不显示输入框外壳（focus-visible:ring-0 有意关闭）。
-      className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] field-sizing-content border-0 dark:bg-transparent bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+      className="h-8 w-auto min-w-0 max-w-full field-sizing-content border-0 dark:bg-transparent bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
       placeholder="新对话"
     />
   );

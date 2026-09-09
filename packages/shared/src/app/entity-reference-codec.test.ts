@@ -14,9 +14,11 @@ describe("entity reference codec", () => {
     expect(formatEntityReference({ type: "context", id: "c_1" })).toBe("[[c:c_1]]");
     expect(formatEntityReference({ type: "domain", id: "d_1" })).toBe("[[d:d_1]]");
     expect(formatEntityReference({ type: "canvas", id: "cv_1" })).toBe("[[cv:cv_1]]");
+    expect(formatEntityReference({ type: "conversation", id: "s_1" })).toBe("[[s:s_1]]");
     expect(parseEntityReference("[[uv:not-a-canvas]]")).toBeNull();
     expect(parseEntityReference("[[u:u_1]]")).toEqual({ type: "understanding", id: "u_1" });
     expect(parseEntityReference("[[cv:canvas-1]]")).toEqual({ type: "canvas", id: "canvas-1" });
+    expect(parseEntityReference("[[s:s_1]]")).toEqual({ type: "conversation", id: "s_1" });
   });
 
   test("scans hits with source positions in order", () => {
@@ -46,9 +48,10 @@ describe("entity reference codec", () => {
     ]);
   });
 
-  test("collects canvas references too (single syntax, four prefixes)", () => {
-    expect(collectEntityReferences("画布 [[cv:canvas-1]] 和 [[u:u_1]]")).toEqual([
+  test("collects canvas references too (single syntax, five prefixes)", () => {
+    expect(collectEntityReferences("画布 [[cv:canvas-1]]、对话 [[s:s_1]] 和 [[u:u_1]]")).toEqual([
       { type: "canvas", id: "canvas-1" },
+      { type: "conversation", id: "s_1" },
       { type: "understanding", id: "u_1" },
     ]);
   });
@@ -108,9 +111,9 @@ describe("entity reference codec", () => {
 
   test("normalizes escaped markers for all prefixes", () => {
     // 输入为双重转义 `\[\[u:id]]`（markdown 源能原样显示的转义形态，历史/导入数据）
-    expect(normalizeEntityReferenceEscapes("见 \\[\\[u:u_1]]、\\[\\[cv:cv_1]]")).toBe(
-      "见 [[u:u_1]]、[[cv:cv_1]]",
-    );
+    expect(
+      normalizeEntityReferenceEscapes("见 \\[\\[u:u_1]]、\\[\\[cv:cv_1]]、\\[\\[s:s_1]]"),
+    ).toBe("见 [[u:u_1]]、[[cv:cv_1]]、[[s:s_1]]");
     expect(normalizeEntityReferenceEscapes(undefined)).toBeUndefined();
   });
 });

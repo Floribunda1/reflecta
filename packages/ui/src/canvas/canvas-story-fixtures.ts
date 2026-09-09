@@ -539,7 +539,7 @@ export const edgeRoutingDocument = edgeGallery([
   {
     id: "edge-orthogonal",
     label: "正交",
-    pathConfig: orthogonalEdgePath("right", "left"),
+    pathConfig: orthogonalEdgePath(),
   },
 ]);
 

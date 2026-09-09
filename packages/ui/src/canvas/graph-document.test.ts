@@ -251,18 +251,14 @@ describe("graph-document toX6Cells", () => {
     };
     expect(straight.connector?.name).toBe("normal");
     expect(straight.router).toBeUndefined();
-    const orth = mk(orthogonalEdgePath("left", "left")) as {
+    const orth = mk(orthogonalEdgePath()) as {
       connector?: { name?: string };
       router?: { name?: string; args?: Record<string, unknown> };
     };
     expect(orth.connector?.name).toBe("rounded");
     expect(orth.router).toEqual({
-      name: "manhattan",
-      args: {
-        startDirections: ["left"],
-        endDirections: ["left"],
-        padding: 16,
-      },
+      name: "reflecta-right-angle",
+      args: { margin: 24 },
     });
   });
 

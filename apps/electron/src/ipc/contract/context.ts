@@ -6,6 +6,7 @@ import {
   CreateContextInput,
   UpdateContextInput,
   TrashedContextDTO,
+  SearchOptions,
 } from "@reflecta/shared";
 
 export class ContextListError extends S.TaggedError<ContextListError>()("ContextListError", {
@@ -16,6 +17,12 @@ export class ContextListError extends S.TaggedError<ContextListError>()("Context
 export const ContextListByUnderstanding = rpc(
   "context.listContextsByUnderstanding",
   S.Struct({ understandingId: S.String }),
+  S.Array(ContextDTO),
+  ContextListError,
+);
+export const ContextList = rpc(
+  "context.listContexts",
+  S.Struct({ options: S.optional(SearchOptions) }),
   S.Array(ContextDTO),
   ContextListError,
 );

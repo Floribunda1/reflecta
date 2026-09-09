@@ -160,6 +160,22 @@ describe("scanLandedArtifacts", () => {
     expect(artifacts).toEqual([]);
   });
 
+  test("skips completed delete outputs", () => {
+    const artifacts = scanLandedArtifacts([
+      message("assistant-1", [
+        toolBlock({
+          toolName: "understanding_delete",
+          output: { resultRefType: "understanding", resultRefId: "u-1" },
+        }),
+        approvalBlock({
+          toolName: "canvas_delete",
+          output: { resultRefType: "canvas", resultRefId: "canvas-1" },
+        }),
+      ]),
+    ]);
+    expect(artifacts).toEqual([]);
+  });
+
   test("falls back to 未命名 when neither output nor payload carries a title", () => {
     const artifacts = scanLandedArtifacts([
       message("assistant-1", [

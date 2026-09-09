@@ -172,6 +172,7 @@ const ENTITY_TAB_ORDER: readonly ChatEntityTypeFilter[] = [
   "context",
   "domain",
   "canvas",
+  "conversation",
 ];
 
 function nextEntityTypeFilter(current: ChatEntityTypeFilter, step: -1 | 1): ChatEntityTypeFilter {
