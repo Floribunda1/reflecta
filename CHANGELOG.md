@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.6 - 2026-09-09
+
+- **Chat: mention conversations** — a new `conversation` entity type with a wiki-link codec, so you can `@`-reference past conversations in the composer and open them from chat messages. Conversation-to-markdown rendering is shared between export and agent reads (with truncation), and a new read-only `session_read` agent tool feeds a conversation's visible messages to the agent; message references carry turn ranges and open with an activity surface instead of plain text links. Implementation plan in `docs/iterations/v2.0.6/`.
+- Canvas: orthogonal edge routing now respects connection endpoints (ports), keeps collision clearance on both ends, and can restrict connections to ports; switching canvases restores the previous viewport. Ports are separated from resize handles and empty mention queries load all canvases.
+- Chat fixes: deleted detail panels stay closable, delete operations are excluded from artifact history, canvas proposals no longer re-render on unrelated token updates, and the proposal reject control is a clean one-line input with proper vertical alignment.
+- UI: conversation titles and chat toolbars fill available space, title inputs size to content, the title bar drag region is preserved, and chat/canvas title rows no longer overlap their actions.
+- Agent: tagged `not-found` errors surface as structured citations, and canvas entity references are cited as `cv` instead of losing their type.
+- Chore: idempotent `scripts/setup-worktree.sh` for reproducible git worktree bootstrap.
+
 ## 2.0.5 - 2026-08-29
 
 - Chat tool failures now render as a shared full-width alert (title `调用{tool}失败` + one-line ellipsized reason) instead of a black-box error dump; the reason expands on click and the chevron lives in the alert's top-right action slot. Image generation uses the same surface. Canvas view failures in particular show one line of user-facing copy, and the tool now throws that short error so stored history and the model never receive the raw changes JSON.
