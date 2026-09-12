@@ -312,6 +312,41 @@ describe("Electron AI config", () => {
     expect(models.some((model) => model.id === "future-model-x")).toBe(false);
   });
 
+  test("clamps reasoning levels using remote catalog models", async () => {
+    const config = await import("./config");
+    const storePath = path.join(config.getAppConfigDir(), "pi-models", "models-store.json");
+    fs.mkdirSync(path.dirname(storePath), { recursive: true });
+    fs.writeFileSync(
+      storePath,
+      JSON.stringify({
+        deepseek: {
+          models: [
+            {
+              id: "deepseek-v4.1-flash",
+              name: "DeepSeek V4.1 Flash",
+              reasoning: true,
+              thinkingLevelMap: {
+                minimal: null,
+                low: "low",
+                medium: null,
+                high: "high",
+                max: "max",
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const ai = config.normalizeAiConfig({
+      providers: [{ id: "deepseek", apiKey: "test-key", enabledModelIds: ["deepseek-v4.1-flash"] }],
+      activeAgentModel: { providerId: "deepseek", modelId: "deepseek-v4.1-flash" },
+      activeAgentReasoningLevel: "high",
+    });
+
+    expect(config.getActiveAgentReasoningLevel(ai)).toBe("high");
+  });
+
   test("lists only enabled models with pi-ai names and reasoning levels", async () => {
     const config = await import("./config");
     const ai = config.normalizeAiConfig({

@@ -427,9 +427,17 @@ export function clampAiReasoningLevel(
   level: AiReasoningLevel,
 ): AiReasoningLevel {
   const definition = getAiProviderDefinition(selection.providerId);
-  const model = (getModels as (provider: string) => ReturnType<typeof getModels>)(
-    definition.piProviderId,
-  ).find((item) => item.id === selection.modelId);
+  const dynamicModel = readDynamicModelOverrides()[definition.piProviderId]?.find(
+    (item) =>
+      typeof item === "object" &&
+      item !== null &&
+      (item as { id?: unknown }).id === selection.modelId,
+  );
+  const model =
+    (dynamicModel as Model<Api> | undefined) ??
+    (getModels as (provider: string) => ReturnType<typeof getModels>)(definition.piProviderId).find(
+      (item) => item.id === selection.modelId,
+    );
   return model ? clampThinkingLevel(model, level) : "off";
 }
 
