@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.7 - 2026-09-12
+
+- Fixed reasoning level selection for models loaded from pi's remote catalog; remote-only models no longer reset the thinking level to `off`.
+
 ## 2.0.6 - 2026-09-09
 
 - **Chat: mention conversations** — a new `conversation` entity type with a wiki-link codec, so you can `@`-reference past conversations in the composer and open them from chat messages. Conversation-to-markdown rendering is shared between export and agent reads (with truncation), and a new read-only `session_read` agent tool feeds a conversation's visible messages to the agent; message references carry turn ranges and open with an activity surface instead of plain text links. Implementation plan in `docs/iterations/v2.0.6/`.
