@@ -7,6 +7,13 @@ export {
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
 export { CanvasPortalHost } from "./canvas-portal-host";
 export { ReadOnlyCanvasCard, type ReadOnlyCanvasCardProps } from "./readonly-canvas-card";
+export {
+  CANVAS_CARD_COLLAPSE,
+  COLLAPSED_CARD_HEIGHT_FALLBACK,
+  PRESENT_CARD_COLLAPSE,
+  READONLY_CARD_COLLAPSE,
+  type CanvasCardCollapse,
+} from "./card-collapse";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
 export {
   CanvasUnderstandingCard,

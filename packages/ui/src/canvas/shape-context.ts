@@ -38,6 +38,12 @@ export type CanvasShapeData = {
   understandingRefs: ReadonlyMap<string, CanvasUnderstandingRefView>;
   /** 引用画布（画布引用卡展示目标标题；目标被删 → 占位） */
   referencedCanvases: ReadonlyMap<string, CanvasReferencedCanvasView>;
+  /** 已折叠的理解卡 id：状态与布局由画布引擎持有，卡片只据它表达 */
+  collapsedIds?: ReadonlySet<string>;
+  /** 卡片请求切换折叠（点标题行按钮 / 键盘触发） */
+  onToggleCollapse?: (elementId: string) => void;
+  /** 折叠卡量到标题行实际高度后回报：画布据此改节点尺寸并避让邻居 */
+  onCollapsedHeightChange?: (elementId: string, height: number) => void;
   /** 画布引用卡点击跳转（由 workspace 注入 navigateToCanvas） */
   onCanvasRefClick?: (canvasId: string) => void;
   onCellAction?: (action: CanvasCellAction) => void;

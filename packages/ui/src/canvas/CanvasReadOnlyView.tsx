@@ -4,6 +4,7 @@ import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import type { CanvasDocument } from "@reflecta/shared";
 import { EMPTY_CANVAS_SHAPE_DATA, type CanvasShapeData } from "./shape-context";
+import type { CanvasCardCollapse } from "./card-collapse";
 
 /**
  * 只读画布渲染器（F1 三用组件）：
@@ -17,6 +18,8 @@ export type CanvasReadOnlyViewProps = {
   shapeData?: CanvasShapeData;
   /** Agent 只读 Modal 需要放大 / 缩小 / 适应视图；缩略预览不要。 */
   showZoomControls?: boolean;
+  /** 理解卡折叠入口（默认值 / 记忆维度）；不传按只读默认处理。 */
+  cardCollapse?: CanvasCardCollapse;
   /** 全屏查看（focus 模式）：提供后工具栏出现全屏切换钮，进入时自动适应视图。 */
   fullscreen?: boolean;
   onFullscreenChange?: (fullscreen: boolean) => void;
@@ -28,6 +31,7 @@ export function CanvasReadOnlyView({
   document,
   shapeData = EMPTY_CANVAS_SHAPE_DATA,
   showZoomControls = false,
+  cardCollapse,
   fullscreen = false,
   onFullscreenChange,
   className,
@@ -56,6 +60,7 @@ export function CanvasReadOnlyView({
         readonly
         document={document}
         shapeData={shapeData}
+        cardCollapse={cardCollapse}
         className={className}
         style={style}
         testId="canvas-readonly-graph"
@@ -69,6 +74,7 @@ export function CanvasReadOnlyView({
         readonly
         document={document}
         shapeData={shapeData}
+        cardCollapse={cardCollapse}
         className="h-full min-h-0 w-full"
         testId="canvas-readonly-graph"
       />

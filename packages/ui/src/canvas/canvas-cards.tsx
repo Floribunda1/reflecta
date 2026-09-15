@@ -1,5 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useLatest } from "ahooks";
 import {
+  ChevronDown,
+  ChevronRight,
   FileText,
   GitBranch,
   Link2,
@@ -162,7 +165,32 @@ export type CanvasUnderstandingCardProps = {
   onRemove?: () => void;
   onColorChange?: (color?: string) => void;
   onOpenDetail?: () => void;
+  /** 折叠态：只保留完整标题与展开按钮，正文隐藏（由画布层持有状态，卡片只表达）。 */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  /** 折叠时回报标题行实际高度：画布据此改节点尺寸并避让邻居。 */
+  onCollapsedHeightChange?: (height: number) => void;
 };
+
+/** 卡片根边框（上下各 1px）：节点尺寸含边框，量到的标题行高度需补上。 */
+const CARD_BORDER_HEIGHT = 2;
+
+/** X6 从画布容器的 mousedown 起拖节点：卡片内控件用原生监听截住，点按钮不会带动卡片。 */
+function useStopNodeDrag<T extends HTMLElement>(enabled: boolean) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!enabled || !element) return;
+    const stop = (event: Event) => event.stopPropagation();
+    element.addEventListener("mousedown", stop);
+    element.addEventListener("touchstart", stop);
+    return () => {
+      element.removeEventListener("mousedown", stop);
+      element.removeEventListener("touchstart", stop);
+    };
+  }, [enabled]);
+  return ref;
+}
 
 /** 理解卡：标题 + Markdown 正文；引用删除后显示占位。 */
 export function CanvasUnderstandingCard({
@@ -182,14 +210,31 @@ export function CanvasUnderstandingCard({
   onRemove,
   onColorChange,
   onOpenDetail,
+  collapsed = false,
+  onToggleCollapse,
+  onCollapsedHeightChange,
 }: CanvasUnderstandingCardProps) {
   const RenderMarkdown = renderMarkdown ?? MarkdownPreview;
+  const headerRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useStopNodeDrag<HTMLButtonElement>(Boolean(onToggleCollapse));
+  const reportHeight = useLatest(onCollapsedHeightChange);
+  // 折叠态下标题行高度就是卡片的完整内容高度：量它（而不是估它）保证长标题折叠后仍完整可见。
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!collapsed || !header) return;
+    const report = () =>
+      reportHeight.current?.(header.getBoundingClientRect().height + CARD_BORDER_HEIGHT);
+    const observer = new ResizeObserver(report);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [collapsed, reportHeight]);
   return (
     <div
       data-testid="canvas-understanding-card"
       data-node-id={id}
       data-understanding-id={understandingId}
       data-canvas-selected={selected ? "true" : undefined}
+      data-collapsed={String(collapsed)}
       className={cn(CARD, nodeStateClass(selected, color))}
       style={nodeColorStyle(color)}
       onDoubleClick={readonly ? undefined : onOpenDetail}
@@ -209,23 +254,48 @@ export function CanvasUnderstandingCard({
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-1.5 border-b px-2.5 py-1.5">
+          <div ref={headerRef} className="flex items-center gap-1.5 border-b px-2.5 py-1.5">
             <FileText size={12} className="shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-xs font-medium">
+            <span
+              data-testid="canvas-understanding-title"
+              className={cn(
+                "min-w-0 flex-1 text-xs font-medium",
+                // 折叠态标题必须完整可见（可换行），展开态为省空间折成一行
+                collapsed ? "break-words whitespace-normal" : "truncate",
+              )}
+            >
               {title ?? "未命名理解"}
             </span>
+            {onToggleCollapse ? (
+              <Button
+                ref={toggleRef}
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className="nodrag nopan shrink-0"
+                data-testid="canvas-understanding-collapse"
+                aria-expanded={!collapsed}
+                aria-label={collapsed ? "展开理解详情" : "收起理解详情"}
+                title={collapsed ? "展开理解详情" : "收起理解详情"}
+                onClick={onToggleCollapse}
+              >
+                {collapsed ? <ChevronRight /> : <ChevronDown />}
+              </Button>
+            ) : null}
           </div>
-          <div className="canvas-card-scroll nowheel min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
-            {loading ? (
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-4/5" />
-                <Skeleton className="h-3 w-3/5" />
-              </div>
-            ) : (
-              <RenderMarkdown value={body} zoomImages={false} onWikiLinkOpen={onWikiLinkOpen} />
-            )}
-          </div>
+          {collapsed ? null : (
+            <div className="canvas-card-scroll nowheel min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
+              {loading ? (
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-3/5" />
+                </div>
+              ) : (
+                <RenderMarkdown value={body} zoomImages={false} onWikiLinkOpen={onWikiLinkOpen} />
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

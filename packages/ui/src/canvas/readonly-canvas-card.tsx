@@ -10,6 +10,7 @@ import type {
   CanvasShapeData,
   CanvasUnderstandingRefView,
 } from "./shape-context";
+import type { CanvasCardCollapse } from "./card-collapse";
 
 // 重型 X6 只读图 lazy 引入：单测跑在 ESM 环境，X6 CJS lib 载入会炸；
 // 且只在实际渲染时才需要 X6。Suspense fallback 作为「好看的加载」占位。
@@ -190,6 +191,8 @@ export type ReadOnlyCanvasCardProps = {
   onWikiLinkOpen?: (reference: ChatEntityReference) => void;
   /** 理解卡正文的 Markdown 渲染：renderer 传入解析版组件（默认不解析 [[u:id]]）。 */
   renderMarkdown?: MarkdownRenderer;
+  /** 理解卡折叠入口（默认值 / 记忆维度）；不传按只读默认处理。 */
+  cardCollapse?: CanvasCardCollapse;
   /** false → 折叠占位，不挂载 X6（避免在 0 / 裁剪尺寸里初始化图的闪烁与损坏）。 */
   mounted?: boolean;
   className?: string;
@@ -208,6 +211,7 @@ export function ReadOnlyCanvasCard({
   onCanvasRefClick,
   onWikiLinkOpen,
   renderMarkdown,
+  cardCollapse,
   mounted = true,
   className,
 }: ReadOnlyCanvasCardProps) {
@@ -246,6 +250,7 @@ export function ReadOnlyCanvasCard({
       <CanvasReadOnlyView
         document={document}
         shapeData={shapeData}
+        cardCollapse={cardCollapse}
         showZoomControls
         fullscreen={fullscreen}
         onFullscreenChange={setFullscreen}
