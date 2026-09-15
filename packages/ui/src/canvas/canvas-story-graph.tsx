@@ -5,6 +5,7 @@ import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import { typicalShapeData, withUniqueCanvasIds } from "./canvas-story-fixtures";
 import type { CanvasDocument } from "@reflecta/shared";
+import type { CanvasCardCollapse } from "./card-collapse";
 import type { CanvasShapeData } from "./shape-context";
 
 /**
@@ -60,12 +61,14 @@ export function InteractiveGraph({
   document,
   readonly = false,
   shapeData = typicalShapeData,
+  cardCollapse,
   height,
   hint,
 }: {
   document: CanvasDocument;
   readonly?: boolean;
   shapeData?: CanvasShapeData;
+  cardCollapse?: CanvasCardCollapse;
   height?: string;
   hint?: string;
 }) {
@@ -93,6 +96,7 @@ export function InteractiveGraph({
           document={uniqueDocument}
           readonly={readonly}
           viewportReady
+          cardCollapse={cardCollapse}
           shapeData={liveShapeData}
           onSelectionChange={onSelectionChange}
           className="absolute inset-0"

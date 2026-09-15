@@ -4,11 +4,13 @@ import { CanvasGraph } from "./CanvasGraph";
 import { InteractiveGraph, StoryCaseSwitch } from "./canvas-story-graph";
 import {
   canvasRefCardsDocument,
+  collapseCardsDocument,
   groupCardsDocument,
   textCardsDocument,
   typicalCanvasDocument,
   understandingCardsDocument,
 } from "./canvas-story-fixtures";
+import { PRESENT_CARD_COLLAPSE } from "./card-collapse";
 
 function CanvasCardsShowcase() {
   return (
@@ -23,6 +25,19 @@ function CanvasCardsShowcase() {
             description:
               "从左到右：典型正文、无标题、引用已删除；下一行是长标题滚动和着色。单击选中后出现操作条。",
             content: <InteractiveGraph document={understandingCardsDocument} height="h-[560px]" />,
+          },
+          {
+            title: "折叠卡",
+            description:
+              "canvas_present 入口的默认展示：只留完整标题与展开按钮，长标题换行而不截断。点按钮可展开 / 收起，展开上方卡片时下方卡片自动下推避让。",
+            content: (
+              <InteractiveGraph
+                document={collapseCardsDocument}
+                cardCollapse={PRESENT_CARD_COLLAPSE}
+                height="h-[600px]"
+                hint="默认全部折叠；点卡片标题行的箭头展开，被压住的邻居会向下让位。"
+              />
+            ),
           },
           {
             title: "文本卡",

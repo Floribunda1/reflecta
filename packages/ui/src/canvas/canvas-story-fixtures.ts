@@ -482,6 +482,25 @@ export const understandingCardsDocument: CanvasDocument = {
   edges: [],
 };
 
+/** 折叠演示：两张上下紧邻的理解卡（间距按折叠后的高度留），展开上方卡片时下方卡片被下推避让。 */
+export const collapseCardsDocument: CanvasDocument = {
+  elements: [
+    storyUnderstandingElement("card-c-top", irrigationUnderstanding.id, {
+      x: 40,
+      y: 40,
+      width: 340,
+      height: 480,
+    }),
+    storyUnderstandingElement("card-c-below", longUnderstanding.id, {
+      x: 40,
+      y: 90,
+      width: 340,
+      height: 220,
+    }),
+  ],
+  edges: [],
+};
+
 export const textCardsDocument: CanvasDocument = {
   elements: [
     storyTextElement("card-t-preview", "主管压力在换班后回落到正常区间。", { x: 32, y: 32 }),
