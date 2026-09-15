@@ -41,6 +41,16 @@ export async function nodeGeometry(page: Page, id: string) {
   }, id);
 }
 
+/** 连线两端连接的节点（模型层：用于断言重排 / 避让后连接关系不变）。 */
+export async function edgeTerminals(page: Page, edgeId: string) {
+  return page.evaluate((id) => {
+    const graph = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+    const edge = graph?.getCellById(id);
+    if (!edge?.isEdge()) return null;
+    return { source: edge.getSourceCellId(), target: edge.getTargetCellId() };
+  }, edgeId);
+}
+
 /** X6 原生 port magnet 的屏幕中心。 */
 export async function portCenter(page: Page, nodeId: string, portId: string) {
   return page.evaluate(

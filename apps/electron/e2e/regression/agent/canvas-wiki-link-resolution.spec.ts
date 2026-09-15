@@ -55,6 +55,8 @@ test("chat 里 canvas-view 的 wiki link 点击打开右侧 inspector（与正�
     await openThread(page, "画布双链");
     const view = page.getByTestId("agent-canvas-view");
     await expect(view).toBeVisible();
+    // canvas_present 首次展示默认折叠：正文里的双链要先展开卡片
+    await view.getByTestId("canvas-understanding-collapse").first().click();
     await expect(
       view.locator('[data-testid="canvas-understanding-card"] a[data-wiki-link="u-target"]'),
     ).toHaveText(/目标理解/, { timeout: 10_000 });

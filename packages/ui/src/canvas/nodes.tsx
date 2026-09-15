@@ -67,9 +67,14 @@ function UnderstandingShape({ node, graph }: CardProps) {
     onCellAction,
     renderMarkdown,
     onWikiLinkOpen,
+    collapsedIds,
+    onToggleCollapse,
+    onCollapsedHeightChange,
   } = shapeData;
   if (element.kind !== "understanding") return null;
   const ref = element.understandingId ? understandingRefs.get(element.understandingId) : undefined;
+  // 已删除占位卡没有可折叠的详情：与画布层的折叠状态保持同一判定。
+  const collapsed = !ref?.deleted && (collapsedIds?.has(element.id) ?? false);
   return (
     <CanvasUnderstandingCard
       id={element.id}
@@ -92,6 +97,11 @@ function UnderstandingShape({ node, graph }: CardProps) {
       onOpenDetail={() => {
         if (!readonly && element.understandingId) onElementEdit?.(element);
       }}
+      collapsed={collapsed}
+      onToggleCollapse={ref?.deleted ? undefined : () => onToggleCollapse?.(element.id)}
+      onCollapsedHeightChange={
+        ref?.deleted ? undefined : (height) => onCollapsedHeightChange?.(element.id, height)
+      }
     />
   );
 }

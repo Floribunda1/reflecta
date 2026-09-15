@@ -3,6 +3,7 @@ import { isEqual } from "lodash-es";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/card";
 import { Skeleton } from "../../components/skeleton";
 import { ReadOnlyCanvasCard, ReadOnlyCanvasSkeleton } from "../../canvas/readonly-canvas-card";
+import { PRESENT_CARD_COLLAPSE } from "../../canvas/card-collapse";
 import type { ChatEntityReference, MarkdownRenderer } from "../entity";
 import type { AgentCanvasViewBlock } from "./types";
 
@@ -49,6 +50,7 @@ export const AgentCanvasView = memo(
               understandingTitles={block.understandingTitles}
               renderMarkdown={renderMarkdown}
               onWikiLinkOpen={onWikiLinkOpen}
+              cardCollapse={PRESENT_CARD_COLLAPSE}
               className="h-96"
             />
           )}

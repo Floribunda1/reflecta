@@ -65,6 +65,15 @@ import { EdgeOverlay } from "./EdgeOverlay";
 import { trackpadPanZoomPlugin } from "./trackpad-pan-zoom";
 import { attachCanvasBridge, createCanvasBridge, detachCanvasBridge } from "./canvas-bridge";
 import { EMPTY_CANVAS_SHAPE_DATA, type CanvasShapeData } from "./shape-context";
+import {
+  planCollapseSizes,
+  planPushDown,
+  readCardExpanded,
+  resolveCardCollapse,
+  withExpandedHeights,
+  writeCardExpanded,
+  type CanvasCardCollapse,
+} from "./card-collapse";
 
 /**
  * X6 画布封装（React Flow → X6 迁移）。
@@ -134,6 +143,8 @@ export type CanvasGraphProps = {
   viewport?: CanvasViewport | null;
   viewportReady?: boolean;
   shapeData?: CanvasShapeData;
+  /** 理解卡折叠入口：scope 隔离各入口的记忆，defaultExpanded 是该入口首次展示的默认值。 */
+  cardCollapse?: CanvasCardCollapse;
   onDocumentChange?: (document: CanvasDocument) => void;
   onViewportChange?: (viewport: CanvasViewport) => void;
   onSelectionChange?: (cellIds: string[]) => void;
@@ -177,6 +188,7 @@ export const CanvasGraph = React.memo(
       viewport,
       viewportReady = true,
       shapeData = EMPTY_CANVAS_SHAPE_DATA,
+      cardCollapse,
       canvasId = "",
       onDocumentChange,
       onViewportChange,
@@ -210,6 +222,20 @@ export const CanvasGraph = React.memo(
       y: number;
       target: CanvasContextMenuTarget;
     } | null>(null);
+    const collapseEntry = useMemo(
+      () => resolveCardCollapse(cardCollapse, readonly),
+      [cardCollapse, readonly],
+    );
+    // 折叠态：用户本次操作 > 已保存记忆 > 入口默认值（记忆按入口 + 卡片隔离）。
+    const [collapseOverrides, setCollapseOverrides] = useState<ReadonlyMap<string, boolean>>(
+      () => new Map(),
+    );
+    // 折叠卡的展开高度：折叠只是展示态，文档高度语义恒为展开高度（回写时还原）。
+    const expandedHeightsRef = useRef(new Map<string, number>());
+    // 卡片量到的折叠高度（标题行实际高度）：节点尺寸以此为准，而不是估。
+    const [collapsedHeights, setCollapsedHeights] = useState<ReadonlyMap<string, number>>(
+      () => new Map(),
+    );
     // 外部 document 换新实例 → 整图重建 → 旧选区 id 已失效。渲染期清空选区
     // （React 官方「调整 state 以响应 prop 变化」写法，见 you-might-not-need-an-effect），
     // 避免在 document 变更 effect 里 setState 让用户先看到一帧旧选区。
@@ -220,11 +246,55 @@ export const CanvasGraph = React.memo(
       setSelectedNodeIds([]);
     }
 
+    const collapseOverridesRef = useLatest(collapseOverrides);
+    // 已删除的占位卡没有可折叠的详情（与卡片渲染同一判定）。
+    const collapsedIds = useMemo(() => {
+      const ids = new Set<string>();
+      for (const element of document?.elements ?? []) {
+        if (element.kind !== "understanding") continue;
+        const deleted =
+          element.understandingId != null &&
+          (shapeData.understandingRefs.get(element.understandingId)?.deleted ?? false);
+        if (deleted) continue;
+        const expanded =
+          collapseOverrides.get(element.id) ??
+          readCardExpanded(collapseEntry.scope, element.id) ??
+          collapseEntry.defaultExpanded;
+        if (!expanded) ids.add(element.id);
+      }
+      return ids;
+    }, [collapseEntry, collapseOverrides, document, shapeData.understandingRefs]);
+
+    /** 切换一张理解卡的展开 / 折叠：记忆落盘，节点尺寸由下面的同步 effect 落地。 */
+    const toggleCardCollapse = useCallback(
+      (elementId: string) => {
+        const expanded =
+          collapseOverridesRef.current.get(elementId) ??
+          readCardExpanded(collapseEntry.scope, elementId) ??
+          collapseEntry.defaultExpanded;
+        writeCardExpanded(collapseEntry.scope, elementId, !expanded);
+        setCollapseOverrides((previous) => new Map(previous).set(elementId, !expanded));
+      },
+      [collapseEntry, collapseOverridesRef],
+    );
+
+    /** 卡片量到的折叠高度：节点尺寸同步 effect 会把它应用到 X6。 */
+    const handleCollapsedHeightChange = useCallback((elementId: string, height: number) => {
+      setCollapsedHeights((previous) => {
+        const current = previous.get(elementId);
+        if (current !== undefined && Math.abs(current - height) < 1) return previous;
+        return new Map(previous).set(elementId, height);
+      });
+    }, []);
+
     const emitDocument = useCallback(() => {
       if (readonlyRef.current || suppressEmitRef.current) return;
       const graph = graphRef.current;
       if (!graph) return;
-      onDocumentChangeRef.current?.(graphToDocument(graph));
+      // 折叠高度只是展示态：回写时还原成展开高度（任何一次拖拽都不被折叠高度污染）。
+      onDocumentChangeRef.current?.(
+        withExpandedHeights(graphToDocument(graph), expandedHeightsRef.current),
+      );
     }, [onDocumentChangeRef, readonlyRef]);
 
     const scheduleEmit = useCallback(() => {
@@ -267,6 +337,8 @@ export const CanvasGraph = React.memo(
         graph.removeCells(graph.getCells());
         graph.fromJSON(toX6Cells(doc));
         restoreChildLinks(graph, doc);
+        // 新文档的节点尺寸以文档为准，旧的展开高度记忆已失效。
+        expandedHeightsRef.current.clear();
         applyViewport(graph, vp);
         suppressEmitRef.current = false;
         graph.getPlugin<History>("history")?.enable();
@@ -274,6 +346,50 @@ export const CanvasGraph = React.memo(
       },
       [applyViewport, emitDocument, readViewport],
     );
+
+    /** 展开后把被压住的邻居整体下推（只动顶层节点；组内成员随组走）。 */
+    const pushNeighbors = useCallback((graph: Graph, anchorId: string) => {
+      const anchor = graph.getCellById(anchorId);
+      if (!anchor?.isNode() || anchor.getParent()) return;
+      const boxes = graph
+        .getNodes()
+        .filter((node) => !node.getParent())
+        .map((node) => ({ id: node.id, ...node.getBBox() }));
+      for (const [id, dy] of planPushDown(boxes, anchorId)) {
+        graph.getCellById(id)?.translate(0, dy);
+      }
+    }, []);
+
+    /**
+     * 折叠状态的唯一落地点：把状态换算成 X6 节点的实际尺寸（折叠高度不写回文档），
+     * 并在展开把邻居压住时下推避让。首次加载 / 外部重载 / 用户切换都走这里。
+     */
+    useEffect(() => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const nodes = graph.getNodes().flatMap((node) => {
+        const element = (node.getData() as { element?: CanvasElementDTO } | null)?.element;
+        return element?.kind === "understanding"
+          ? [{ id: node.id, height: node.getSize().height, expandedHeight: element.height }]
+          : [];
+      });
+      const plan = planCollapseSizes(
+        nodes,
+        collapsedIds,
+        collapsedHeights,
+        expandedHeightsRef.current,
+      );
+      if (plan.resizes.length === 0) return;
+      // 尺寸与避让位移同一个 batch：一次撤销即可回到展开前的几何。
+      graph.startBatch("card-collapse");
+      for (const { id, height } of plan.resizes) {
+        const node = graph.getCellById(id);
+        if (node?.isNode()) node.resize(node.getSize().width, height);
+      }
+      // 尺寸已应用后再算避让：下推依据的是展开后的实际 bbox。
+      for (const id of plan.pushAnchors) pushNeighbors(graph, id);
+      graph.stopBatch("card-collapse");
+    }, [collapsedHeights, collapsedIds, pushNeighbors]);
 
     // 挂载：创建 Graph + 插件 + 事件订阅 + 首次加载
     // 订阅全部挂在 graph / 插件上，cleanup 里的 graph.dispose() 统一解绑全部监听；
@@ -995,8 +1111,26 @@ export const CanvasGraph = React.memo(
 
     // 每渲染把本图最新 shapeData / 写回通道发布进自家桥（卡片经 graph 取数，不靠 context）。
     const shapeDataValue = useMemo(
-      () => ({ ...shapeData, readonly, multiSelected, selectedIds, onCellAction }),
-      [shapeData, readonly, multiSelected, selectedIds, onCellAction],
+      () => ({
+        ...shapeData,
+        readonly,
+        multiSelected,
+        selectedIds,
+        onCellAction,
+        collapsedIds,
+        onToggleCollapse: toggleCardCollapse,
+        onCollapsedHeightChange: handleCollapsedHeightChange,
+      }),
+      [
+        shapeData,
+        readonly,
+        multiSelected,
+        selectedIds,
+        onCellAction,
+        collapsedIds,
+        toggleCardCollapse,
+        handleCollapsedHeightChange,
+      ],
     );
     useEffect(() => {
       canvasBridge.publish({ shapeData: shapeDataValue, updateElement: handleElementUpdate });
