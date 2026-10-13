@@ -23,3 +23,7 @@ Use the existing E2E helpers. `openCapturePage`, `openUnderstanding`, `openAgent
 ## 6. Known constraints
 
 Native dependencies must match the Electron ABI; the app's postinstall runs `electron-builder install-app-deps`. Build before launching E2E. Default Playwright projects include benchmarks; select acceptance, regression and integration explicitly for functional verification. Test cleanup removes only its generated temporary directories. AI credentials and model availability can limit live-provider coverage.
+
+Unset an inherited `ELECTRON_RUN_AS_NODE` before launching Electron, for example `env -u ELECTRON_RUN_AS_NODE bun run test:e2e:acceptance`. Never run separate Playwright invocations concurrently: their global setup/teardown share `e2e-env.json`.
+
+For CLI operations against the source Electron seed, build with `REFLECTA_CLI_BUILD_KIND=source bun run --cwd apps/cli build`. Release CLI intentionally checks migration versions and rejects older source seeds. Restore the default CLI build after source verification. The private retrieval-eval harness is gitignored; its optional checks are separate from the product workspace gates.
