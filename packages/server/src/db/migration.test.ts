@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createDBInstance, type ReflectaDb } from ".";
 import {
   compareVersions,
+  getRequiredDataVersion,
   parseAppVersion,
   parseMigrationVersion,
   performDbMigration,
@@ -40,6 +41,17 @@ function tableColumns(db: ReflectaDb, tableName: string): string[] {
 }
 
 describe("versioned migrations", () => {
+  test.each([
+    ["2.0.7", [2, 0, 0]],
+    ["2.0.0", [2, 0, 0]],
+    ["1.3.4", [1, 1, 0]],
+    ["1.3.5", [1, 3, 5]],
+    ["v2.0.7-beta.1", [2, 0, 0]],
+    ["0.9.0", undefined],
+  ])("resolves required migrations for app %s", (appVersion, expected) => {
+    expect(getRequiredDataVersion(appVersion)).toEqual(expected);
+  });
+
   test("sorts migration versions numerically", () => {
     const names = ["v1.10.0.sql", "v1.0.0.sql", "v1.2.0.sql"];
 

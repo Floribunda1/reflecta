@@ -62,6 +62,16 @@ export function compareVersions(a: Version, b: Version): number {
 /** 从 migration/code/ 加载 code migrations（按版本排序） */
 const codeMigrations: CodeMigration[] = [v100, v110, v135, v200];
 
+/** 应用版本所需的最高迁移版本；没有数据迁移的发布不推进数据版本。 */
+export function getRequiredDataVersion(appVersion: string): Version | undefined {
+  const target = parseAppVersion(appVersion);
+  return codeMigrations
+    .map(({ version }) => version)
+    .filter((version) => compareVersions(version, target) <= 0)
+    .sort(compareVersions)
+    .at(-1);
+}
+
 async function loadCodeMigrations(): Promise<Migration[]> {
   return codeMigrations.map(({ name, version, up }) => ({ name, version, up }));
 }

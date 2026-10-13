@@ -15,6 +15,8 @@ Reflecta 使用**统一的 code migration** 管理整个系统的数据版本，
 
 版本号记录在 SQLite（`_migrations` 表的最大已执行迁移），是**单一事实来源**。
 
+应用版本与数据版本不必相等。只有执行新的数据迁移才推进数据版本：例如应用已发布到 `2.0.7`，最新迁移仍为 `v2.0.0` 时，数据版本保持 `2.0.0`，已完成该迁移的数据可正常使用。
+
 ## 迁移机制：code migration
 
 迁移 = 按版本顺序的 code migration 列表，**每个版本一个迁移单元**：
@@ -66,11 +68,13 @@ CLI 与 Electron 共享同一数据目录。为避免并发迁移，**CLI 永不
 db = await createDBInstance(dbPath, { runMigrations: false });
 if (runtime.migrationPolicy === "verify") {
   verifyDataVersion(db, packageJson.version);
-  // 数据版本 < CLI 期望 → 抛错提示"请先打开 Reflecta 完成迁移"
+  // CLI 期望 = 注册表中不高于 CLI 应用版本的最高迁移版本
+  // 数据版本 < 所需迁移版本 → 抛错提示"请先打开 Reflecta 完成迁移"
 }
 ```
 
-- release CLI：`migrationPolicy = "verify"`——读数据版本（`_migrations` 最大版本），低于 CLI 期望版本时拒绝执行并提示；
+- release CLI：`migrationPolicy = "verify"`——读数据版本（`_migrations` 最大版本），通过共享的 `getRequiredDataVersion(packageJson.version)` 从迁移注册表确定所需版本；数据版本低于该迁移版本时拒绝执行并提示，不直接与应用版本比较；
+- 不为仅修改代码或依赖的发布新增空迁移，也不把迁移记录强行推进到应用版本；校验失败的连接不得缓存，source 连接不能绕过 release 校验；
 - 未初始化的数据（无迁移记录）：提示先打开 Reflecta 初始化；
 - dev（source）CLI：不校验（dev 库由 schema-push 维护）。
 

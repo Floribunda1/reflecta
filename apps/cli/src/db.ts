@@ -3,7 +3,7 @@ import {
   configureRetrievalEmbedding,
   createDBInstance,
   ensureStoreDataEnvironment,
-  parseAppVersion,
+  getRequiredDataVersion,
   readDataVersion,
   type ReflectaDb,
   type RetrievalEmbeddingConfig,
@@ -46,8 +46,8 @@ export async function initializeDb(
     appConfigDir: runtime.appConfigDir,
     contentStorageRoot: runtime.contentStorageRoot,
     storeMode: runtime.storeMode,
+    migrationPolicy: runtime.migrationPolicy,
   });
-  if (db && activeRuntimeKey === runtimeKey) return db;
 
   if (options.requiresFullStore && runtime.storeMode !== "full-store") {
     throw new Error(
@@ -55,14 +55,13 @@ export async function initializeDb(
     );
   }
 
-  dbPath = runtime.dbPath;
-  activeRuntimeKey = runtimeKey;
+  if (db && activeRuntimeKey === runtimeKey) return db;
   process.env.REFLECTA_RETRIEVAL_INDEX_PATH = runtime.retrievalIndexPath;
   configureRetrievalEmbedding(readRetrievalEmbeddingConfig(runtime.appConfigDir));
 
-  if (!fs.existsSync(dbPath)) {
+  if (!fs.existsSync(runtime.dbPath)) {
     throw new Error(
-      `Reflecta database not found at "${dbPath}". Pass --content-root/--db or run Reflecta first to initialize the database.`,
+      `Reflecta database not found at "${runtime.dbPath}". Pass --content-root/--db or run Reflecta first to initialize the database.`,
     );
   }
 
@@ -70,25 +69,33 @@ export async function initializeDb(
     fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
   ) as { version: string };
 
-  db = await createDBInstance(dbPath, {
+  const connection = await createDBInstance(runtime.dbPath, {
     appVersion: packageJson.version,
     runMigrations: false,
   });
-  if (runtime.migrationPolicy === "verify") {
-    verifyDataVersion(db, packageJson.version);
+  try {
+    if (runtime.migrationPolicy === "verify") {
+      verifyDataVersion(connection, packageJson.version);
+    }
+    if (
+      runtime.storeMode === "full-store" &&
+      !options.appConfigDir &&
+      !options.contentRoot &&
+      !options.db
+    ) {
+      ensureStoreDataEnvironment(connection, runtime.dataTarget);
+    }
+  } catch (error) {
+    connection.$client.close();
+    throw error;
   }
-  if (
-    runtime.storeMode === "full-store" &&
-    !options.appConfigDir &&
-    !options.contentRoot &&
-    !options.db
-  ) {
-    ensureStoreDataEnvironment(db, runtime.dataTarget);
-  }
+  db = connection;
+  dbPath = runtime.dbPath;
+  activeRuntimeKey = runtimeKey;
   return db;
 }
 
-/** CLI 只校验数据版本，不执行迁移（Electron 是唯一迁移执行者）。数据版本低于 CLI 期望时拒绝。 */
+/** CLI 只校验当前应用所需的最高迁移版本，Electron 是唯一迁移执行者。 */
 function verifyDataVersion(db: ReflectaDb, cliVersion: string): void {
   const dataVersion = readDataVersion(db);
   if (dataVersion === undefined) {
@@ -96,10 +103,13 @@ function verifyDataVersion(db: ReflectaDb, cliVersion: string): void {
       `数据尚未初始化（无迁移记录）。请先打开 Reflecta 完成初始化与数据迁移，再使用 CLI。`,
     );
   }
-  const expected = parseAppVersion(cliVersion);
+  const expected = getRequiredDataVersion(cliVersion);
+  if (expected === undefined) {
+    throw new Error(`CLI v${cliVersion} 没有对应的数据迁移版本。`);
+  }
   if (compareVersions(dataVersion, expected) < 0) {
     throw new Error(
-      `数据版本低于 CLI 期望：数据 v${dataVersion.join(".")} < CLI v${cliVersion}。` +
+      `数据版本低于 CLI 期望：数据 v${dataVersion.join(".")} < 所需迁移 v${expected.join(".")}（CLI v${cliVersion}）。` +
         `请先打开 Reflecta（Electron）完成数据迁移，再使用 CLI。`,
     );
   }
