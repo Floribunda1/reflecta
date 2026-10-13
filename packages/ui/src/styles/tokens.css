@@ -137,8 +137,8 @@
 @theme inline {
   /* 字体 */
   --font-heading: var(--font-sans);
-  /* Inter is imported in globals.css; keep system fonts as fallbacks for CJK glyphs. */
-  --font-sans: "Inter Variable", -apple-system, system-ui, "Segoe UI", sans-serif;
+  /* Geist is imported in globals.css; keep system fonts as fallbacks for CJK glyphs. */
+  --font-sans: "Geist Variable", -apple-system, system-ui, "Segoe UI", sans-serif;
 
   /* shadcn 接口层 */
   --color-sidebar-ring: var(--sidebar-ring);
