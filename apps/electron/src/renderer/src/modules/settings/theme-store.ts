@@ -1,5 +1,5 @@
 import * as S from "effect/Schema";
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 import { kvsRuntime, runAtom } from "@renderer/lib/atoms";
 import {
   CHROMATIC_SLOTS,

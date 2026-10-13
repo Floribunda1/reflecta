@@ -16,6 +16,11 @@ import type { AgentThreadView } from "./thread-view";
 vi.mock("@renderer/lib/effect-rpc", () => ({
   rpc: { chatSendCommand: vi.fn(() => Effect.succeed(undefined)) },
 }));
+vi.mock("@renderer/lib/effect-runtime", async () => {
+  const { Layer, ManagedRuntime } = await import("effect");
+  const AppRuntime = ManagedRuntime.make(Layer.empty);
+  return { AppRuntime, runPromise: AppRuntime.runPromise.bind(AppRuntime) };
+});
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 

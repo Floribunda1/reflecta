@@ -80,7 +80,7 @@ describe("createPiWebAccessResources", () => {
     ]);
     expect(
       loader.getExtensions().extensions.flatMap((extension) => [...extension.tools.keys()]),
-    ).toEqual(PI_WEB_ACCESS_TOOL_NAMES);
+    ).toEqual([...PI_WEB_ACCESS_TOOL_NAMES, "web_enable"]);
     expect(loader.getSkills().skills).toEqual([]);
   });
 

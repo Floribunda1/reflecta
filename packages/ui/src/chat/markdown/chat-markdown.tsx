@@ -206,7 +206,7 @@ export function ChatMarkdown({
       >
         <Streamdown
           key={`${forcedTheme ?? resolvedTheme}:${searchState?.query ?? "plain"}:${entityRenderKey}`}
-          mode={streaming ? "streaming" : "static"}
+          mode={streaming && !searchState ? "streaming" : "static"}
           animated={streaming && animateStreaming ? chatMarkdownAnimation : false}
           caret="circle"
           components={chatMarkdownComponents}

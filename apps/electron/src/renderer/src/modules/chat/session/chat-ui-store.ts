@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import * as S from "effect/Schema";
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 import { useAtomValue } from "@effect/atom-react";
 import { kvsRuntime, runAtom } from "@renderer/lib/atoms";
 import type { InspectableContextRef } from "../context/context-reference";

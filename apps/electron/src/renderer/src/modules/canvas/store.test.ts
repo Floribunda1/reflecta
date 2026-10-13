@@ -13,7 +13,7 @@ import {
   selectedCanvasIdAtom,
 } from "./store";
 import { appAtomRegistry, runAtom } from "@renderer/lib/atoms";
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 
 describe("dispatchCanvasAction", () => {
   beforeEach(() => {

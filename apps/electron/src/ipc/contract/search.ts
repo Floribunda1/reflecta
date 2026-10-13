@@ -1,6 +1,6 @@
 /** search 域契约（迁移批 Round B）。注：retrieveKnowledge 仅 agent 经 CLI bff 用，renderer 未走 IPC，删除。 */
 import * as S from "effect/Schema";
-import { rpc } from "electron-effect-rpc";
+import { Rpc } from "effect/rpc";
 import {
   UnderstandingSummaryDTO,
   SearchContextResult,
@@ -13,21 +13,18 @@ export class SearchError extends S.TaggedError<SearchError>()("SearchError", {
   code: S.Number,
 }) {}
 
-export const SearchUnderstandings = rpc(
-  "search.searchUnderstandings",
-  S.Struct({ query: S.String, options: S.optional(SearchOptions) }),
-  S.Array(UnderstandingSummaryDTO),
-  SearchError,
-);
-export const SearchContexts = rpc(
-  "search.searchContexts",
-  S.Struct({ query: S.String, options: S.optional(SearchOptions) }),
-  S.Array(SearchContextResult),
-  SearchError,
-);
-export const SearchSearch = rpc(
-  "search.search",
-  S.Struct({ query: S.String, options: S.optional(SearchOptions) }),
-  SearchResult,
-  SearchError,
-);
+export const SearchUnderstandings = Rpc.make("search.searchUnderstandings", {
+  payload: S.Struct({ query: S.String, options: S.optional(SearchOptions) }),
+  success: S.Array(UnderstandingSummaryDTO),
+  error: SearchError,
+});
+export const SearchContexts = Rpc.make("search.searchContexts", {
+  payload: S.Struct({ query: S.String, options: S.optional(SearchOptions) }),
+  success: S.Array(SearchContextResult),
+  error: SearchError,
+});
+export const SearchSearch = Rpc.make("search.search", {
+  payload: S.Struct({ query: S.String, options: S.optional(SearchOptions) }),
+  success: SearchResult,
+  error: SearchError,
+});

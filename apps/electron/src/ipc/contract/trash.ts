@@ -5,7 +5,7 @@
  * 方法形状对齐现有 @app 主进程 `TrashService`（listTrashed/restore/permanentlyDelete）。
  */
 import * as S from "effect/Schema";
-import { rpc } from "electron-effect-rpc";
+import { Rpc } from "effect/rpc";
 
 /** 回收站理解条目（对齐现有 TrashedUnderstandingDTO 形状；用宽松 Struct，额外字段忽略）。 */
 export const TrashedUnderstanding = S.Struct({
@@ -23,28 +23,25 @@ export class TrashListError extends S.TaggedError<TrashListError>()("TrashListEr
 }) {}
 
 /** 列出回收站理解；成功返回条目数组 */
-export const TrashListTrashed = rpc(
-  "trash.listTrashedUnderstandings",
-  S.Struct({}),
-  S.Array(TrashedUnderstanding),
-  TrashListError,
-);
+export const TrashListTrashed = Rpc.make("trash.listTrashedUnderstandings", {
+  payload: S.Struct({}),
+  success: S.Array(TrashedUnderstanding),
+  error: TrashListError,
+});
 
 /** 还原理解 */
-export const TrashRestore = rpc(
-  "trash.restoreUnderstanding",
-  S.Struct({ id: S.String }),
-  S.Void,
-  TrashListError,
-);
+export const TrashRestore = Rpc.make("trash.restoreUnderstanding", {
+  payload: S.Struct({ id: S.String }),
+  success: S.Void,
+  error: TrashListError,
+});
 
 /** 永久删除理解 */
-export const TrashPermanentlyDelete = rpc(
-  "trash.permanentlyDeleteUnderstanding",
-  S.Struct({ id: S.String }),
-  S.Void,
-  TrashListError,
-);
+export const TrashPermanentlyDelete = Rpc.make("trash.permanentlyDeleteUnderstanding", {
+  payload: S.Struct({ id: S.String }),
+  success: S.Void,
+  error: TrashListError,
+});
 
 /** 回收站画布条目 */
 export const TrashedCanvas = S.Struct({
@@ -55,25 +52,22 @@ export const TrashedCanvas = S.Struct({
 export type TrashedCanvas = S.Schema.Type<typeof TrashedCanvas>;
 
 /** 列出回收站画布 */
-export const TrashListTrashedCanvases = rpc(
-  "trash.listTrashedCanvases",
-  S.Struct({}),
-  S.Array(TrashedCanvas),
-  TrashListError,
-);
+export const TrashListTrashedCanvases = Rpc.make("trash.listTrashedCanvases", {
+  payload: S.Struct({}),
+  success: S.Array(TrashedCanvas),
+  error: TrashListError,
+});
 
 /** 还原画布 */
-export const TrashRestoreCanvas = rpc(
-  "trash.restoreCanvas",
-  S.Struct({ id: S.String }),
-  S.Void,
-  TrashListError,
-);
+export const TrashRestoreCanvas = Rpc.make("trash.restoreCanvas", {
+  payload: S.Struct({ id: S.String }),
+  success: S.Void,
+  error: TrashListError,
+});
 
 /** 永久删除画布 */
-export const TrashPermanentlyDeleteCanvas = rpc(
-  "trash.permanentlyDeleteCanvas",
-  S.Struct({ id: S.String }),
-  S.Void,
-  TrashListError,
-);
+export const TrashPermanentlyDeleteCanvas = Rpc.make("trash.permanentlyDeleteCanvas", {
+  payload: S.Struct({ id: S.String }),
+  success: S.Void,
+  error: TrashListError,
+});

@@ -436,7 +436,7 @@ export function clampAiReasoningLevel(
   const model =
     (dynamicModel as Model<Api> | undefined) ??
     (getModels as (provider: string) => ReturnType<typeof getModels>)(definition.piProviderId).find(
-      (item) => item.id === selection.modelId,
+      (item: Model<Api>) => item.id === selection.modelId,
     );
   return model ? clampThinkingLevel(model, level) : "off";
 }

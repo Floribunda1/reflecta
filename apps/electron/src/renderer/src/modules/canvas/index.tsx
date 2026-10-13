@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 import { useAtomValue } from "@effect/atom-react";
 import { parseCanvasEntryParams } from "@renderer/modules/shared/navigation";
 import { runAtom } from "@renderer/lib/atoms";

@@ -1,4 +1,4 @@
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 import { runAtom } from "@renderer/lib/atoms";
 import type { CanvasLibrarySortBy, CanvasLibraryTab } from "@reflecta/ui/canvas";
 

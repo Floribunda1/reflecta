@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { Schema } from "effect";
 import os from "node:os";
 import path from "node:path";
 import { getModel, type Api, type Context, type Model } from "@earendil-works/pi-ai/compat";
@@ -1831,7 +1832,9 @@ export class PiAgentHost {
         toolCallId: requested.toolCallId,
         toolName: requested.toolName,
         content: [{ type: "text", text }],
-        ...(result.outcome !== undefined ? { details: result.outcome } : {}),
+        ...(result.outcome !== undefined
+          ? { details: Schema.decodeUnknownSync(Schema.Json)(result.outcome) }
+          : {}),
         isError: Boolean(result.error),
         timestamp: Date.now(),
       });

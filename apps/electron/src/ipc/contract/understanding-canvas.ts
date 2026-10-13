@@ -1,7 +1,7 @@
 /** understandingCanvas 域契约。schema 单一真源在 @reflecta/shared；
  *  这里做 noCtx 包裹（保留判别联合类型）与 rpc 面，类型为 schema 派生（与解码一致）。 */
 import * as S from "effect/Schema";
-import { rpc } from "electron-effect-rpc";
+import { Rpc } from "effect/rpc";
 import {
   CanvasElementDTOSchema,
   CanvasEdgeDTOSchema,
@@ -44,57 +44,51 @@ export type CreateCanvasInput = S.Schema.Type<typeof CreateCanvasInputSchema>;
 export const UpdateCanvasInput = UpdateCanvasInputSchema;
 export type UpdateCanvasInput = S.Schema.Type<typeof UpdateCanvasInputSchema>;
 
-export const CanvasList = rpc(
-  "understandingCanvas.listCanvases",
-  S.Struct({}),
-  S.Array(CanvasDTO),
-  CanvasError,
-);
-export const CanvasListByUnderstanding = rpc(
+export const CanvasList = Rpc.make("understandingCanvas.listCanvases", {
+  payload: S.Struct({}),
+  success: S.Array(CanvasDTO),
+  error: CanvasError,
+});
+export const CanvasListByUnderstanding = Rpc.make(
   "understandingCanvas.listCanvasesByUnderstanding",
-  S.Struct({ understandingId: S.String }),
-  S.Array(CanvasDTO),
-  CanvasError,
+  {
+    payload: S.Struct({ understandingId: S.String }),
+    success: S.Array(CanvasDTO),
+    error: CanvasError,
+  },
 );
-export const CanvasGet = rpc(
-  "understandingCanvas.getCanvas",
-  S.Struct({ id: S.String }),
-  noCtx(S.NullOr(CanvasDetailDTO)),
-  CanvasError,
-);
-export const CanvasListByIds = rpc(
-  "understandingCanvas.listCanvasesByIds",
-  S.Struct({ ids: S.Array(S.String) }),
-  S.Array(S.NullOr(CanvasDetailDTO)),
-  CanvasError,
-);
-export const CanvasCreate = rpc(
-  "understandingCanvas.createCanvas",
-  S.Struct({ input: S.optional(CreateCanvasInput) }),
-  CanvasDTO,
-  CanvasError,
-);
-export const CanvasUpdate = rpc(
-  "understandingCanvas.updateCanvas",
-  S.Struct({ id: S.String, input: UpdateCanvasInput }),
-  S.NullOr(CanvasDTO),
-  CanvasError,
-);
-export const CanvasDelete = rpc(
-  "understandingCanvas.deleteCanvas",
-  S.Struct({ id: S.String }),
-  S.Void,
-  CanvasError,
-);
-export const CanvasUpdateViewport = rpc(
-  "understandingCanvas.updateViewport",
-  S.Struct({ canvasId: S.String, viewport: Viewport }),
-  S.Void,
-  CanvasError,
-);
-export const CanvasSave = rpc(
-  "understandingCanvas.saveCanvas",
-  noCtx(S.Struct({ canvasId: S.String, document: CanvasDocument })),
-  S.Void,
-  CanvasError,
-);
+export const CanvasGet = Rpc.make("understandingCanvas.getCanvas", {
+  payload: S.Struct({ id: S.String }),
+  success: noCtx(S.NullOr(CanvasDetailDTO)),
+  error: CanvasError,
+});
+export const CanvasListByIds = Rpc.make("understandingCanvas.listCanvasesByIds", {
+  payload: S.Struct({ ids: S.Array(S.String) }),
+  success: S.Array(S.NullOr(CanvasDetailDTO)),
+  error: CanvasError,
+});
+export const CanvasCreate = Rpc.make("understandingCanvas.createCanvas", {
+  payload: S.Struct({ input: S.optional(CreateCanvasInput) }),
+  success: CanvasDTO,
+  error: CanvasError,
+});
+export const CanvasUpdate = Rpc.make("understandingCanvas.updateCanvas", {
+  payload: S.Struct({ id: S.String, input: UpdateCanvasInput }),
+  success: S.NullOr(CanvasDTO),
+  error: CanvasError,
+});
+export const CanvasDelete = Rpc.make("understandingCanvas.deleteCanvas", {
+  payload: S.Struct({ id: S.String }),
+  success: S.Void,
+  error: CanvasError,
+});
+export const CanvasUpdateViewport = Rpc.make("understandingCanvas.updateViewport", {
+  payload: S.Struct({ canvasId: S.String, viewport: Viewport }),
+  success: S.Void,
+  error: CanvasError,
+});
+export const CanvasSave = Rpc.make("understandingCanvas.saveCanvas", {
+  payload: noCtx(S.Struct({ canvasId: S.String, document: CanvasDocument })),
+  success: S.Void,
+  error: CanvasError,
+});

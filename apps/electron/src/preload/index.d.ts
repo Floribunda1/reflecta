@@ -1,6 +1,5 @@
 import type { ElectronAPI } from "@electron-toolkit/preload";
 import type { ipcRenderer } from "electron";
-import type { IpcBridge } from "electron-effect-rpc";
 import type { AgentSessionFeedApi } from "./typings/agent-session-feed";
 
 declare global {
@@ -11,7 +10,5 @@ declare global {
       getPathForFile: (file: File) => string;
     };
     ipcRenderer: typeof ipcRenderer;
-    /** Effect IPC（electron-effect-rpc）暴露的 bridge（app 级，含各域） */
-    api: IpcBridge;
   }
 }

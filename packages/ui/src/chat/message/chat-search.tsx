@@ -101,8 +101,15 @@ export function useChatSearchState() {
 }
 
 export function createChatSearchRehypePlugin(state: ChatSearchRenderState | undefined) {
+  let firstMatchIndex: number | undefined;
   const plugin = () => (tree: HastNode) => {
-    if (state && normalizedQuery(state.query)) transformChildren(tree, state);
+    if (state && normalizedQuery(state.query)) {
+      // Streamdown may process the same Markdown again; keep its match IDs stable.
+      firstMatchIndex ??= state.nextMatchIndex;
+      const renderState = { ...state, nextMatchIndex: firstMatchIndex };
+      transformChildren(tree, renderState);
+      state.nextMatchIndex = Math.max(state.nextMatchIndex, renderState.nextMatchIndex);
+    }
   };
   Object.defineProperty(plugin, "name", { value: `rehypeChatSearch${pluginId++}` });
   return plugin;

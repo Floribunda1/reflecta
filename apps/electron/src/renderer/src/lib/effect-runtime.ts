@@ -1,16 +1,20 @@
-import { Layer, ManagedRuntime } from "effect";
+import { Context, Layer, ManagedRuntime } from "effect";
 
-/**
- * Renderer 根 Effect runtime（P4-0）。
- *
- * LLMS 约定：从应用 Layer 构建**一个** runtime，供非 Effect 侧（React hooks、
- * queryFn、事件回调）调用程序。后续服务（P4-2 并发原语等）经 `AppLayer` 的
- * `Layer.provide` 汇入后重建 `AppRuntime`。
- *
- * 生命周期：renderer 应用常驻（app-lifetime），模块级创建即可；`ManagedRuntime`
- * 资源在进程存活期间保持，无需在 SPA 卸载时 dispose。
- */
-export const AppLayer: Layer.Layer<never, never, never> = Layer.empty;
+import { RpcClient, type RpcClientError } from "effect/rpc";
+import { RendererRpcClient } from "electron-effect-rpc/renderer";
+import { AppRpcs } from "../../../ipc";
+
+/** Renderer IPC 服务与所有 query / mutation 共用一个 app-lifetime runtime。 */
+export class AppApi extends Context.Service<
+  AppApi,
+  RpcClient.FromGroup<typeof AppRpcs, RpcClientError.RpcClientError>
+>()("reflecta/AppApi") {
+  static readonly layer = Layer.effect(AppApi)(RpcClient.make(AppRpcs)).pipe(
+    Layer.provide(RendererRpcClient.layerProtocol()),
+  );
+}
+
+export const AppLayer = AppApi.layer;
 
 export const AppRuntime = ManagedRuntime.make(AppLayer);
 

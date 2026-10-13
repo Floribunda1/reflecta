@@ -2201,7 +2201,7 @@ describe("PiAgentHost", () => {
     const manager = await log.openSession(thread.id);
     const bashMarker = path.join(root, "restored-bash.txt");
     const toolName = decision.bash ? "bash" : "understanding_update";
-    const toolPayload = decision.bash
+    const toolPayload: import("@earendil-works/pi-ai").JsonObject = decision.bash
       ? { command: `printf restored > "${bashMarker}"` }
       : { understandingId: "understanding_1", after: { body: "新内容" } };
     manager.appendMessage({

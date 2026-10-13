@@ -1,6 +1,6 @@
 import * as S from "effect/Schema";
 import { Effect } from "effect";
-import { Atom, AtomRegistry } from "effect/unstable/reactivity";
+import { Atom, AtomRegistry } from "effect/reactivity";
 import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
 import { kvsRuntime, runAtom } from "@renderer/lib/atoms";
 import type { UnderstandingListSortBy } from "./dashboard/sort";
@@ -197,7 +197,7 @@ const closeAgentDock = Effect.gen(function* () {
 // createCaptureStore 用每实例 registry，实现多实例隔离） ---
 
 type RunWith = <A, E>(
-  effect: Effect.Effect<A, E, import("effect/unstable/reactivity").AtomRegistry.AtomRegistry>,
+  effect: Effect.Effect<A, E, import("effect/reactivity").AtomRegistry.AtomRegistry>,
 ) => A;
 
 function makeCaptureActions(run: RunWith): CaptureActions {

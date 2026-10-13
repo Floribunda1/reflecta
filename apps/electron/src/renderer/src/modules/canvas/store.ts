@@ -1,4 +1,4 @@
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 import * as S from "effect/Schema";
 import { kvsRuntime, runAtom } from "@renderer/lib/atoms";
 import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";

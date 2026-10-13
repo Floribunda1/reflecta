@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, test } from "vitest";
-import { Atom } from "effect/unstable/reactivity";
+import { Atom } from "effect/reactivity";
 import { runAtom } from "@renderer/lib/atoms";
 import { initialLibraryFilters, libraryFiltersAtom, patchLibraryFilters } from "./library-prefs";
 

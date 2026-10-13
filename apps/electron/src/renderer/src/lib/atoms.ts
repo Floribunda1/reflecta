@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { Atom, AtomRegistry } from "effect/unstable/reactivity";
-import { KeyValueStore } from "effect/unstable/persistence";
+import { Atom, AtomRegistry } from "effect/reactivity";
+import { KeyValueStore } from "effect/persistence";
 
 /**
  * 全 renderer 共享的 atom registry（P4-1）。

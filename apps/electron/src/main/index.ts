@@ -4,7 +4,7 @@ import { merge } from "lodash-es";
 import "./services";
 import { initializeDB } from "./db";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
-import { APP_NAME, appLog, getEffectLoggingContext, initializeLogging, ipcLog } from "./logger";
+import { APP_NAME, appLog, getEffectLoggingContext, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
@@ -12,7 +12,10 @@ import { getRuntimeArg } from "./runtime-args";
 import { startAutomaticUpdateChecks } from "./updater";
 import { readConfig, writeConfig } from "./config";
 import { guardIpcHandlers, type HandlerLike } from "./rpc-guard";
-import { appIpc } from "../ipc";
+import { AppRpcs } from "../ipc";
+import { Effect, Layer } from "effect";
+import { Rpc, RpcGroup } from "effect/rpc";
+import { MainRpcServer } from "electron-effect-rpc/main";
 // 各域 IPC handler 模块：每域一个文件（对齐 ipc/contract/ 结构），错误构造器就近声明。
 import { about } from "./ipc-handlers/about";
 import { asset } from "./ipc-handlers/asset";
@@ -31,10 +34,6 @@ import { understandingCanvas } from "./ipc-handlers/understanding-canvas";
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
 app.setName(APP_NAME);
-// electron-effect-rpc 的 IPC 编码校验引用 SharedArrayBuffer（boundary.ts 的
-// isIpcEncodedValue 快路径）；renderer 默认未启用会导致大 payload（如 saveCanvas
-// 文档）编码时抛 ReferenceError、调用被静默吞掉。必须在 ready 前开启。
-app.commandLine.appendSwitch("enable-features", "SharedArrayBuffer");
 
 const explicitUserDataDir = getRuntimeArg("reflecta-user-data-dir");
 if (explicitUserDataDir) {
@@ -197,26 +196,15 @@ app.whenReady().then(async () => {
     ipcHandlers,
     (name) => DOMAIN_IPC_ERROR[name.split(".")[0]],
   );
-  // 整个 options 过一次 as unknown as（R=never 仅存在于调用上下文，静态取不到）；
-  // 运行时不变，仅让 handlers 经 guardIpcHandlers 包裹后通过契约类型。
-  const appMain = appIpc.main({
-    ipcMain,
-    handlers: guardedHandlers,
-    context: getEffectLoggingContext(),
-    getWindows: () => BrowserWindow.getAllWindows(),
-    diagnostics: {
-      rpc: {
-        onDecodeFailure: (details: Record<string, unknown>) =>
-          ipcLog.error("ipc.request.decode-failed", details),
-        onProtocolError: (details: Record<string, unknown>) =>
-          ipcLog.error("ipc.response.encode-failed", details),
-      },
-    },
-  } as unknown as Parameters<typeof appIpc.main>[0]);
-  appMain.start();
-  app.once("before-quit", () => {
-    appMain.dispose();
-  });
+  const handlers = AppRpcs.toLayer(
+    guardedHandlers as unknown as RpcGroup.HandlersFrom<RpcGroup.Rpcs<typeof AppRpcs>>,
+  ) as Layer.Layer<Rpc.ToHandler<RpcGroup.Rpcs<typeof AppRpcs>>>;
+  const server = Effect.runFork(
+    Layer.launch(MainRpcServer.layer(AppRpcs).pipe(Layer.provide(handlers))).pipe(
+      Effect.provide(getEffectLoggingContext()),
+    ),
+  );
+  app.once("before-quit", () => server.interruptUnsafe());
 
   createWindow();
 
