@@ -39,7 +39,7 @@
     border-radius: var(--radius-sm);
     background: color-mix(in oklch, var(--card-foreground), transparent 92%);
     color: var(--reflecta-chat-foreground);
-    font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 0.9em;
     line-height: 1.45;
     padding: 0.08rem 0.32rem;

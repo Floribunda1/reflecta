@@ -6,6 +6,7 @@
   box-sizing: border-box;
   min-height: 0;
   color: var(--foreground);
+  font-family: var(--font-sans);
   --reflecta-md-body-font-size: #{$font-size-body};
 
   .milkdown {
@@ -26,9 +27,9 @@
     --crepe-color-hover: var(--accent);
     --crepe-color-selected: var(--selection);
     --crepe-color-inline-area: var(--muted);
-    --crepe-font-title: inherit;
-    --crepe-font-default: inherit;
-    --crepe-font-code: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --crepe-font-title: var(--font-sans);
+    --crepe-font-default: var(--font-sans);
+    --crepe-font-code: var(--font-mono);
     --crepe-radius-control: min(var(--radius-md), 8px);
     --crepe-radius-block: var(--radius-md);
     --crepe-shadow-1: 0 12px 28px color-mix(in oklch, var(--foreground), transparent 90%);

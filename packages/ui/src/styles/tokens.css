@@ -133,12 +133,16 @@
   --base0f: #a16946; /* 棕 */
 }
 
-/* ---------------- @theme inline：语义层暴露为 utility ---------------- */
-@theme inline {
-  /* 字体 */
-  --font-heading: var(--font-sans);
+/* 字体 token 同时供 Tailwind utility 和 Markdown 样式消费。 */
+@theme {
   /* Geist is imported in globals.css; keep system fonts as fallbacks for CJK glyphs. */
   --font-sans: "Geist Variable", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ---------------- @theme inline：语义层暴露为 utility ---------------- */
+@theme inline {
+  --font-heading: var(--font-sans);
 
   /* shadcn 接口层 */
   --color-sidebar-ring: var(--sidebar-ring);

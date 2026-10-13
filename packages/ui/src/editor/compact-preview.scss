@@ -2,6 +2,8 @@
    Flattened element styling shared by every compact preview instance; keeps
    h1–h6 as one rule instead of six identical Tailwind utilities in JSX. */
 .markdown-preview-compact {
+  font-family: var(--font-sans);
+
   h1,
   h2,
   h3,
@@ -51,7 +53,7 @@
 
   code {
     overflow-wrap: break-word;
-    font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 0.9em;
   }
 
