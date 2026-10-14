@@ -110,7 +110,7 @@ but then keeping it out of git is on you.
 
 1. **Write `plan[]` BEFORE you run anything.** Each item is
    `{ id, title, category, verifier, method, expected, requiredEvidence,
-supersedes? }`.
+   supersedes? }`.
    A planned item that never produces a case renders as **未执行** rather than
    vanishing — cut coverage in the open.
    Every item is an outcome the reader can judge — never a programmatic gate

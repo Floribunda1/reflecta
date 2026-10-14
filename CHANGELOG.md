@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.8 - 2026-10-14
+
+- Fixed CLI data compatibility checks to use the latest required migration version, so application-only patch releases can open an already migrated database; failed connections are closed and cannot bypass later verification.
+- Unified the default interface and Markdown fonts with Geist.
+- Upgraded workspace dependencies and migrated Electron IPC to the stable Effect 4 RPC APIs.
+
 ## 2.0.7 - 2026-09-12
 
 - Fixed reasoning level selection for models loaded from pi's remote catalog; remote-only models no longer reset the thinking level to `off`.

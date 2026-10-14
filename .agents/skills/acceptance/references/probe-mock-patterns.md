@@ -179,7 +179,7 @@
 ### B4. Component-local state seeded from a cached item does NOT reset when fresh data arrives
 
 - A row component that initializes local state from its item (`useState(() =>
-derive(item))`) captures the value at first render. When a persisted cache hydrates
+  derive(item))`) captures the value at first render. When a persisted cache hydrates
   the list with a stale item first, `useState` captures the stale value; when the
   fresh server response replaces the data, the row does not remount (same React key),
   so the stale local state sticks. No amount of waiting fixes it.
@@ -355,7 +355,7 @@ derive(item))`) captures the value at first render. When a persisted cache hydra
   path field) replaces the process command search path, and the next executable fails
   with `command not found`. Name the field something else (`cookie_path`); this is a
   shell failure, not an auth/browser failure. (Similarly, `zsh does NOT word-split
-unquoted vars` — stashing `S="--session x --cdp 9226"` then `agent-browser $S`
+  unquoted vars` — stashing `S="--session x --cdp 9226"` then `agent-browser $S`
   fails; inline the flags or use an array.)
 - **E4. A curl "502" from a local port with nothing listening can be a shell proxy
   env.** If `HTTP_PROXY`/`HTTPS_PROXY` are set and `NO_PROXY` does not exempt

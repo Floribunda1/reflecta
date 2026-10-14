@@ -40,10 +40,10 @@ const presentation: AgentViewPresentation = {
   ]),
   domainPath: (id) =>
     (
-      ({
+      {
         "d-engineering": "设施工程",
         "d-irrigation": "设施工程 / 灌溉控制",
-      }) as Record<string, string>
+      } as Record<string, string>
     )[id] ?? id,
 };
 

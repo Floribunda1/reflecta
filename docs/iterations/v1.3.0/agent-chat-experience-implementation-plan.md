@@ -297,7 +297,13 @@ type AgentReducedTextBlock = {
 export type AgentActionMode = "observe" | "operate" | "propose";
 
 export type AgentActionLifecycle =
-  "preparing" | "running" | "needs-user" | "completed" | "declined" | "failed" | "cancelled";
+  | "preparing"
+  | "running"
+  | "needs-user"
+  | "completed"
+  | "declined"
+  | "failed"
+  | "cancelled";
 ```
 
 Mode 根据用户后果和所有权分类：

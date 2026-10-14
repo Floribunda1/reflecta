@@ -461,7 +461,7 @@ Coverage: 2/2 criteria, all required evidence uploaded
 
 - **Engine-level capture over OS capture.** `agent-browser screenshot` / `dom` /
   `eval` run headless; `screencapture` / osascript are macOS-only. iOS: `xcrun
-simctl io` over host-window capture. Rounds land under `.acceptances/`, which
+  simctl io` over host-window capture. Rounds land under `.acceptances/`, which
   the CLI keeps out of git.
 - **Upload as you go.** Evidence keyed to its check mid-run survives a crash near
   the end.

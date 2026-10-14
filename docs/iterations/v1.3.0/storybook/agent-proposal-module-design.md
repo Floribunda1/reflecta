@@ -86,7 +86,12 @@ bash (dangerous)
 
 ```ts
 export type AgentProposalLifecycle =
-  "preview" | "pending" | "running" | "completed" | "rejected" | "failed";
+  | "preview"
+  | "pending"
+  | "running"
+  | "completed"
+  | "rejected"
+  | "failed";
 ```
 
 ### 3.1 Mutation Tool sequence

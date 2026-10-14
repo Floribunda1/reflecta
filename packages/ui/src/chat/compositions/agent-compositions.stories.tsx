@@ -37,10 +37,10 @@ const presentation: AgentViewPresentation = {
   ]),
   domainPath: (id) =>
     (
-      ({
+      {
         "d-engineering": "设施工程",
         "d-irrigation": "设施工程 / 灌溉控制",
-      }) as Record<string, string>
+      } as Record<string, string>
     )[id] ?? id,
   // canvas_view 引用理解的展示数据（实时 hydration B）：卡片全文经这里注入。
   understandingRefs: new Map<string, CanvasUnderstandingRefView>([
